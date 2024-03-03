@@ -20,7 +20,12 @@ func (item KMsgItem) Title() string {
 }
 
 func (item KMsgItem) Description() string {
-	return fmt.Sprintf("offset: %d", item.record.Offset)
+	var tombstoneInfo string
+	if len(item.record.Value) == 0 {
+		tombstoneInfo = " 🪦"
+	}
+	offsetInfo := fmt.Sprintf("offset: %d", item.record.Offset)
+	return fmt.Sprintf("%s%s", offsetInfo, tombstoneInfo)
 }
 
 func (item KMsgItem) FilterValue() string {

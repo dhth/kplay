@@ -18,7 +18,7 @@ var (
 			Bold(true).
 			Background(lipgloss.Color("#b8bb26"))
 
-	kMsgHeadersTitleStyle = baseStyle.Copy().
+	kMsgMetadataTitleStyle = baseStyle.Copy().
 				Bold(true).
 				Background(lipgloss.Color("#b8bb26")).
 				Align(lipgloss.Left)

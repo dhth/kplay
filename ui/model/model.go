@@ -11,23 +11,24 @@ type stateView uint
 
 const (
 	kMsgsListView stateView = iota
-	kMsgHeaderView
+	kMsgMetadataView
 	kMsgValueView
 )
 
 type model struct {
-	kCl               *kgo.Client
-	activeView        stateView
-	kMsgsList         list.Model
-	msgHeadersVP      viewport.Model
-	msgValueVP        viewport.Model
-	msgHeadersVPReady bool
-	msgValueVPReady   bool
-	vpFullScreen      bool
-	terminalWidth     int
-	terminalHeight    int
-	msg               string
-	errorMsg          string
+	kCl                *kgo.Client
+	activeView         stateView
+	kMsgsList          list.Model
+	msgMetadataVP      viewport.Model
+	msgValueVP         viewport.Model
+	filteredKeys       []string
+	msgMetadataVPReady bool
+	msgValueVPReady    bool
+	vpFullScreen       bool
+	terminalWidth      int
+	terminalHeight     int
+	msg                string
+	errorMsg           string
 }
 
 func (m model) Init() tea.Cmd {

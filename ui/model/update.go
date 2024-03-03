@@ -31,15 +31,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, FetchNextKMsg(m.kCl, 10)
 		case "}":
 			return m, FetchNextKMsg(m.kCl, 100)
-		case "ctrl+f":
+		case "f":
 			switch m.activeView {
-			case kMsgHeaderView:
+			case kMsgMetadataView:
 				switch m.vpFullScreen {
 				case false:
-					m.msgHeadersVP.Height = m.terminalHeight - 8
+					m.msgMetadataVP.Height = m.terminalHeight - 8
 					m.vpFullScreen = true
 				case true:
-					m.msgHeadersVP.Height = 12
+					m.msgMetadataVP.Height = 12
 					m.vpFullScreen = false
 				}
 			case kMsgValueView:
@@ -55,8 +55,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "tab":
 			if m.activeView == kMsgsListView {
-				m.activeView = kMsgHeaderView
-			} else if m.activeView == kMsgHeaderView {
+				m.activeView = kMsgMetadataView
+			} else if m.activeView == kMsgMetadataView {
 				m.activeView = kMsgValueView
 			} else if m.activeView == kMsgValueView {
 				m.activeView = kMsgsListView
@@ -64,29 +64,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "shift+tab":
 			if m.activeView == kMsgsListView {
 				m.activeView = kMsgValueView
-			} else if m.activeView == kMsgHeaderView {
+			} else if m.activeView == kMsgMetadataView {
 				m.activeView = kMsgsListView
 			} else if m.activeView == kMsgValueView {
-				m.activeView = kMsgHeaderView
+				m.activeView = kMsgMetadataView
 			}
 		}
 
 	case tea.WindowSizeMsg:
 		_, h := stackListStyle.GetFrameSize()
 		m.terminalHeight = msg.Height
+		m.terminalWidth = msg.Width
 		m.kMsgsList.SetHeight(msg.Height - h - 2)
 
-		if !m.msgHeadersVPReady {
-			m.msgHeadersVP = viewport.New(120, 12)
-			m.msgHeadersVP.HighPerformanceRendering = useHighPerformanceRenderer
-			m.msgHeadersVPReady = true
+		if !m.msgMetadataVPReady {
+			m.msgMetadataVP = viewport.New(120, m.terminalHeight/2-8)
+			m.msgMetadataVP.HighPerformanceRendering = useHighPerformanceRenderer
+			m.msgMetadataVPReady = true
 		} else {
-			m.msgHeadersVP.Width = 120
-			m.msgHeadersVP.Height = 12
+			m.msgMetadataVP.Width = 120
+			m.msgMetadataVP.Height = 12
 		}
 
 		if !m.msgValueVPReady {
-			m.msgValueVP = viewport.New(120, 12)
+			m.msgValueVP = viewport.New(120, m.terminalHeight/2-8)
 			m.msgValueVP.HighPerformanceRendering = useHighPerformanceRenderer
 			m.msgValueVPReady = true
 		} else {
@@ -95,8 +96,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case KMsgChosenMsg:
+		// value
 		if len(msg.item.record.Value) == 0 {
-			m.msgValueVP.SetContent("Tombstone")
+			m.msgValueVP.SetContent("Tombstone" + " " + string(msg.item.record.Key))
 		} else {
 			message := &generated.ApplicationState{}
 			if err := proto.Unmarshal(msg.item.record.Value, message); err != nil {
@@ -106,11 +108,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					m.errorMsg = "Failed to marshal message to JSON"
 				} else {
-					headersJSON, err := json.MarshalIndent(msg.item.record.Headers, "", "    ")
-					if err == nil {
-						m.msgHeadersVP.SetContent(string(headersJSON))
-					}
-
 					var cont bytes.Buffer
 					err = json.Indent(&cont, jsonData, "", "    ")
 					c := cont.String()
@@ -118,7 +115,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+		// metadata
+		var headers string
+		var other string
+		other += fmt.Sprintf("%s: %s\n", RightPadTrim("timestamp", 20), msg.item.record.Timestamp)
+		other += fmt.Sprintf("%s: %d\n", RightPadTrim("partition", 20), msg.item.record.Partition)
+		other += fmt.Sprintf("%s: %d\n", RightPadTrim("offset", 20), msg.item.record.Offset)
+		for _, h := range msg.item.record.Headers {
+			headers += fmt.Sprintf("%s: %s\n", RightPadTrim(h.Key, 20), string(h.Value))
+		}
+		metadata := fmt.Sprintf("%s\nHeaders:\n%s", other, headers)
+		m.msgMetadataVP.SetContent(metadata)
+
 		return m, tea.Batch(cmds...)
+
 	case KMsgFetchedMsg:
 		if msg.err != nil {
 			m.errorMsg = msg.err.Error()
@@ -140,8 +150,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case kMsgsListView:
 		m.kMsgsList, cmd = m.kMsgsList.Update(msg)
 		cmds = append(cmds, cmd)
-	case kMsgHeaderView:
-		m.msgHeadersVP, cmd = m.msgHeadersVP.Update(msg)
+	case kMsgMetadataView:
+		m.msgMetadataVP, cmd = m.msgMetadataVP.Update(msg)
 		cmds = append(cmds, cmd)
 	case kMsgValueView:
 		m.msgValueVP, cmd = m.msgValueVP.Update(msg)

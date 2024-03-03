@@ -18,4 +18,6 @@ type KMsgFetchedMsg struct {
 
 type KMsgChosenMsg struct {
 	item KMsgItem
+	// msgHeaders string
+	// msgValue   string
 }

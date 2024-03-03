@@ -22,7 +22,7 @@ func (m model) View() string {
 	case kMsgsListView:
 		mode = "MESSAGES"
 		msgsViewPtr = " 👇"
-	case kMsgHeaderView:
+	case kMsgMetadataView:
 		mode = "HEADERS"
 		headerViewPtr = " 👇"
 	case kMsgValueView:
@@ -41,11 +41,11 @@ func (m model) View() string {
 		errorMsg = "error: " + Trim(m.errorMsg, 120)
 	}
 
-	var msgHeadersVP string
+	var msgMetadataVP string
 	if !m.msgValueVPReady {
-		msgHeadersVP = "\n  Initializing..."
+		msgMetadataVP = "\n  Initializing..."
 	} else {
-		msgHeadersVP = viewPortStyle.Render(fmt.Sprintf("%s%s\n\n%s\n", kMsgHeadersTitleStyle.Render("Message Headers"), headerViewPtr, m.msgHeadersVP.View()))
+		msgMetadataVP = viewPortStyle.Render(fmt.Sprintf("%s%s\n\n%s\n", kMsgMetadataTitleStyle.Render("Message Metadata"), headerViewPtr, m.msgMetadataVP.View()))
 	}
 
 	var msgValueVP string
@@ -61,14 +61,14 @@ func (m model) View() string {
 			lipgloss.Top,
 			stackListStyle.Render(m.kMsgsList.View()),
 			lipgloss.JoinVertical(lipgloss.Left,
-				msgHeadersVP,
+				msgMetadataVP,
 				msgValueVP,
 			),
 		)
 	case true:
 		switch m.activeView {
-		case kMsgHeaderView:
-			content = msgHeadersVP
+		case kMsgMetadataView:
+			content = msgMetadataVP
 		case kMsgValueView:
 			content = msgValueVP
 		}
@@ -80,7 +80,7 @@ func (m model) View() string {
 
 	footerStr := fmt.Sprintf("%s %s %s",
 		modeStyle.Render(mode),
-		"kplay",
+		"kplay "+fmt.Sprintf("%d:%d", m.terminalWidth, m.terminalHeight),
 		errorMsg,
 	)
 	footer = footerStyle.Render(footerStr)
