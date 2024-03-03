@@ -12,11 +12,13 @@ func InitialModel(kCl *kgo.Client) model {
 	jobItems := make([]list.Item, 0)
 
 	m := model{
-		kCl:       kCl,
-		kMsgsList: list.New(jobItems, appDelegate, 60, 0),
+		kCl:                 kCl,
+		kMsgsList:           list.New(jobItems, appDelegate, 60, 0),
+		persistRecords:      false,
+		recordMetadataStore: make(map[string]string),
+		recordValueStore:    make(map[string]string),
 	}
 	m.kMsgsList.Title = "Messages"
-	// m.kMsgsList.SetShowTitle(false)
 	m.kMsgsList.SetFilteringEnabled(false)
 	m.kMsgsList.SetShowHelp(false)
 

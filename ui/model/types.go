@@ -12,7 +12,9 @@ type delegateKeyMap struct {
 }
 
 type KMsgItem struct {
-	record kgo.Record
+	record      kgo.Record
+	msgMetadata string
+	msgValue    string
 }
 
 func (item KMsgItem) Title() string {

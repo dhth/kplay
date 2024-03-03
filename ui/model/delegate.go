@@ -1,6 +1,8 @@
 package model
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -41,7 +43,8 @@ func newAppItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 				list.DefaultKeyMap().PrevPage,
 			):
 				if item, ok := m.SelectedItem().(KMsgItem); ok {
-					return ShowMsgDetails(item)
+					uniqueKey := fmt.Sprintf("-%d-%d", item.record.Partition, item.record.Offset)
+					return showItemDetails(uniqueKey)
 				} else {
 					return nil
 				}

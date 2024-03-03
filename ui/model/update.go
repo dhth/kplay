@@ -1,15 +1,10 @@
 package model
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/dhth/kplay/ui/model/generated"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 const useHighPerformanceRenderer = false
@@ -29,8 +24,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, FetchNextKMsg(m.kCl, 1)
 		case "N":
 			return m, FetchNextKMsg(m.kCl, 10)
+		case "p":
+			m.persistRecords = !m.persistRecords
+			return m, nil
 		case "}":
-			return m, FetchNextKMsg(m.kCl, 100)
+			return m, FetchNextKMsg(m.kCl, 2000)
 		case "f":
 			switch m.activeView {
 			case kMsgMetadataView:
@@ -95,38 +93,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.msgValueVP.Height = 12
 		}
 
-	case KMsgChosenMsg:
-		// value
-		if len(msg.item.record.Value) == 0 {
-			m.msgValueVP.SetContent("Tombstone" + " " + string(msg.item.record.Key))
+	case KMsgDataReadyMsg:
+		if msg.err != nil {
+			m.errorMsg = msg.err.Error()
 		} else {
-			message := &generated.ApplicationState{}
-			if err := proto.Unmarshal(msg.item.record.Value, message); err != nil {
-				m.errorMsg = fmt.Sprintf("Failed to deserialize message")
-			} else {
-				jsonData, err := protojson.Marshal(message)
-				if err != nil {
-					m.errorMsg = "Failed to marshal message to JSON"
-				} else {
-					var cont bytes.Buffer
-					err = json.Indent(&cont, jsonData, "", "    ")
-					c := cont.String()
-					m.msgValueVP.SetContent(c)
-				}
+			m.recordMetadataStore[msg.storeKey] = msg.msgMetadata
+			m.recordValueStore[msg.storeKey] = msg.msgValue
+			if m.persistRecords {
+				cmds = append(cmds, SaveRecordToDisk(msg.record, msg.msgMetadata, msg.msgValue))
 			}
 		}
-		// metadata
-		var headers string
-		var other string
-		other += fmt.Sprintf("%s: %s\n", RightPadTrim("timestamp", 20), msg.item.record.Timestamp)
-		other += fmt.Sprintf("%s: %d\n", RightPadTrim("partition", 20), msg.item.record.Partition)
-		other += fmt.Sprintf("%s: %d\n", RightPadTrim("offset", 20), msg.item.record.Offset)
-		for _, h := range msg.item.record.Headers {
-			headers += fmt.Sprintf("%s: %s\n", RightPadTrim(h.Key, 20), string(h.Value))
-		}
-		metadata := fmt.Sprintf("%s\nHeaders:\n%s", other, headers)
-		m.msgMetadataVP.SetContent(metadata)
-
 		return m, tea.Batch(cmds...)
 
 	case KMsgFetchedMsg:
@@ -138,12 +114,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				for _, rec := range msg.records {
 					m.kMsgsList.InsertItem(len(m.kMsgsList.Items()), KMsgItem{record: *rec})
+					cmds = append(cmds, saveRecordData(rec))
 				}
 				m.msg = fmt.Sprintf("%d message(s) fetched", len(msg.records))
-
 			}
 		}
+	case KMsgChosenMsg:
+		m.msgMetadataVP.SetContent(m.recordMetadataStore[msg.key])
+		m.msgValueVP.SetContent(m.recordValueStore[msg.key])
 
+	case RecordSavedToDiskMsg:
+		if msg.err != nil {
+			m.errorMsg = fmt.Sprintf("Error saving to disk: %s", msg.err.Error())
+		}
 	}
 
 	switch m.activeView {

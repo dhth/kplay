@@ -27,4 +27,8 @@ var (
 				Bold(true).
 				Background(lipgloss.Color("#8ec07c")).
 				Align(lipgloss.Left)
+
+	persistingStyle = baseStyle.Copy().
+			Bold(true).
+			Foreground(lipgloss.Color("#fb4934"))
 )

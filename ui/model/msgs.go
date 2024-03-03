@@ -17,7 +17,23 @@ type KMsgFetchedMsg struct {
 }
 
 type KMsgChosenMsg struct {
-	item KMsgItem
-	// msgHeaders string
-	// msgValue   string
+	key string
+}
+
+type RecordSavedToDiskMsg struct {
+	path string
+	err  error
+}
+
+type KMsgMetadataReadyMsg struct {
+	key         string
+	msgMetadata string
+}
+
+type KMsgDataReadyMsg struct {
+	storeKey    string
+	record      *kgo.Record
+	msgMetadata string
+	msgValue    string
+	err         error
 }

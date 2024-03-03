@@ -16,19 +16,22 @@ const (
 )
 
 type model struct {
-	kCl                *kgo.Client
-	activeView         stateView
-	kMsgsList          list.Model
-	msgMetadataVP      viewport.Model
-	msgValueVP         viewport.Model
-	filteredKeys       []string
-	msgMetadataVPReady bool
-	msgValueVPReady    bool
-	vpFullScreen       bool
-	terminalWidth      int
-	terminalHeight     int
-	msg                string
-	errorMsg           string
+	kCl                 *kgo.Client
+	activeView          stateView
+	kMsgsList           list.Model
+	msgMetadataVP       viewport.Model
+	msgValueVP          viewport.Model
+	recordMetadataStore map[string]string
+	recordValueStore    map[string]string
+	persistRecords      bool
+	filteredKeys        []string
+	msgMetadataVPReady  bool
+	msgValueVPReady     bool
+	vpFullScreen        bool
+	terminalWidth       int
+	terminalHeight      int
+	msg                 string
+	errorMsg            string
 }
 
 func (m model) Init() tea.Cmd {

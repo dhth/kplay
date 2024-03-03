@@ -13,21 +13,22 @@ var (
 func (m model) View() string {
 	var content string
 	var footer string
-	var mode string
 	var msgsViewPtr string
 	var headerViewPtr string
 	var valueViewPtr string
+	var mode string
 
 	switch m.activeView {
 	case kMsgsListView:
-		mode = "MESSAGES"
 		msgsViewPtr = " 👇"
 	case kMsgMetadataView:
-		mode = "HEADERS"
 		headerViewPtr = " 👇"
 	case kMsgValueView:
-		mode = "VALUE"
 		valueViewPtr = " 👇"
+	}
+
+	if m.persistRecords {
+		mode += " " + persistingStyle.Render("persisting records!")
 	}
 
 	m.kMsgsList.Title += msgsViewPtr
@@ -38,7 +39,7 @@ func (m model) View() string {
 	}
 	var errorMsg string
 	if m.errorMsg != "" {
-		errorMsg = "error: " + Trim(m.errorMsg, 120)
+		errorMsg = " error: " + Trim(m.errorMsg, 120)
 	}
 
 	var msgMetadataVP string
@@ -78,9 +79,9 @@ func (m model) View() string {
 		Foreground(lipgloss.Color("#282828")).
 		Background(lipgloss.Color("#7c6f64"))
 
-	footerStr := fmt.Sprintf("%s %s %s",
-		modeStyle.Render(mode),
-		"kplay "+fmt.Sprintf("%d:%d", m.terminalWidth, m.terminalHeight),
+	footerStr := fmt.Sprintf("%s%s%s",
+		modeStyle.Render("kplay"),
+		mode,
 		errorMsg,
 	)
 	footer = footerStyle.Render(footerStr)
