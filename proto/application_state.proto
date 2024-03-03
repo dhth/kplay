@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package webapp;
+
+option go_package = "ui/model/generated";
+
+message ApplicationState {
+  string id = 1; // required
+  string colorTheme = 2;
+  string backgroundImageUrl = 3;
+  string customDomain = 4;
+}
