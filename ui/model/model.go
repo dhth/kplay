@@ -16,7 +16,15 @@ const (
 	helpView
 )
 
+type DeserializationFmt uint
+
+const (
+	JsonFmt DeserializationFmt = iota
+	ProtobufFmt
+)
+
 type model struct {
+	deserializationFmt  DeserializationFmt
 	kCl                 *kgo.Client
 	activeView          stateView
 	lastView            stateView

@@ -8,8 +8,8 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func RenderUI(kCl *kgo.Client) {
-	p := tea.NewProgram(model.InitialModel(kCl), tea.WithAltScreen())
+func RenderUI(kCl *kgo.Client, deserFmt model.DeserializationFmt) {
+	p := tea.NewProgram(model.InitialModel(kCl, deserFmt), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		log.Fatalf("Something went wrong %s", err)
 	}

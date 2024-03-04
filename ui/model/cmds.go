@@ -10,7 +10,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func FetchNextKMsg(cl *kgo.Client, numRecords int) tea.Cmd {
+func FetchRecords(cl *kgo.Client, numRecords int) tea.Cmd {
 	return func() tea.Msg {
 		fetches := cl.PollRecords(nil, numRecords)
 		records := fetches.Records()
@@ -65,10 +65,17 @@ func saveRecordMetadata(record *kgo.Record) tea.Cmd {
 	}
 }
 
-func saveRecordData(record *kgo.Record) tea.Cmd {
+func saveRecordData(record *kgo.Record, deserializationFmt DeserializationFmt) tea.Cmd {
 	return func() tea.Msg {
 		msgMetadata := getRecordMetadata(record)
-		msgValue, err := getRecordValue(record)
+		var msgValue string
+		var err error
+		switch deserializationFmt {
+		case JsonFmt:
+			msgValue, err = getRecordValueJSON(record)
+		case ProtobufFmt:
+			msgValue, err = getRecordValue(record)
+		}
 		if err != nil {
 			return KMsgDataReadyMsg{err: err}
 		} else {

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dhth/kplay/ui"
+	"github.com/dhth/kplay/ui/model"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -20,6 +21,7 @@ var (
 	topic       = flag.String("topic", "", "topic to consume from")
 	style       = flag.String("commit-style", "autocommit", "commit style (which consume & commit is chosen); autocommit|records|uncommitted")
 	group       = flag.String("group", "", "group to consume within")
+	deserialize = flag.String("deserialize-fmt", "json", "deserializer format to use")
 	logger      = flag.Bool("logger", false, "if true, enable an info level logger")
 )
 
@@ -35,6 +37,16 @@ func Execute() {
 		styleNum = 2
 	default:
 		die("unrecognized style %s", *style)
+	}
+
+	var deserFmt model.DeserializationFmt
+	switch *deserialize {
+	case "json":
+		deserFmt = model.JsonFmt
+	case "protobuf":
+		deserFmt = model.ProtobufFmt
+	default:
+		die("unrecognized deserialization format: %s", *deserialize)
 	}
 
 	opts := []kgo.Opt{
@@ -57,6 +69,6 @@ func Execute() {
 	defer cl.Close()
 	defer fmt.Println("Closed connection to broker")
 
-	ui.RenderUI(cl)
+	ui.RenderUI(cl, deserFmt)
 
 }

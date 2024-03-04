@@ -28,9 +28,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.activeView = kMsgsListView
 			return m, nil
 		case "n", " ":
-			return m, FetchNextKMsg(m.kCl, 1)
+			return m, FetchRecords(m.kCl, 1)
 		case "N":
-			return m, FetchNextKMsg(m.kCl, 10)
+			return m, FetchRecords(m.kCl, 10)
 		case "?":
 			m.lastView = m.activeView
 			m.activeView = helpView
@@ -52,7 +52,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.skipRecords = !m.skipRecords
 			return m, nil
 		case "}":
-			return m, FetchNextKMsg(m.kCl, 2000)
+			return m, FetchRecords(m.kCl, 2000)
 		case "1":
 			m.msgMetadataVP.Height = m.terminalHeight - 7
 			m.vpFullScreen = true
@@ -172,7 +172,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case false:
 					for _, rec := range msg.records {
 						m.kMsgsList.InsertItem(len(m.kMsgsList.Items()), KMsgItem{record: *rec})
-						cmds = append(cmds, saveRecordData(rec))
+						cmds = append(cmds, saveRecordData(rec, m.deserializationFmt))
 					}
 					m.msg = fmt.Sprintf("%d message(s) fetched", len(msg.records))
 				case true:

@@ -41,7 +41,12 @@ func getRecordMetadata(record *kgo.Record) string {
 	for _, h := range record.Headers {
 		headers += fmt.Sprintf("%s: %s\n", RightPadTrim(h.Key, 20), string(h.Value))
 	}
-	msgMetadata = fmt.Sprintf("%s\nHeaders:\n%s", other, headers)
+	if len(record.Headers) > 0 {
+		msgMetadata = fmt.Sprintf("%s\nHeaders:\n%s", other, headers)
+	} else {
+		msgMetadata = other
+	}
+
 	return msgMetadata
 }
 
@@ -63,6 +68,21 @@ func getRecordValue(record *kgo.Record) (string, error) {
 				msgValue = cont.String()
 			}
 		}
+	}
+	return msgValue, nil
+}
+
+func getRecordValueJSON(record *kgo.Record) (string, error) {
+	var msgValue string
+	if len(record.Value) == 0 {
+		msgValue = "Tombstone"
+	} else {
+		var cont bytes.Buffer
+		err := json.Indent(&cont, record.Value, "", "    ")
+		if err != nil {
+			return "", err
+		}
+		msgValue = cont.String()
 	}
 	return msgValue, nil
 }
