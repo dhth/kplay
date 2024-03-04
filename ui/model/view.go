@@ -31,6 +31,10 @@ func (m model) View() string {
 		mode += " " + persistingStyle.Render("persisting records!")
 	}
 
+	if m.skipRecords {
+		mode += " " + skippingStyle.Render("skipping records!")
+	}
+
 	m.kMsgsList.Title += msgsViewPtr
 
 	var statusBar string
@@ -55,6 +59,12 @@ func (m model) View() string {
 	} else {
 		msgValueVP = viewPortStyle.Render(fmt.Sprintf("%s%s\n\n%s\n", kMsgValueTitleStyle.Render("Message Value"), valueViewPtr, m.msgValueVP.View()))
 	}
+	var helpVP string
+	if !m.helpVPReady {
+		helpVP = "\n  Initializing..."
+	} else {
+		helpVP = viewPortStyle.Render(fmt.Sprintf("  %s\n\n%s\n", kMsgValueTitleStyle.Render("Help"), m.helpVP.View()))
+	}
 
 	switch m.vpFullScreen {
 	case false:
@@ -72,6 +82,8 @@ func (m model) View() string {
 			content = msgMetadataVP
 		case kMsgValueView:
 			content = msgValueVP
+		case helpView:
+			content = helpVP
 		}
 	}
 
@@ -79,8 +91,14 @@ func (m model) View() string {
 		Foreground(lipgloss.Color("#282828")).
 		Background(lipgloss.Color("#7c6f64"))
 
-	footerStr := fmt.Sprintf("%s%s%s",
+	var helpMsg string
+	if m.helpSeen < 2 {
+		helpMsg = " " + helpMsgStyle.Render("Press ? for help")
+	}
+
+	footerStr := fmt.Sprintf("%s%s%s%s",
 		modeStyle.Render("kplay"),
+		helpMsg,
 		mode,
 		errorMsg,
 	)

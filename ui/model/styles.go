@@ -31,4 +31,12 @@ var (
 	persistingStyle = baseStyle.Copy().
 			Bold(true).
 			Foreground(lipgloss.Color("#fb4934"))
+
+	skippingStyle = baseStyle.Copy().
+			Bold(true).
+			Foreground(lipgloss.Color("#fabd2f"))
+
+	helpMsgStyle = baseStyle.Copy().
+			Bold(true).
+			Foreground(lipgloss.Color("#83a598"))
 )
