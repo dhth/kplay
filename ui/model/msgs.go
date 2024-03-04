@@ -26,14 +26,14 @@ type RecordSavedToDiskMsg struct {
 }
 
 type KMsgMetadataReadyMsg struct {
-	key         string
-	msgMetadata string
-}
-
-type KMsgDataReadyMsg struct {
 	storeKey    string
 	record      *kgo.Record
 	msgMetadata string
-	msgValue    string
-	err         error
+}
+
+type KMsgValueReadyMsg struct {
+	storeKey string
+	record   *kgo.Record
+	msgValue string
+	err      error
 }

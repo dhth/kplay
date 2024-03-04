@@ -30,9 +30,32 @@ func FetchRecords(cl *kgo.Client, numRecords int) tea.Cmd {
 	}
 }
 
-func SaveRecordToDisk(record *kgo.Record, msgMetadata string, msgValue string) tea.Cmd {
+func saveRecordMetadataToDisk(record *kgo.Record, msgMetadata string) tea.Cmd {
 	return func() tea.Msg {
-		filePath := fmt.Sprintf("records/%s/%d/%d-%s.md",
+		filePath := fmt.Sprintf("records/%s/%d/%d-%s-metadata.md",
+			record.Topic,
+			record.Partition,
+			record.Offset,
+			record.Key,
+		)
+		dir := filepath.Dir(filePath)
+		err := os.MkdirAll(dir, 0755)
+		if err != nil {
+			return RecordSavedToDiskMsg{err: err}
+		}
+		var data string
+		data = fmt.Sprintf("Metadata\n---\n\n```\n%s```", msgMetadata)
+		err = os.WriteFile(filePath, []byte(data), 0644)
+		if err != nil {
+			return RecordSavedToDiskMsg{err: err}
+		}
+		return RecordSavedToDiskMsg{path: filePath}
+	}
+}
+
+func saveRecordValueToDisk(record *kgo.Record, msgValue string) tea.Cmd {
+	return func() tea.Msg {
+		filePath := fmt.Sprintf("records/%s/%d/%d-%s-value.md",
 			record.Topic,
 			record.Partition,
 			record.Offset,
@@ -45,9 +68,9 @@ func SaveRecordToDisk(record *kgo.Record, msgMetadata string, msgValue string) t
 		}
 		var data string
 		if len(record.Value) == 0 {
-			data = fmt.Sprintf("Metadata\n---\n\n```\n%s```\n\nValue\n---\n\n%s\n", msgMetadata, msgValue)
+			data = fmt.Sprintf("Value\n---\n\n%s\n", msgValue)
 		} else {
-			data = fmt.Sprintf("Metadata\n---\n\n```\n%s```\n\nValue\n---\n\n```json\n%s\n```", msgMetadata, msgValue)
+			data = fmt.Sprintf("Value\n---\n\n```json\n%s\n```", msgValue)
 		}
 		err = os.WriteFile(filePath, []byte(data), 0644)
 		if err != nil {
@@ -61,13 +84,12 @@ func saveRecordMetadata(record *kgo.Record) tea.Cmd {
 	return func() tea.Msg {
 		msgMetadata := getRecordMetadata(record)
 		uniqueKey := fmt.Sprintf("-%d-%d", record.Partition, record.Offset)
-		return KMsgMetadataReadyMsg{uniqueKey, msgMetadata}
+		return KMsgMetadataReadyMsg{storeKey: uniqueKey, record: record, msgMetadata: msgMetadata}
 	}
 }
 
-func saveRecordData(record *kgo.Record, deserializationFmt DeserializationFmt) tea.Cmd {
+func saveRecordValue(record *kgo.Record, deserializationFmt DeserializationFmt) tea.Cmd {
 	return func() tea.Msg {
-		msgMetadata := getRecordMetadata(record)
 		var msgValue string
 		var err error
 		switch deserializationFmt {
@@ -77,10 +99,10 @@ func saveRecordData(record *kgo.Record, deserializationFmt DeserializationFmt) t
 			msgValue, err = getRecordValue(record)
 		}
 		if err != nil {
-			return KMsgDataReadyMsg{err: err}
+			return KMsgValueReadyMsg{err: err}
 		} else {
 			uniqueKey := fmt.Sprintf("-%d-%d", record.Partition, record.Offset)
-			return KMsgDataReadyMsg{storeKey: uniqueKey, record: record, msgMetadata: msgMetadata, msgValue: msgValue}
+			return KMsgValueReadyMsg{storeKey: uniqueKey, record: record, msgValue: msgValue}
 		}
 	}
 }

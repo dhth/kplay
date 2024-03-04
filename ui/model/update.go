@@ -147,15 +147,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpVP.SetContent(helpText)
 			m.helpVPReady = true
 		}
+	case KMsgMetadataReadyMsg:
+		m.recordMetadataStore[msg.storeKey] = msg.msgMetadata
+		if m.persistRecords {
+			cmds = append(cmds, saveRecordMetadataToDisk(msg.record, msg.msgMetadata))
+		}
+		return m, tea.Batch(cmds...)
 
-	case KMsgDataReadyMsg:
+	case KMsgValueReadyMsg:
 		if msg.err != nil {
 			m.errorMsg = msg.err.Error()
 		} else {
-			m.recordMetadataStore[msg.storeKey] = msg.msgMetadata
 			m.recordValueStore[msg.storeKey] = msg.msgValue
 			if m.persistRecords {
-				cmds = append(cmds, SaveRecordToDisk(msg.record, msg.msgMetadata, msg.msgValue))
+				cmds = append(cmds, saveRecordValueToDisk(msg.record, msg.msgValue))
 			}
 		}
 		return m, tea.Batch(cmds...)
@@ -172,7 +177,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case false:
 					for _, rec := range msg.records {
 						m.kMsgsList.InsertItem(len(m.kMsgsList.Items()), KMsgItem{record: *rec})
-						cmds = append(cmds, saveRecordData(rec, m.deserializationFmt))
+						cmds = append(cmds, saveRecordMetadata(rec), saveRecordValue(rec, m.deserializationFmt))
 					}
 					m.msg = fmt.Sprintf("%d message(s) fetched", len(msg.records))
 				case true:
