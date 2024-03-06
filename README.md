@@ -7,6 +7,10 @@
 manner. Using it, you can pull one or more records on demand, peruse through
 them in a list, and, if needed, persist them to your local filesystem.
 
+<p align="center">
+  <img src="./assets/kplay.gif?raw=true" alt="Usage" />
+</p>
+
 Install
 ---
 
