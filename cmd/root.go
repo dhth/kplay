@@ -17,48 +17,21 @@ func die(msg string, args ...any) {
 }
 
 var (
-	seedBrokers = flag.String("brokers", "127.0.0.1:9092", "comma delimited list of seed brokers")
-	topic       = flag.String("topic", "", "topic to consume from")
-	style       = flag.String("commit-style", "autocommit", "commit style (which consume & commit is chosen); autocommit|records|uncommitted")
-	group       = flag.String("group", "", "group to consume within")
-	deserialize = flag.String("deserialize-fmt", "json", "deserializer format to use")
-	logger      = flag.Bool("logger", false, "if true, enable an info level logger")
+	brokers = flag.String("brokers", "127.0.0.1:9092", "comma delimited list of brokers")
+	topic   = flag.String("topic", "", "topic to consume from")
+	group   = flag.String("group", "", "group to consume within")
 )
 
 func Execute() {
 	flag.Parse()
 
-	styleNum := 0
-	switch {
-	case strings.HasPrefix("autocommit", *style):
-	case strings.HasPrefix("records", *style):
-		styleNum = 1
-	case strings.HasPrefix("uncommitted", *style):
-		styleNum = 2
-	default:
-		die("unrecognized style %s", *style)
-	}
-
-	var deserFmt model.DeserializationFmt
-	switch *deserialize {
-	case "json":
-		deserFmt = model.JsonFmt
-	case "protobuf":
-		deserFmt = model.ProtobufFmt
-	default:
-		die("unrecognized deserialization format: %s", *deserialize)
-	}
+	deserFmt := model.JsonFmt
 
 	opts := []kgo.Opt{
-		kgo.SeedBrokers(strings.Split(*seedBrokers, ",")...),
+		kgo.SeedBrokers(strings.Split(*brokers, ",")...),
 		kgo.ConsumerGroup(*group),
 		kgo.ConsumeTopics(*topic),
-	}
-	if styleNum != 0 {
-		opts = append(opts, kgo.DisableAutoCommit())
-	}
-	if *logger {
-		opts = append(opts, kgo.WithLogger(kgo.BasicLogger(os.Stderr, kgo.LogLevelInfo, nil)))
+		kgo.DisableAutoCommit(),
 	}
 
 	cl, err := kgo.NewClient(opts...)
@@ -67,7 +40,6 @@ func Execute() {
 	}
 
 	defer cl.Close()
-	defer fmt.Println("Closed connection to broker")
 
 	ui.RenderUI(cl, deserFmt)
 

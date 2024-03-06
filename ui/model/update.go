@@ -52,7 +52,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.skipRecords = !m.skipRecords
 			return m, nil
 		case "}":
-			return m, FetchRecords(m.kCl, 2000)
+			return m, FetchRecords(m.kCl, 500)
 		case "1":
 			m.msgMetadataVP.Height = m.terminalHeight - 7
 			m.vpFullScreen = true
@@ -65,6 +65,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.lastView = kMsgsListView
 			m.activeView = kMsgValueView
 			return m, nil
+		case "[":
+			m.kMsgsList.CursorUp()
+			m.msgMetadataVP.SetContent(m.recordMetadataStore[m.kMsgsList.SelectedItem().FilterValue()])
+			m.msgValueVP.SetContent(m.recordValueStore[m.kMsgsList.SelectedItem().FilterValue()])
+		case "]":
+			m.kMsgsList.CursorDown()
+			m.msgMetadataVP.SetContent(m.recordMetadataStore[m.kMsgsList.SelectedItem().FilterValue()])
+			m.msgValueVP.SetContent(m.recordValueStore[m.kMsgsList.SelectedItem().FilterValue()])
 		case "f":
 			switch m.activeView {
 			case kMsgMetadataView:
@@ -160,7 +168,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.recordValueStore[msg.storeKey] = msg.msgValue
 			if m.persistRecords {
-				cmds = append(cmds, saveRecordValueToDisk(msg.record, msg.msgValue))
+				cmds = append(cmds, saveRecordValueToDisk(msg.record))
 			}
 		}
 		return m, tea.Batch(cmds...)

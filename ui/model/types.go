@@ -31,5 +31,5 @@ func (item KMsgItem) Description() string {
 }
 
 func (item KMsgItem) FilterValue() string {
-	return string(item.record.Key)
+	return fmt.Sprintf("-%d-%d", item.record.Partition, item.record.Offset)
 }

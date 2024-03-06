@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dhth/kplay/ui/model/generated"
+	"github.com/tidwall/pretty"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -77,12 +78,14 @@ func getRecordValueJSON(record *kgo.Record) (string, error) {
 	if len(record.Value) == 0 {
 		msgValue = "Tombstone"
 	} else {
-		var cont bytes.Buffer
-		err := json.Indent(&cont, record.Value, "", "    ")
+		// this is to just ensure that the value is valid JSON
+		var data map[string]interface{}
+		err := json.Unmarshal([]byte(record.Value), &data)
 		if err != nil {
 			return "", err
 		}
-		msgValue = cont.String()
+		nestedPretty := pretty.Pretty(record.Value)
+		msgValue = string(pretty.Color(nestedPretty, nil))
 	}
 	return msgValue, nil
 }

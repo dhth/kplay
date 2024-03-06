@@ -53,7 +53,7 @@ func saveRecordMetadataToDisk(record *kgo.Record, msgMetadata string) tea.Cmd {
 	}
 }
 
-func saveRecordValueToDisk(record *kgo.Record, msgValue string) tea.Cmd {
+func saveRecordValueToDisk(record *kgo.Record) tea.Cmd {
 	return func() tea.Msg {
 		filePath := fmt.Sprintf("records/%s/%d/%d-%s-value.md",
 			record.Topic,
@@ -68,9 +68,9 @@ func saveRecordValueToDisk(record *kgo.Record, msgValue string) tea.Cmd {
 		}
 		var data string
 		if len(record.Value) == 0 {
-			data = fmt.Sprintf("Value\n---\n\n%s\n", msgValue)
+			data = fmt.Sprintf("Value\n---\n\n%s\n", "Tombstone")
 		} else {
-			data = fmt.Sprintf("Value\n---\n\n```json\n%s\n```", msgValue)
+			data = fmt.Sprintf("Value\n---\n\n```json\n%s\n```", string(record.Value))
 		}
 		err = os.WriteFile(filePath, []byte(data), 0644)
 		if err != nil {

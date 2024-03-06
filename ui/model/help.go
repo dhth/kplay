@@ -14,6 +14,8 @@ var (
            <s-tab>     Switch focus to previous section
 
            List View
+           h/<Up>      Move cursor up
+           k/<Down>    Move cursor down
            n           Fetch the next record from the topic
            N           Fetch the next 10 records from the topic
            }           Fetch the next 100 records from the topic
@@ -31,5 +33,7 @@ var (
            1           Maximize record metadata view
            2           Maximize record value view
            q           Minimize section, and return focus to list view
+           [           Show details for the previous entry in the list
+           ]           Show details for the next entry in the list
 `
 )

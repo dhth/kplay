@@ -6,6 +6,7 @@ require (
 	github.com/charmbracelet/bubbles v0.18.0
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/lipgloss v0.9.1
+	github.com/tidwall/pretty v1.2.1
 	github.com/twmb/franz-go v1.16.1
 	google.golang.org/protobuf v1.32.0
 )
