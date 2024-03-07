@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	listWidth = 50
+	listWidth = 40
 )
 
 func (m model) View() string {
@@ -92,7 +92,7 @@ func (m model) View() string {
 		Background(lipgloss.Color("#7c6f64"))
 
 	var helpMsg string
-	if m.helpSeen < 2 {
+	if m.showHelpIndicator {
 		helpMsg = " " + helpMsgStyle.Render("Press ? for help")
 	}
 

@@ -1,7 +1,6 @@
 package model
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -64,9 +63,8 @@ func getRecordValue(record *kgo.Record) (string, error) {
 			if err != nil {
 				return "", err
 			} else {
-				var cont bytes.Buffer
-				err = json.Indent(&cont, jsonData, "", "    ")
-				msgValue = cont.String()
+				nestedPretty := pretty.Pretty(jsonData)
+				msgValue = string(pretty.Color(nestedPretty, nil))
 			}
 		}
 	}

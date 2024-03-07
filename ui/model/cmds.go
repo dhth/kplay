@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -111,4 +112,10 @@ func showItemDetails(key string) tea.Cmd {
 	return func() tea.Msg {
 		return KMsgChosenMsg{key}
 	}
+}
+
+func hideHelp(interval time.Duration) tea.Cmd {
+	return tea.Tick(interval, func(time.Time) tea.Msg {
+		return HideHelpMsg{}
+	})
 }

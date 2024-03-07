@@ -55,6 +55,12 @@ Change the generated struct reference in `./ui/model/utils.go`.
 
 Compile, and run.
 
+### Authentication
+
+By default, `kplay` operates under the assumption that brokers do not
+authenticate requests. Besides this, it also supports [AWS IAM
+authentication][2] (turned on via `-auth='msk_iam_auth'`).
+
 TODO
 ---
 
@@ -66,3 +72,4 @@ Acknowledgements
 `kplay` is built using the awesome TUI framework [bubbletea][1].
 
 [1]: https://github.com/charmbracelet/bubbletea
+[2]: https://docs.aws.amazon.com/msk/latest/developerguide/iam-access-control.html

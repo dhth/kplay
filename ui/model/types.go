@@ -18,7 +18,7 @@ type KMsgItem struct {
 }
 
 func (item KMsgItem) Title() string {
-	return string(item.record.Key)
+	return RightPadTrim(string(item.record.Key), listWidth)
 }
 
 func (item KMsgItem) Description() string {
@@ -26,8 +26,8 @@ func (item KMsgItem) Description() string {
 	if len(item.record.Value) == 0 {
 		tombstoneInfo = " 🪦"
 	}
-	offsetInfo := fmt.Sprintf("offset: %d", item.record.Offset)
-	return fmt.Sprintf("%s%s", offsetInfo, tombstoneInfo)
+	offsetInfo := fmt.Sprintf("offset: %d, partition: %d", item.record.Partition, item.record.Offset)
+	return RightPadTrim(fmt.Sprintf("%s%s", offsetInfo, tombstoneInfo), listWidth)
 }
 
 func (item KMsgItem) FilterValue() string {

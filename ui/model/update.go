@@ -31,6 +31,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, FetchRecords(m.kCl, 1)
 		case "N":
 			return m, FetchRecords(m.kCl, 10)
+		case "}":
+			return m, FetchRecords(m.kCl, 100)
 		case "?":
 			m.lastView = m.activeView
 			m.activeView = helpView
@@ -51,8 +53,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.skipRecords = !m.skipRecords
 			return m, nil
-		case "}":
-			return m, FetchRecords(m.kCl, 500)
 		case "1":
 			m.msgMetadataVP.Height = m.terminalHeight - 7
 			m.vpFullScreen = true
@@ -201,6 +201,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.errorMsg = fmt.Sprintf("Error saving to disk: %s", msg.err.Error())
 		}
+	case HideHelpMsg:
+		m.showHelpIndicator = false
 	}
 
 	switch m.activeView {

@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -35,6 +37,7 @@ type model struct {
 	msgValueVP          viewport.Model
 	recordMetadataStore map[string]string
 	recordValueStore    map[string]string
+	showHelpIndicator   bool
 	skipRecords         bool
 	persistRecords      bool
 	filteredKeys        []string
@@ -49,5 +52,5 @@ type model struct {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return hideHelp(time.Second * 3)
 }
