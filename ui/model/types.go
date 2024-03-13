@@ -7,6 +7,12 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
+type KConfig struct {
+	Topic         string
+	ConsumerGroup string
+	DeserFmt      DeserializationFmt
+}
+
 type delegateKeyMap struct {
 	choose key.Binding
 }
@@ -18,7 +24,7 @@ type KMsgItem struct {
 }
 
 func (item KMsgItem) Title() string {
-	return RightPadTrim(string(item.record.Key), listWidth)
+	return RightPadTrim(string(item.record.Key), listWidth-4)
 }
 
 func (item KMsgItem) Description() string {
@@ -27,7 +33,7 @@ func (item KMsgItem) Description() string {
 		tombstoneInfo = " 🪦"
 	}
 	offsetInfo := fmt.Sprintf("offset: %d, partition: %d", item.record.Partition, item.record.Offset)
-	return RightPadTrim(fmt.Sprintf("%s%s", offsetInfo, tombstoneInfo), listWidth)
+	return RightPadTrim(fmt.Sprintf("%s%s", offsetInfo, tombstoneInfo), listWidth-4)
 }
 
 func (item KMsgItem) FilterValue() string {

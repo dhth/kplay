@@ -185,7 +185,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case false:
 					for _, rec := range msg.records {
 						m.kMsgsList.InsertItem(len(m.kMsgsList.Items()), KMsgItem{record: *rec})
-						cmds = append(cmds, saveRecordMetadata(rec), saveRecordValue(rec, m.deserializationFmt))
+						cmds = append(cmds, saveRecordMetadata(rec), saveRecordValue(rec, m.kconfig.DeserFmt))
 					}
 					m.msg = fmt.Sprintf("%d message(s) fetched", len(msg.records))
 				case true:

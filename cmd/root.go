@@ -46,7 +46,26 @@ func Execute() {
 
 	flag.Parse()
 
+	if *brokers == "" {
+		die("brokers cannot be empty")
+	}
+	if *topic == "" {
+		die("topic cannot be empty")
+	}
+	if *group == "" {
+		die("group cannot be empty")
+	}
+	if *auth == "" {
+		die("auth cannot be empty")
+	}
+
 	deserFmt := model.JsonFmt
+
+	kconfig := model.KConfig{
+		Topic:         *topic,
+		ConsumerGroup: *group,
+		DeserFmt:      deserFmt,
+	}
 
 	var authType KafkaAuthenticationType
 	switch *auth {
@@ -101,6 +120,6 @@ func Execute() {
 		die("cannot ping the broker(s): %s\n", err)
 	}
 
-	ui.RenderUI(cl, deserFmt)
+	ui.RenderUI(cl, kconfig)
 
 }

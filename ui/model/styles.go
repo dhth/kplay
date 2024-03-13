@@ -10,8 +10,8 @@ var (
 
 	baseListStyle = lipgloss.NewStyle().PaddingTop(1).PaddingRight(4).PaddingLeft(1).PaddingBottom(1)
 
-	stackListStyle = baseListStyle.Copy().Width(listWidth+10).Border(lipgloss.NormalBorder(), false, true, false, false).BorderForeground(lipgloss.Color("#3c3836"))
-	viewPortStyle  = baseListStyle.Copy().Width(150).PaddingLeft(4)
+	stackListStyle = baseListStyle.Copy().Width(listWidth+10).Border(lipgloss.NormalBorder(), false, true, false, false).BorderForeground(lipgloss.Color("#343434"))
+	viewPortStyle  = baseListStyle.Copy().Width(150).PaddingLeft(8)
 
 	modeStyle = baseStyle.Copy().
 			Align(lipgloss.Center).
@@ -27,6 +27,10 @@ var (
 				Bold(true).
 				Background(lipgloss.Color("#8ec07c")).
 				Align(lipgloss.Left)
+
+	kConfigStyle = baseStyle.Copy().
+			Bold(true).
+			Foreground(lipgloss.Color("#d3869b"))
 
 	persistingStyle = baseStyle.Copy().
 			Bold(true).

@@ -39,11 +39,11 @@ func (m model) View() string {
 
 	var statusBar string
 	if m.msg != "" {
-		statusBar = Trim(m.msg, 120)
+		statusBar = TrimRight(m.msg, 120)
 	}
 	var errorMsg string
 	if m.errorMsg != "" {
-		errorMsg = " error: " + Trim(m.errorMsg, 120)
+		errorMsg = " error: " + TrimRight(m.errorMsg, 120)
 	}
 
 	var msgMetadataVP string
@@ -95,9 +95,11 @@ func (m model) View() string {
 	if m.showHelpIndicator {
 		helpMsg = " " + helpMsgStyle.Render("Press ? for help")
 	}
+	kConfigMsg := kConfigStyle.Render(fmt.Sprintf(" [%s] ", TrimLeft(m.kconfig.Topic, 40)))
 
-	footerStr := fmt.Sprintf("%s%s%s%s",
+	footerStr := fmt.Sprintf("%s%s%s%s%s",
 		modeStyle.Render("kplay"),
+		kConfigMsg,
 		helpMsg,
 		mode,
 		errorMsg,

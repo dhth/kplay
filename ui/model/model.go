@@ -26,7 +26,7 @@ const (
 )
 
 type model struct {
-	deserializationFmt  DeserializationFmt
+	kconfig             KConfig
 	kCl                 *kgo.Client
 	activeView          stateView
 	lastView            stateView
