@@ -14,17 +14,21 @@ func (m model) View() string {
 	var content string
 	var footer string
 	var msgsViewPtr string
-	var headerViewPtr string
-	var valueViewPtr string
 	var mode string
+	var msgMetadataTitleStyle lipgloss.Style
+	var msgValueTitleStyle lipgloss.Style
+
+	m.kMsgsList.Styles.Title.Background(lipgloss.Color(inactivePaneColor))
+	msgMetadataTitleStyle = msgDetailsTitleStyle.Copy()
+	msgValueTitleStyle = msgDetailsTitleStyle.Copy()
 
 	switch m.activeView {
 	case kMsgsListView:
-		msgsViewPtr = " 👇"
+		m.kMsgsList.Styles.Title.Background(lipgloss.Color(activeHeaderColor))
 	case kMsgMetadataView:
-		headerViewPtr = " 👇"
+		msgMetadataTitleStyle.Background(lipgloss.Color(activeHeaderColor))
 	case kMsgValueView:
-		valueViewPtr = " 👇"
+		msgValueTitleStyle.Background(lipgloss.Color(activeHeaderColor))
 	}
 
 	if m.persistRecords {
@@ -50,20 +54,20 @@ func (m model) View() string {
 	if !m.msgValueVPReady {
 		msgMetadataVP = "\n  Initializing..."
 	} else {
-		msgMetadataVP = viewPortStyle.Render(fmt.Sprintf("%s%s\n\n%s\n", kMsgMetadataTitleStyle.Render("Message Metadata"), headerViewPtr, m.msgMetadataVP.View()))
+		msgMetadataVP = viewPortStyle.Render(fmt.Sprintf("%s\n\n%s\n", msgMetadataTitleStyle.Render("Message Metadata"), m.msgMetadataVP.View()))
 	}
 
 	var msgValueVP string
 	if !m.msgValueVPReady {
 		msgValueVP = "\n  Initializing..."
 	} else {
-		msgValueVP = viewPortStyle.Render(fmt.Sprintf("%s%s\n\n%s\n", kMsgValueTitleStyle.Render("Message Value"), valueViewPtr, m.msgValueVP.View()))
+		msgValueVP = viewPortStyle.Render(fmt.Sprintf("%s\n\n%s\n", msgValueTitleStyle.Render("Message Value"), m.msgValueVP.View()))
 	}
 	var helpVP string
 	if !m.helpVPReady {
 		helpVP = "\n  Initializing..."
 	} else {
-		helpVP = viewPortStyle.Render(fmt.Sprintf("  %s\n\n%s\n", kMsgValueTitleStyle.Render("Help"), m.helpVP.View()))
+		helpVP = helpVPStyle.Render(fmt.Sprintf("  %s\n\n%s\n", helpVPTitleStyle.Render("Help"), m.helpVP.View()))
 	}
 
 	switch m.vpFullScreen {
