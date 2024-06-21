@@ -13,7 +13,7 @@ import (
 
 func FetchRecords(cl *kgo.Client, numRecords int) tea.Cmd {
 	return func() tea.Msg {
-		fetches := cl.PollRecords(nil, numRecords)
+		fetches := cl.PollRecords(context.Background(), numRecords)
 		records := fetches.Records()
 		for _, rec := range records {
 			err := cl.CommitRecords(context.Background(), rec)
@@ -44,8 +44,7 @@ func saveRecordMetadataToDisk(record *kgo.Record, msgMetadata string) tea.Cmd {
 		if err != nil {
 			return RecordSavedToDiskMsg{err: err}
 		}
-		var data string
-		data = fmt.Sprintf("Metadata\n---\n\n```\n%s```", msgMetadata)
+		data := fmt.Sprintf("Metadata\n---\n\n```\n%s```", msgMetadata)
 		err = os.WriteFile(filePath, []byte(data), 0644)
 		if err != nil {
 			return RecordSavedToDiskMsg{err: err}

@@ -40,7 +40,6 @@ type model struct {
 	showHelpIndicator   bool
 	skipRecords         bool
 	persistRecords      bool
-	filteredKeys        []string
 	msgMetadataVPReady  bool
 	msgValueVPReady     bool
 	helpVPReady         bool

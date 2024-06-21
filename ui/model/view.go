@@ -18,17 +18,17 @@ func (m model) View() string {
 	var msgMetadataTitleStyle lipgloss.Style
 	var msgValueTitleStyle lipgloss.Style
 
-	m.kMsgsList.Styles.Title.Background(lipgloss.Color(inactivePaneColor))
-	msgMetadataTitleStyle = msgDetailsTitleStyle.Copy()
-	msgValueTitleStyle = msgDetailsTitleStyle.Copy()
+	m.kMsgsList.Styles.Title = m.kMsgsList.Styles.Title.Background(lipgloss.Color(inactivePaneColor))
+	msgMetadataTitleStyle = msgDetailsTitleStyle
+	msgValueTitleStyle = msgDetailsTitleStyle
 
 	switch m.activeView {
 	case kMsgsListView:
-		m.kMsgsList.Styles.Title.Background(lipgloss.Color(activeHeaderColor))
+		m.kMsgsList.Styles.Title = m.kMsgsList.Styles.Title.Background(lipgloss.Color(activeHeaderColor))
 	case kMsgMetadataView:
-		msgMetadataTitleStyle.Background(lipgloss.Color(activeHeaderColor))
+		msgMetadataTitleStyle = msgMetadataTitleStyle.Background(lipgloss.Color(activeHeaderColor))
 	case kMsgValueView:
-		msgValueTitleStyle.Background(lipgloss.Color(activeHeaderColor))
+		msgValueTitleStyle = msgValueTitleStyle.Background(lipgloss.Color(activeHeaderColor))
 	}
 
 	if m.persistRecords {

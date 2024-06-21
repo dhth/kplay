@@ -19,7 +19,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
-			if m.vpFullScreen == false {
+			if !m.vpFullScreen {
 				return m, tea.Quit
 			}
 			m.msgMetadataVP.Height = m.terminalHeight/2 - 8
@@ -42,13 +42,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "p":
-			if m.persistRecords == false {
+			if !m.persistRecords {
 				m.skipRecords = false
 			}
 			m.persistRecords = !m.persistRecords
 			return m, nil
 		case "s":
-			if m.skipRecords == false {
+			if !m.skipRecords {
 				m.persistRecords = false
 			}
 			m.skipRecords = !m.skipRecords

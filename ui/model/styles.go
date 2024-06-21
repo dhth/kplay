@@ -27,53 +27,42 @@ var (
 			PaddingLeft(1).
 			PaddingBottom(1)
 
-	stackListStyle = baseListStyle.Copy().
+	stackListStyle = baseListStyle.
 			Width(listWidth+10).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
 			BorderForeground(lipgloss.Color(listPaneBorderColor))
 
 	viewPortStyle = baseListStyle.
-			Copy().
 			Width(150).
 			PaddingLeft(3)
 
-	modeStyle = baseStyle.Copy().
+	modeStyle = baseStyle.
 			Align(lipgloss.Center).
 			Bold(true).
 			Background(lipgloss.Color("#b8bb26"))
 
-	msgDetailsTitleStyle = baseStyle.Copy().
+	msgDetailsTitleStyle = baseStyle.
 				Bold(true).
 				Background(lipgloss.Color(inactivePaneColor)).
 				Align(lipgloss.Left)
 
-	kMsgMetadataTitleStyle = baseStyle.Copy().
-				Bold(true).
-				Background(lipgloss.Color("#b8bb26")).
-				Align(lipgloss.Left)
-
-	kMsgValueTitleStyle = baseStyle.Copy().
-				Bold(true).
-				Background(lipgloss.Color("#8ec07c")).
-				Align(lipgloss.Left)
-
-	kConfigStyle = baseStyle.Copy().
+	kConfigStyle = baseStyle.
 			Bold(true).
 			Foreground(lipgloss.Color("#d3869b"))
 
-	persistingStyle = baseStyle.Copy().
+	persistingStyle = baseStyle.
 			Bold(true).
 			Foreground(lipgloss.Color("#fb4934"))
 
-	skippingStyle = baseStyle.Copy().
+	skippingStyle = baseStyle.
 			Bold(true).
 			Foreground(lipgloss.Color("#fabd2f"))
 
-	helpMsgStyle = baseStyle.Copy().
+	helpMsgStyle = baseStyle.
 			Bold(true).
 			Foreground(lipgloss.Color(helpMsgColor))
 
-	helpVPTitleStyle = baseStyle.Copy().
+	helpVPTitleStyle = baseStyle.
 				Bold(true).
 				Background(lipgloss.Color(helpViewTitleColor)).
 				Align(lipgloss.Left)

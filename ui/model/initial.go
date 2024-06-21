@@ -26,9 +26,9 @@ func InitialModel(kCl *kgo.Client, kconfig KConfig) model {
 	m.kMsgsList.SetFilteringEnabled(false)
 	m.kMsgsList.DisableQuitKeybindings()
 	m.kMsgsList.SetShowHelp(false)
-	m.kMsgsList.Styles.Title.Background(lipgloss.Color(listColor))
-	m.kMsgsList.Styles.Title.Foreground(lipgloss.Color(defaultBackgroundColor))
-	m.kMsgsList.Styles.Title.Bold(true)
+	m.kMsgsList.Styles.Title = m.kMsgsList.Styles.Title.Background(lipgloss.Color(listColor)).
+		Foreground(lipgloss.Color(defaultBackgroundColor)).
+		Bold(true)
 
 	return m
 }

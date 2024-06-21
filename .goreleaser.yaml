@@ -1,4 +1,4 @@
-version: 1
+version: 2
 
 before:
   hooks:
@@ -31,7 +31,7 @@ brews:
     repository:
       owner: dhth
       name: homebrew-tap
-    folder: Formula
+    directory: Formula
     license: MIT
     homepage: "https://github.com/dhth/kplay"
     description: "Inspect messages in a Kafka topic in a simple and deliberate manner"
