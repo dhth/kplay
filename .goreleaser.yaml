@@ -1,5 +1,8 @@
 version: 2
 
+release:
+  draft: true
+
 before:
   hooks:
     - go mod tidy
@@ -25,7 +28,6 @@ signs:
       - "--yes" # needed on cosign 2.0.0+
     artifacts: all
 
-
 brews:
   - name: kplay
     repository:
@@ -43,4 +45,3 @@ changelog:
       - "^docs:"
       - "^test:"
       - "^ci:"
-
