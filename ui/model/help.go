@@ -34,8 +34,10 @@ var (
 `),
 		helpHeaderStyle.Render("List View"),
 		helpSectionStyle.Render(`
-      h/<Up>                         Move cursor up
-      k/<Down>                       Move cursor down
+      j/<Up>                         Move cursor down
+      k/<Down>                       Move cursor up
+      J                              Scroll record value view down
+      K                              Scroll record value view up
       n                              Fetch the next record from the topic
       N                              Fetch the next 10 records from the topic
       }                              Fetch the next 100 records from the topic
@@ -48,6 +50,8 @@ var (
 `),
 		helpHeaderStyle.Render("Message Metadata/Value View"),
 		helpSectionStyle.Render(`
+      j/<Up>                         Scroll down
+      k/<Down>                       Scroll up
       f                              Toggle focussed section between full screen and
                                          regular mode
       1                              Maximize record metadata view

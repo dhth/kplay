@@ -41,6 +41,7 @@ func TrimRight(s string, length int) string {
 	}
 	return s
 }
+
 func getRecordMetadata(record *kgo.Record) string {
 	var msgMetadata string
 	var headers string

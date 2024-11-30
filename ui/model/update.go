@@ -7,7 +7,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const useHighPerformanceRenderer = false
+const (
+	useHighPerformanceRenderer = false
+	vpScrollLineChunk          = 3
+)
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -22,8 +25,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !m.vpFullScreen {
 				return m, tea.Quit
 			}
-			m.msgMetadataVP.Height = m.terminalHeight/2 - 8
-			m.msgValueVP.Height = m.terminalHeight/2 - 8
+			m.msgMetadataVP.Height = m.msgMetadataVPHeight
+			m.msgValueVP.Height = m.msgValueVPHeight
 			m.vpFullScreen = false
 			m.activeView = kMsgsListView
 			return m, nil
@@ -73,6 +76,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.kMsgsList.CursorDown()
 			m.msgMetadataVP.SetContent(m.recordMetadataStore[m.kMsgsList.SelectedItem().FilterValue()])
 			m.msgValueVP.SetContent(m.recordValueStore[m.kMsgsList.SelectedItem().FilterValue()])
+		case "J":
+			switch m.activeView {
+			case kMsgsListView, kMsgValueView:
+				m.msgValueVP.LineDown(vpScrollLineChunk)
+			default:
+				m.msgMetadataVP.LineDown(vpScrollLineChunk)
+			}
+		case "K":
+			switch m.activeView {
+			case kMsgsListView, kMsgValueView:
+				m.msgValueVP.LineUp(vpScrollLineChunk)
+			default:
+				m.msgMetadataVP.LineUp(vpScrollLineChunk)
+			}
 		case "f":
 			switch m.activeView {
 			case kMsgMetadataView:
@@ -82,8 +99,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.lastView = kMsgMetadataView
 					m.vpFullScreen = true
 				case true:
-					m.msgMetadataVP.Height = m.terminalHeight/2 - 8
-					m.msgValueVP.Height = m.terminalHeight/2 - 8
+					m.msgMetadataVP.Height = m.msgMetadataVPHeight
+					m.msgValueVP.Height = m.msgValueVPHeight
 					m.vpFullScreen = false
 					m.activeView = m.lastView
 				}
@@ -94,8 +111,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.lastView = kMsgValueView
 					m.vpFullScreen = true
 				case true:
-					m.msgValueVP.Height = m.terminalHeight/2 - 8
-					m.msgMetadataVP.Height = m.terminalHeight/2 - 8
+					m.msgValueVP.Height = m.msgValueVPHeight
+					m.msgMetadataVP.Height = m.msgMetadataVPHeight
 					m.vpFullScreen = false
 					m.activeView = m.lastView
 				}
@@ -131,26 +148,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.terminalWidth = msg.Width
 		m.kMsgsList.SetHeight(msg.Height - h - 2)
 
+		m.msgMetadataVPHeight = 6
+		m.msgValueVPHeight = msg.Height - h - 2 - m.msgMetadataVPHeight - 8
+		vpWidth := 120
+
 		if !m.msgMetadataVPReady {
-			m.msgMetadataVP = viewport.New(120, m.terminalHeight/2-8)
+			m.msgMetadataVP = viewport.New(vpWidth, m.msgMetadataVPHeight)
 			m.msgMetadataVP.HighPerformanceRendering = useHighPerformanceRenderer
 			m.msgMetadataVPReady = true
 		} else {
-			m.msgMetadataVP.Width = 120
-			m.msgMetadataVP.Height = 12
+			m.msgMetadataVP.Width = vpWidth
+			m.msgMetadataVP.Height = m.msgMetadataVPHeight
 		}
 
 		if !m.msgValueVPReady {
-			m.msgValueVP = viewport.New(120, m.terminalHeight/2-8)
+			m.msgValueVP = viewport.New(vpWidth, m.msgValueVPHeight)
 			m.msgValueVP.HighPerformanceRendering = useHighPerformanceRenderer
 			m.msgValueVPReady = true
 		} else {
-			m.msgValueVP.Width = 120
-			m.msgValueVP.Height = 12
+			m.msgValueVP.Width = vpWidth
+			m.msgValueVP.Height = m.msgValueVPHeight
 		}
 
 		if !m.helpVPReady {
-			m.helpVP = viewport.New(120, m.terminalHeight-7)
+			m.helpVP = viewport.New(vpWidth, msg.Height-7)
 			m.helpVP.HighPerformanceRendering = useHighPerformanceRenderer
 			m.helpVP.SetContent(helpText)
 			m.helpVPReady = true
@@ -180,7 +201,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(msg.records) == 0 {
 				m.msg = "No new messages found"
 			} else {
-
 				switch m.skipRecords {
 				case false:
 					for _, rec := range msg.records {

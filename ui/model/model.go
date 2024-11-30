@@ -34,7 +34,9 @@ type model struct {
 	helpVP              viewport.Model
 	helpSeen            uint
 	msgMetadataVP       viewport.Model
+	msgMetadataVPHeight int
 	msgValueVP          viewport.Model
+	msgValueVPHeight    int
 	recordMetadataStore map[string]string
 	recordValueStore    map[string]string
 	showHelpIndicator   bool

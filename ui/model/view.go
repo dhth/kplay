@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	listWidth = 40
+	listWidth = 44
 )
 
 func (m model) View() string {
