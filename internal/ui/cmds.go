@@ -54,7 +54,7 @@ func saveRecordMetadataToDisk(record *kgo.Record, msgMetadata string) tea.Cmd {
 	}
 }
 
-func saveRecordValueToDisk(record *kgo.Record) tea.Cmd {
+func saveRecordValueToDisk(record *kgo.Record, value string) tea.Cmd {
 	return func() tea.Msg {
 		filePath := fmt.Sprintf("records/%s/%d/%d-%s-value.md",
 			record.Topic,
@@ -71,7 +71,7 @@ func saveRecordValueToDisk(record *kgo.Record) tea.Cmd {
 		if len(record.Value) == 0 {
 			data = fmt.Sprintf("Value\n---\n\n%s\n", "Tombstone")
 		} else {
-			data = fmt.Sprintf("Value\n---\n\n```json\n%s\n```", string(record.Value))
+			data = fmt.Sprintf("Value\n---\n\n```json\n%s```", value)
 		}
 		err = os.WriteFile(filePath, []byte(data), 0o644)
 		if err != nil {
@@ -104,12 +104,6 @@ func saveRecordValue(record *kgo.Record, deserializationFmt d.DeserializationFmt
 		}
 		uniqueKey := fmt.Sprintf("-%d-%d", record.Partition, record.Offset)
 		return KMsgValueReadyMsg{storeKey: uniqueKey, record: record, msgValue: msgValue}
-	}
-}
-
-func showItemDetails(key string) tea.Cmd {
-	return func() tea.Msg {
-		return KMsgChosenMsg{key}
 	}
 }
 

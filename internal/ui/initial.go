@@ -16,6 +16,7 @@ func InitialModel(kCl *kgo.Client, config d.Config) Model {
 		config:              config,
 		kCl:                 kCl,
 		kMsgsList:           list.New(jobItems, appDelegate, listWidth, 0),
+		kMsgsCurrentIndex:   -1,
 		persistRecords:      false,
 		recordMetadataStore: make(map[string]string),
 		recordValueStore:    make(map[string]string),

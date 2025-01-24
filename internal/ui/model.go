@@ -25,8 +25,10 @@ type Model struct {
 	activeView          stateView
 	lastView            stateView
 	kMsgsList           list.Model
+	kMsgsCurrentIndex   int
+	firstMsgMetadataSet bool
+	firstMsgValueSet    bool
 	helpVP              viewport.Model
-	helpSeen            uint
 	msgMetadataVP       viewport.Model
 	msgMetadataVPHeight int
 	msgValueVP          viewport.Model
