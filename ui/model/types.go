@@ -7,7 +7,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-type KConfig struct {
+type Config struct {
 	Topic         string
 	ConsumerGroup string
 	DeserFmt      DeserializationFmt

@@ -12,7 +12,7 @@ const (
 	vpScrollLineChunk          = 3
 )
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 	m.msg = ""
@@ -41,7 +41,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.activeView = helpView
 			m.vpFullScreen = true
 			if m.helpSeen < 2 {
-				m.helpSeen += 1
+				m.helpSeen++
 			}
 			return m, nil
 		case "p":
@@ -205,7 +205,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case false:
 					for _, rec := range msg.records {
 						m.kMsgsList.InsertItem(len(m.kMsgsList.Items()), KMsgItem{record: *rec})
-						cmds = append(cmds, saveRecordMetadata(rec), saveRecordValue(rec, m.kconfig.DeserFmt))
+						cmds = append(cmds, saveRecordMetadata(rec), saveRecordValue(rec, m.config.DeserFmt))
 					}
 					m.msg = fmt.Sprintf("%d message(s) fetched", len(msg.records))
 				case true:

@@ -7,10 +7,11 @@ import (
 )
 
 var (
-	listWidth = 44
+	listWidth     = 44
+	vpNotReadyMsg = "\n  Initializing..."
 )
 
-func (m model) View() string {
+func (m Model) View() string {
 	var content string
 	var footer string
 	var msgsViewPtr string
@@ -52,20 +53,20 @@ func (m model) View() string {
 
 	var msgMetadataVP string
 	if !m.msgValueVPReady {
-		msgMetadataVP = "\n  Initializing..."
+		msgMetadataVP = vpNotReadyMsg
 	} else {
 		msgMetadataVP = viewPortStyle.Render(fmt.Sprintf("%s\n\n%s\n", msgMetadataTitleStyle.Render("Message Metadata"), m.msgMetadataVP.View()))
 	}
 
 	var msgValueVP string
 	if !m.msgValueVPReady {
-		msgValueVP = "\n  Initializing..."
+		msgValueVP = vpNotReadyMsg
 	} else {
 		msgValueVP = viewPortStyle.Render(fmt.Sprintf("%s\n\n%s\n", msgValueTitleStyle.Render("Message Value"), m.msgValueVP.View()))
 	}
 	var helpVP string
 	if !m.helpVPReady {
-		helpVP = "\n  Initializing..."
+		helpVP = vpNotReadyMsg
 	} else {
 		helpVP = helpVPStyle.Render(fmt.Sprintf("  %s\n\n%s\n", helpVPTitleStyle.Render("Help"), m.helpVP.View()))
 	}
@@ -99,7 +100,7 @@ func (m model) View() string {
 	if m.showHelpIndicator {
 		helpMsg = " " + helpMsgStyle.Render("Press ? for help")
 	}
-	kConfigMsg := kConfigStyle.Render(fmt.Sprintf(" [%s] ", TrimLeft(m.kconfig.Topic, 40)))
+	kConfigMsg := kConfigStyle.Render(fmt.Sprintf(" [%s] ", TrimLeft(m.config.Topic, 40)))
 
 	footerStr := fmt.Sprintf("%s%s%s%s%s",
 		modeStyle.Render("kplay"),

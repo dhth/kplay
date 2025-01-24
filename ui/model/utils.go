@@ -69,15 +69,13 @@ func getRecordValue(record *kgo.Record) (string, error) {
 		message := &generated.ApplicationState{}
 		if err := proto.Unmarshal(record.Value, message); err != nil {
 			return "", err
-		} else {
-			jsonData, err := protojson.Marshal(message)
-			if err != nil {
-				return "", err
-			} else {
-				nestedPretty := pretty.Pretty(jsonData)
-				msgValue = string(pretty.Color(nestedPretty, nil))
-			}
 		}
+		jsonData, err := protojson.Marshal(message)
+		if err != nil {
+			return "", err
+		}
+		nestedPretty := pretty.Pretty(jsonData)
+		msgValue = string(pretty.Color(nestedPretty, nil))
 	}
 	return msgValue, nil
 }
@@ -89,7 +87,7 @@ func getRecordValueJSON(record *kgo.Record) (string, error) {
 	} else {
 		// this is to just ensure that the value is valid JSON
 		var data map[string]interface{}
-		err := json.Unmarshal([]byte(record.Value), &data)
+		err := json.Unmarshal(record.Value, &data)
 		if err != nil {
 			return "", err
 		}

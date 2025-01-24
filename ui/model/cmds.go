@@ -40,12 +40,12 @@ func saveRecordMetadataToDisk(record *kgo.Record, msgMetadata string) tea.Cmd {
 			record.Key,
 		)
 		dir := filepath.Dir(filePath)
-		err := os.MkdirAll(dir, 0755)
+		err := os.MkdirAll(dir, 0o755)
 		if err != nil {
 			return RecordSavedToDiskMsg{err: err}
 		}
 		data := fmt.Sprintf("Metadata\n---\n\n```\n%s```", msgMetadata)
-		err = os.WriteFile(filePath, []byte(data), 0644)
+		err = os.WriteFile(filePath, []byte(data), 0o644)
 		if err != nil {
 			return RecordSavedToDiskMsg{err: err}
 		}
@@ -62,7 +62,7 @@ func saveRecordValueToDisk(record *kgo.Record) tea.Cmd {
 			record.Key,
 		)
 		dir := filepath.Dir(filePath)
-		err := os.MkdirAll(dir, 0755)
+		err := os.MkdirAll(dir, 0o755)
 		if err != nil {
 			return RecordSavedToDiskMsg{err: err}
 		}
@@ -72,7 +72,7 @@ func saveRecordValueToDisk(record *kgo.Record) tea.Cmd {
 		} else {
 			data = fmt.Sprintf("Value\n---\n\n```json\n%s\n```", string(record.Value))
 		}
-		err = os.WriteFile(filePath, []byte(data), 0644)
+		err = os.WriteFile(filePath, []byte(data), 0o644)
 		if err != nil {
 			return RecordSavedToDiskMsg{err: err}
 		}
@@ -93,17 +93,16 @@ func saveRecordValue(record *kgo.Record, deserializationFmt DeserializationFmt) 
 		var msgValue string
 		var err error
 		switch deserializationFmt {
-		case JsonFmt:
+		case JSON:
 			msgValue, err = getRecordValueJSON(record)
-		case ProtobufFmt:
+		case Protobuf:
 			msgValue, err = getRecordValue(record)
 		}
 		if err != nil {
 			return KMsgValueReadyMsg{err: err}
-		} else {
-			uniqueKey := fmt.Sprintf("-%d-%d", record.Partition, record.Offset)
-			return KMsgValueReadyMsg{storeKey: uniqueKey, record: record, msgValue: msgValue}
 		}
+		uniqueKey := fmt.Sprintf("-%d-%d", record.Partition, record.Offset)
+		return KMsgValueReadyMsg{storeKey: uniqueKey, record: record, msgValue: msgValue}
 	}
 }
 

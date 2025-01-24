@@ -29,9 +29,9 @@ func newAppItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 		SelectedTitle
 
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
-		switch msgType := msg.(type) {
+		switch msgType := msg.(type) { // revive:disable-line:unnecessary-stmt
 		case tea.KeyMsg:
-			switch {
+			switch { // revive:disable-line:unnecessary-stmt
 			case key.Matches(msgType,
 				keys.choose,
 				list.DefaultKeyMap().CursorUp,
@@ -48,7 +48,6 @@ func newAppItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 					return nil
 				}
 			}
-
 		}
 		return nil
 	}

@@ -21,12 +21,12 @@ const (
 type DeserializationFmt uint
 
 const (
-	JsonFmt DeserializationFmt = iota
-	ProtobufFmt
+	JSON DeserializationFmt = iota
+	Protobuf
 )
 
-type model struct {
-	kconfig             KConfig
+type Model struct {
+	config              Config
 	kCl                 *kgo.Client
 	activeView          stateView
 	lastView            stateView
@@ -52,6 +52,6 @@ type model struct {
 	errorMsg            string
 }
 
-func (m model) Init() tea.Cmd {
+func (Model) Init() tea.Cmd {
 	return hideHelp(time.Second * 3)
 }
