@@ -3,28 +3,32 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
-	"net"
-
+	"errors"
 	"flag"
 	"fmt"
-
-	"os"
+	"net"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dhth/kplay/ui"
 	"github.com/dhth/kplay/ui/model"
 	"github.com/twmb/franz-go/pkg/kgo"
 	kaws "github.com/twmb/franz-go/pkg/sasl/aws"
 )
 
-func die(msg string, args ...any) {
-	fmt.Fprintf(os.Stderr, msg, args...)
-	os.Exit(1)
-}
+var (
+	errBrokersEmpty                  = errors.New("brokers cannot be empty")
+	errTopicEmpty                    = errors.New("topic cannot be empty")
+	errGroupEmpty                    = errors.New("group cannot be empty")
+	errAuthEmpty                     = errors.New("auth cannot be empty")
+	errUnsupportedAuth               = errors.New("unsupported auth provided")
+	errCouldntCreateAWSSession       = errors.New("couldn't create AWS session")
+	errCouldntRetrieveAWSCredentials = errors.New("couldn't retrieve AWS credentials")
+	errCouldntCreateKafkaClient      = errors.New("couldn't create kafka client")
+	errCouldntPingBrokers            = errors.New("couldn't ping the brokers")
+)
 
 var (
 	brokers = flag.String("brokers", "127.0.0.1:9092", "comma delimited list of brokers")
@@ -33,35 +37,25 @@ var (
 	auth    = flag.String("auth", "none", "authentication used by the brokers")
 )
 
-func Execute() {
-
-	if len(os.Getenv("DEBUG")) > 0 {
-		f, err := tea.LogToFile("debug.log", "debug")
-		if err != nil {
-			fmt.Println("fatal:", err)
-			os.Exit(1)
-		}
-		defer f.Close()
-	}
-
+func Execute() error {
 	flag.Parse()
 
-	if *brokers == "" {
-		die("brokers cannot be empty")
+	if strings.TrimSpace(*brokers) == "" {
+		return errBrokersEmpty
 	}
-	if *topic == "" {
-		die("topic cannot be empty")
+	if strings.TrimSpace(*topic) == "" {
+		return errTopicEmpty
 	}
-	if *group == "" {
-		die("group cannot be empty")
+	if strings.TrimSpace(*group) == "" {
+		return errGroupEmpty
 	}
-	if *auth == "" {
-		die("auth cannot be empty")
+	if strings.TrimSpace(*auth) == "" {
+		return errAuthEmpty
 	}
 
-	deserFmt := model.JsonFmt
+	deserFmt := model.JSON
 
-	kconfig := model.KConfig{
+	kconfig := model.Config{
 		Topic:         *topic,
 		ConsumerGroup: *group,
 		DeserFmt:      deserFmt,
@@ -74,12 +68,12 @@ func Execute() {
 	case "msk_iam_auth":
 		authType = SaslIamAuth
 	default:
-		die("unsupported authentication type; supported values: none, sasl_iam_auth")
+		return fmt.Errorf("%w; supported values: none, sasl_iam_auth", errUnsupportedAuth)
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		die("error creating AWS session: %v", err)
+		return fmt.Errorf("%w: %s", errCouldntCreateAWSSession, err.Error())
 	}
 
 	opts := []kgo.Opt{
@@ -88,12 +82,11 @@ func Execute() {
 		kgo.ConsumeTopics(*topic),
 		kgo.DisableAutoCommit(),
 	}
-	switch authType {
-	case SaslIamAuth:
-		opts = append(opts, kgo.SASL(kaws.ManagedStreamingIAM(func(ctx context.Context) (kaws.Auth, error) {
+	if authType == SaslIamAuth {
+		opts = append(opts, kgo.SASL(kaws.ManagedStreamingIAM(func(_ context.Context) (kaws.Auth, error) {
 			creds, err := cfg.Credentials.Retrieve(context.TODO())
 			if err != nil {
-				return kaws.Auth{}, err
+				return kaws.Auth{}, fmt.Errorf("%w: %w", errCouldntRetrieveAWSCredentials, err)
 			}
 			return kaws.Auth{
 				AccessKey:    creds.AccessKeyID,
@@ -108,18 +101,17 @@ func Execute() {
 
 	cl, err := kgo.NewClient(opts...)
 	if err != nil {
-		die("unable to create client: %v\n", err)
+		return fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
 	}
 
 	defer cl.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 	if err := cl.Ping(ctx); err != nil {
 		cl.Close()
-		die("cannot ping the broker(s): %s\n", err)
+		return fmt.Errorf("%w: %s", errCouldntPingBrokers, err.Error())
 	}
 
-	ui.RenderUI(cl, kconfig)
-
+	return ui.RenderUI(cl, kconfig)
 }

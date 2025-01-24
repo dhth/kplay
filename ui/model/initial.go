@@ -6,14 +6,13 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func InitialModel(kCl *kgo.Client, kconfig KConfig) model {
-
-	var appDelegateKeys = newAppDelegateKeyMap()
+func InitialModel(kCl *kgo.Client, config Config) Model {
+	appDelegateKeys := newAppDelegateKeyMap()
 	appDelegate := newAppItemDelegate(appDelegateKeys)
 	jobItems := make([]list.Item, 0)
 
-	m := model{
-		kconfig:             kconfig,
+	m := Model{
+		config:              config,
 		kCl:                 kCl,
 		kMsgsList:           list.New(jobItems, appDelegate, listWidth, 0),
 		persistRecords:      false,
