@@ -13,23 +13,24 @@ func InitialModel(kCl *kgo.Client, config d.Config) Model {
 	jobItems := make([]list.Item, 0)
 
 	m := Model{
-		config:              config,
-		kCl:                 kCl,
-		kMsgsList:           list.New(jobItems, appDelegate, listWidth, 0),
-		kMsgsCurrentIndex:   -1,
-		persistRecords:      false,
-		recordMetadataStore: make(map[string]string),
-		recordValueStore:    make(map[string]string),
-		showHelpIndicator:   true,
+		config:            config,
+		client:            kCl,
+		msgsList:          list.New(jobItems, appDelegate, listWidth, 0),
+		currentMsgIndex:   -1,
+		persistRecords:    false,
+		msgDetailsStore:   make(map[string]messageDetails),
+		showHelpIndicator: true,
 	}
-	m.kMsgsList.Title = "Messages"
-	m.kMsgsList.SetStatusBarItemName("message", "messages")
-	m.kMsgsList.SetFilteringEnabled(false)
-	m.kMsgsList.DisableQuitKeybindings()
-	m.kMsgsList.SetShowHelp(false)
-	m.kMsgsList.Styles.Title = m.kMsgsList.Styles.Title.Background(lipgloss.Color(listColor)).
+	m.msgsList.Title = "Messages"
+	m.msgsList.SetStatusBarItemName("message", "messages")
+	m.msgsList.SetFilteringEnabled(false)
+	m.msgsList.DisableQuitKeybindings()
+	m.msgsList.SetShowHelp(false)
+	m.msgsList.Styles.Title = m.msgsList.Styles.Title.Background(lipgloss.Color(listColor)).
 		Foreground(lipgloss.Color(defaultBackgroundColor)).
 		Bold(true)
+	m.msgsList.KeyMap.PrevPage.SetKeys("left", "h", "pgup")
+	m.msgsList.KeyMap.NextPage.SetKeys("right", "l", "pgdown")
 
 	return m
 }

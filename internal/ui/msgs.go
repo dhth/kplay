@@ -4,27 +4,23 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-type HideHelpMsg struct{}
+type hideHelpMsg struct{}
 
-type KMsgFetchedMsg struct {
+type msgFetchedMsg struct {
 	records []*kgo.Record
 	err     error
 }
 
-type RecordSavedToDiskMsg struct {
+type msgSavedToDiskMsg struct {
 	path string
 	err  error
 }
 
-type KMsgMetadataReadyMsg struct {
-	storeKey    string
-	record      *kgo.Record
-	msgMetadata string
+type msgDataReadyMsg struct {
+	uniqueKey string
+	details   messageDetails
 }
 
-type KMsgValueReadyMsg struct {
-	storeKey string
-	record   *kgo.Record
-	msgValue string
-	err      error
+type dataWrittenToClipboard struct {
+	err error
 }
