@@ -52,44 +52,44 @@ func (m Model) View() string {
 		errorMsg = " error: " + utils.TrimRight(m.errorMsg, 120)
 	}
 
-	var msgMetadataVP string
+	var msgMetadataVPContent string
 	if !m.msgValueVPReady {
-		msgMetadataVP = vpNotReadyMsg
+		msgMetadataVPContent = vpNotReadyMsg
 	} else {
-		msgMetadataVP = viewPortStyle.Render(fmt.Sprintf("%s\n\n%s\n", msgMetadataTitleStyle.Render("Message Metadata"), m.msgMetadataVP.View()))
+		msgMetadataVPContent = fmt.Sprintf("%s\n\n%s\n", msgMetadataTitleStyle.Render("Message Metadata"), m.msgMetadataVP.View())
 	}
 
-	var msgValueVP string
+	var msgValueVPContent string
 	if !m.msgValueVPReady {
-		msgValueVP = vpNotReadyMsg
+		msgValueVPContent = vpNotReadyMsg
 	} else {
-		msgValueVP = viewPortStyle.Render(fmt.Sprintf("%s\n\n%s\n", msgValueTitleStyle.Render("Message Value"), m.msgValueVP.View()))
+		msgValueVPContent = fmt.Sprintf("%s\n\n%s\n", msgValueTitleStyle.Render("Message Value"), m.msgValueVP.View())
 	}
-	var helpVP string
+	var helpVPContent string
 	if !m.helpVPReady {
-		helpVP = vpNotReadyMsg
+		helpVPContent = vpNotReadyMsg
 	} else {
-		helpVP = helpVPStyle.Render(fmt.Sprintf("  %s\n\n%s\n", helpVPTitleStyle.Render("Help"), m.helpVP.View()))
+		helpVPContent = fmt.Sprintf("%s\n\n%s\n", helpVPTitleStyle.Render("Help"), m.helpVP.View())
 	}
 
 	switch m.vpFullScreen {
 	case false:
 		content = lipgloss.JoinHorizontal(
 			lipgloss.Top,
-			stackListStyle.Render(m.kMsgsList.View()),
+			messageListStyle.Render(m.kMsgsList.View()),
 			lipgloss.JoinVertical(lipgloss.Left,
-				msgMetadataVP,
-				msgValueVP,
+				viewPortStyle.Render(msgMetadataVPContent),
+				viewPortStyle.Render(msgValueVPContent),
 			),
 		)
 	case true:
 		switch m.activeView {
 		case kMsgMetadataView:
-			content = msgMetadataVP
+			content = viewPortFullScreenStyle.Render(msgMetadataVPContent)
 		case kMsgValueView:
-			content = msgValueVP
+			content = viewPortFullScreenStyle.Render(msgValueVPContent)
 		case helpView:
-			content = helpVP
+			content = viewPortFullScreenStyle.Render(helpVPContent)
 		}
 	}
 

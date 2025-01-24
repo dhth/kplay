@@ -11,10 +11,6 @@ type KMsgFetchedMsg struct {
 	err     error
 }
 
-type KMsgChosenMsg struct {
-	key string
-}
-
 type RecordSavedToDiskMsg struct {
 	path string
 	err  error

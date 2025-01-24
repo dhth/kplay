@@ -12,6 +12,10 @@ const (
 	vpScrollLineChunk          = 3
 )
 
+const (
+	msgAttributeNotFoundMsg = "something went wrong (with kplay)"
+)
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
@@ -22,52 +26,57 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
-			if !m.vpFullScreen {
-				return m, tea.Quit
+			switch m.vpFullScreen {
+			case true:
+				m.msgMetadataVP.Height = m.msgMetadataVPHeight
+				m.msgValueVP.Height = m.msgValueVPHeight
+				m.vpFullScreen = false
+				m.activeView = m.lastView
+				m.lastView = m.activeView
+			case false:
+				switch m.activeView {
+				case kMsgsListView:
+					return m, tea.Quit
+				case kMsgMetadataView:
+					m.activeView = kMsgsListView
+				case kMsgValueView:
+					m.activeView = kMsgMetadataView
+				}
 			}
-			m.msgMetadataVP.Height = m.msgMetadataVPHeight
-			m.msgValueVP.Height = m.msgValueVPHeight
-			m.vpFullScreen = false
-			m.activeView = kMsgsListView
-			return m, nil
+		case "Q":
+			return m, tea.Quit
 		case "n", " ":
-			return m, FetchRecords(m.kCl, 1)
+			cmds = append(cmds, FetchRecords(m.kCl, 1))
 		case "N":
-			return m, FetchRecords(m.kCl, 10)
+			cmds = append(cmds, FetchRecords(m.kCl, 10))
 		case "}":
-			return m, FetchRecords(m.kCl, 100)
+			cmds = append(cmds, FetchRecords(m.kCl, 100))
 		case "?":
 			m.lastView = m.activeView
 			m.activeView = helpView
 			m.vpFullScreen = true
-			if m.helpSeen < 2 {
-				m.helpSeen++
-			}
-			return m, nil
 		case "p":
 			if !m.persistRecords {
 				m.skipRecords = false
 			}
 			m.persistRecords = !m.persistRecords
-			return m, nil
 		case "s":
 			if !m.skipRecords {
 				m.persistRecords = false
 			}
 			m.skipRecords = !m.skipRecords
-			return m, nil
-		case "1":
+		case "1", "m":
 			m.msgMetadataVP.Height = m.terminalHeight - 7
 			m.vpFullScreen = true
 			m.lastView = m.activeView
 			m.activeView = kMsgMetadataView
-			return m, nil
-		case "2":
+			m.msgMetadataVP.GotoTop()
+		case "2", "v":
 			m.msgValueVP.Height = m.terminalHeight - 7
 			m.vpFullScreen = true
-			m.lastView = kMsgsListView
+			m.lastView = m.activeView
 			m.activeView = kMsgValueView
-			return m, nil
+			m.msgValueVP.GotoTop()
 		case "[":
 			m.kMsgsList.CursorUp()
 			m.msgMetadataVP.SetContent(m.recordMetadataStore[m.kMsgsList.SelectedItem().FilterValue()])
@@ -104,6 +113,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.vpFullScreen = false
 					m.activeView = m.lastView
 				}
+				m.msgMetadataVP.GotoTop()
 			case kMsgValueView:
 				switch m.vpFullScreen {
 				case false:
@@ -116,11 +126,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.vpFullScreen = false
 					m.activeView = m.lastView
 				}
-				return m, nil
+				m.msgValueVP.GotoTop()
 			}
 		case "tab":
 			if m.vpFullScreen {
-				return m, nil
+				break
 			}
 			if m.activeView == kMsgsListView {
 				m.activeView = kMsgMetadataView
@@ -131,7 +141,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "shift+tab":
 			if m.vpFullScreen {
-				return m, nil
+				break
 			}
 			if m.activeView == kMsgsListView {
 				m.activeView = kMsgValueView
@@ -143,14 +153,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		_, h := stackListStyle.GetFrameSize()
+		w1, h1 := messageListStyle.GetFrameSize()
+		w2, h2 := viewPortFullScreenStyle.GetFrameSize()
 		m.terminalHeight = msg.Height
 		m.terminalWidth = msg.Width
-		m.kMsgsList.SetHeight(msg.Height - h - 2)
+		m.kMsgsList.SetHeight(msg.Height - h1 - 2)
 
-		m.msgMetadataVPHeight = 6
-		m.msgValueVPHeight = msg.Height - h - 2 - m.msgMetadataVPHeight - 8
-		vpWidth := 120
+		fullScreenVPHeight := msg.Height - 7
+		switch m.vpFullScreen {
+		case true:
+			m.msgMetadataVPHeight = fullScreenVPHeight
+			m.msgValueVPHeight = fullScreenVPHeight
+		case false:
+			m.msgMetadataVPHeight = 6
+			m.msgValueVPHeight = msg.Height - h2 - 2 - m.msgMetadataVPHeight - 8
+
+		}
+		vpWidth := msg.Width - w1 - w2 - 2
 
 		if !m.msgMetadataVPReady {
 			m.msgMetadataVP = viewport.New(vpWidth, m.msgMetadataVPHeight)
@@ -171,28 +190,40 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if !m.helpVPReady {
-			m.helpVP = viewport.New(vpWidth, msg.Height-7)
+			m.helpVP = viewport.New(vpWidth, fullScreenVPHeight)
 			m.helpVP.HighPerformanceRendering = useHighPerformanceRenderer
 			m.helpVP.SetContent(helpText)
 			m.helpVPReady = true
+		} else {
+			m.helpVP.Width = vpWidth
+			m.helpVP.Height = fullScreenVPHeight
 		}
 	case KMsgMetadataReadyMsg:
 		m.recordMetadataStore[msg.storeKey] = msg.msgMetadata
+
+		if !m.firstMsgMetadataSet {
+			m.msgMetadataVP.SetContent(msg.msgMetadata)
+			m.kMsgsCurrentIndex = m.kMsgsList.Index()
+			m.firstMsgMetadataSet = true
+		}
 		if m.persistRecords {
 			cmds = append(cmds, saveRecordMetadataToDisk(msg.record, msg.msgMetadata))
 		}
-		return m, tea.Batch(cmds...)
 
 	case KMsgValueReadyMsg:
 		if msg.err != nil {
 			m.errorMsg = msg.err.Error()
 		} else {
 			m.recordValueStore[msg.storeKey] = msg.msgValue
+			if !m.firstMsgValueSet {
+				m.msgValueVP.SetContent(msg.msgValue)
+				m.kMsgsCurrentIndex = m.kMsgsList.Index()
+				m.firstMsgValueSet = true
+			}
 			if m.persistRecords {
-				cmds = append(cmds, saveRecordValueToDisk(msg.record))
+				cmds = append(cmds, saveRecordValueToDisk(msg.record, msg.msgValue))
 			}
 		}
-		return m, tea.Batch(cmds...)
 
 	case KMsgFetchedMsg:
 		if msg.err != nil {
@@ -213,9 +244,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-	case KMsgChosenMsg:
-		m.msgMetadataVP.SetContent(m.recordMetadataStore[msg.key])
-		m.msgValueVP.SetContent(m.recordValueStore[msg.key])
 
 	case RecordSavedToDiskMsg:
 		if msg.err != nil {
@@ -238,6 +266,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case helpView:
 		m.helpVP, cmd = m.helpVP.Update(msg)
 		cmds = append(cmds, cmd)
+	}
+
+	numItems := len(m.kMsgsList.Items())
+	msgIndex := m.kMsgsList.Index()
+
+	if numItems > 0 && msgIndex != m.kMsgsCurrentIndex {
+		msgID := m.kMsgsList.SelectedItem().FilterValue()
+		msgMetadata, metadataOk := m.recordMetadataStore[msgID]
+		if metadataOk {
+			m.msgMetadataVP.SetContent(msgMetadata)
+		} else {
+			m.msgMetadataVP.SetContent(msgAttributeNotFoundMsg)
+		}
+
+		msgValue, metadataOk := m.recordValueStore[msgID]
+		if metadataOk {
+			m.msgValueVP.SetContent(msgValue)
+		} else {
+			m.msgValueVP.SetContent(msgAttributeNotFoundMsg)
+		}
+
+		m.kMsgsCurrentIndex = msgIndex
 	}
 
 	return m, tea.Batch(cmds...)

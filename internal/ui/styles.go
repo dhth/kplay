@@ -23,18 +23,19 @@ var (
 	baseListStyle = lipgloss.
 			NewStyle().
 			PaddingTop(1).
-			PaddingRight(1).
-			PaddingLeft(1).
 			PaddingBottom(1)
 
-	stackListStyle = baseListStyle.
-			Width(listWidth).
-			Border(lipgloss.NormalBorder(), false, true, false, false).
-			BorderForeground(lipgloss.Color(listPaneBorderColor))
+	messageListStyle = baseListStyle.
+				PaddingRight(1).
+				Width(listWidth).
+				Border(lipgloss.NormalBorder(), false, true, false, false).
+				BorderForeground(lipgloss.Color(listPaneBorderColor))
 
 	viewPortStyle = baseListStyle.
-			Width(150).
 			PaddingLeft(4)
+
+	viewPortFullScreenStyle = baseListStyle.
+				PaddingLeft(2)
 
 	modeStyle = baseStyle.
 			Align(lipgloss.Center).
@@ -73,10 +74,4 @@ var (
 
 	helpSectionStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color(helpSectionColor))
-
-	helpVPStyle = lipgloss.NewStyle().
-			PaddingTop(1).
-			PaddingRight(2).
-			PaddingLeft(1).
-			PaddingBottom(1)
 )
