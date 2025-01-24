@@ -1,9 +1,10 @@
-package model
+package ui
 
 import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/dhth/kplay/internal/utils"
 )
 
 var (
@@ -44,11 +45,11 @@ func (m Model) View() string {
 
 	var statusBar string
 	if m.msg != "" {
-		statusBar = TrimRight(m.msg, 120)
+		statusBar = utils.TrimRight(m.msg, 120)
 	}
 	var errorMsg string
 	if m.errorMsg != "" {
-		errorMsg = " error: " + TrimRight(m.errorMsg, 120)
+		errorMsg = " error: " + utils.TrimRight(m.errorMsg, 120)
 	}
 
 	var msgMetadataVP string
@@ -100,7 +101,7 @@ func (m Model) View() string {
 	if m.showHelpIndicator {
 		helpMsg = " " + helpMsgStyle.Render("Press ? for help")
 	}
-	kConfigMsg := kConfigStyle.Render(fmt.Sprintf(" [%s] ", TrimLeft(m.config.Topic, 40)))
+	kConfigMsg := kConfigStyle.Render(fmt.Sprintf(" [%s] ", utils.TrimLeft(m.config.Topic, 40)))
 
 	footerStr := fmt.Sprintf("%s%s%s%s%s",
 		modeStyle.Render("kplay"),
