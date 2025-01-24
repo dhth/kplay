@@ -1,4 +1,4 @@
-package model
+package ui
 
 import (
 	"github.com/twmb/franz-go/pkg/kgo"

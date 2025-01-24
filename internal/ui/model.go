@@ -1,4 +1,4 @@
-package model
+package ui
 
 import (
 	"time"
@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	d "github.com/dhth/kplay/internal/domain"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -18,15 +19,8 @@ const (
 	helpView
 )
 
-type DeserializationFmt uint
-
-const (
-	JSON DeserializationFmt = iota
-	Protobuf
-)
-
 type Model struct {
-	config              Config
+	config              d.Config
 	kCl                 *kgo.Client
 	activeView          stateView
 	lastView            stateView

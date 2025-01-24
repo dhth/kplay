@@ -1,4 +1,4 @@
-package model
+package ui
 
 import (
 	"fmt"
@@ -8,6 +8,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+type delegateKeyMap struct {
+	choose key.Binding
+}
 
 func newAppDelegateKeyMap() *delegateKeyMap {
 	return &delegateKeyMap{

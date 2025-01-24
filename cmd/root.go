@@ -12,8 +12,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 
-	"github.com/dhth/kplay/ui"
-	"github.com/dhth/kplay/ui/model"
+	d "github.com/dhth/kplay/internal/domain"
+	"github.com/dhth/kplay/internal/ui"
 	"github.com/twmb/franz-go/pkg/kgo"
 	kaws "github.com/twmb/franz-go/pkg/sasl/aws"
 )
@@ -53,9 +53,9 @@ func Execute() error {
 		return errAuthEmpty
 	}
 
-	deserFmt := model.JSON
+	deserFmt := d.JSON
 
-	kconfig := model.Config{
+	kconfig := d.Config{
 		Topic:         *topic,
 		ConsumerGroup: *group,
 		DeserFmt:      deserFmt,

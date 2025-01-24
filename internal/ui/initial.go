@@ -1,12 +1,13 @@
-package model
+package ui
 
 import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/lipgloss"
+	d "github.com/dhth/kplay/internal/domain"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func InitialModel(kCl *kgo.Client, config Config) Model {
+func InitialModel(kCl *kgo.Client, config d.Config) Model {
 	appDelegateKeys := newAppDelegateKeyMap()
 	appDelegate := newAppItemDelegate(appDelegateKeys)
 	jobItems := make([]list.Item, 0)

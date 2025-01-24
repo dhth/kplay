@@ -1,4 +1,4 @@
-package model
+package ui
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	d "github.com/dhth/kplay/internal/domain"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -82,21 +83,21 @@ func saveRecordValueToDisk(record *kgo.Record) tea.Cmd {
 
 func saveRecordMetadata(record *kgo.Record) tea.Cmd {
 	return func() tea.Msg {
-		msgMetadata := getRecordMetadata(record)
+		msgMetadata := d.GetRecordMetadata(record)
 		uniqueKey := fmt.Sprintf("-%d-%d", record.Partition, record.Offset)
 		return KMsgMetadataReadyMsg{storeKey: uniqueKey, record: record, msgMetadata: msgMetadata}
 	}
 }
 
-func saveRecordValue(record *kgo.Record, deserializationFmt DeserializationFmt) tea.Cmd {
+func saveRecordValue(record *kgo.Record, deserializationFmt d.DeserializationFmt) tea.Cmd {
 	return func() tea.Msg {
 		var msgValue string
 		var err error
 		switch deserializationFmt {
-		case JSON:
-			msgValue, err = getRecordValueJSON(record)
-		case Protobuf:
-			msgValue, err = getRecordValue(record)
+		case d.JSON:
+			msgValue, err = d.GetRecordValueJSON(record)
+		case d.Protobuf:
+			msgValue, err = d.GetRecordValue(record)
 		}
 		if err != nil {
 			return KMsgValueReadyMsg{err: err}

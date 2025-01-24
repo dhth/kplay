@@ -1,28 +1,18 @@
-package model
+package ui
 
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/key"
+	"github.com/dhth/kplay/internal/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
-
-type Config struct {
-	Topic         string
-	ConsumerGroup string
-	DeserFmt      DeserializationFmt
-}
-
-type delegateKeyMap struct {
-	choose key.Binding
-}
 
 type KMsgItem struct {
 	record kgo.Record
 }
 
 func (item KMsgItem) Title() string {
-	return RightPadTrim(string(item.record.Key), listWidth-4)
+	return utils.RightPadTrim(string(item.record.Key), listWidth-4)
 }
 
 func (item KMsgItem) Description() string {
@@ -31,7 +21,7 @@ func (item KMsgItem) Description() string {
 		tombstoneInfo = " 🪦"
 	}
 	offsetInfo := fmt.Sprintf("offset: %d, partition: %d", item.record.Partition, item.record.Offset)
-	return RightPadTrim(fmt.Sprintf("%s%s", offsetInfo, tombstoneInfo), listWidth-4)
+	return utils.RightPadTrim(fmt.Sprintf("%s%s", offsetInfo, tombstoneInfo), listWidth-4)
 }
 
 func (item KMsgItem) FilterValue() string {
