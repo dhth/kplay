@@ -1,114 +1,85 @@
 package ui
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	d "github.com/dhth/kplay/internal/domain"
+	k "github.com/dhth/kplay/internal/kafka"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 func FetchRecords(cl *kgo.Client, numRecords int) tea.Cmd {
 	return func() tea.Msg {
-		fetches := cl.PollRecords(context.Background(), numRecords)
-		records := fetches.Records()
-		for _, rec := range records {
-			err := cl.CommitRecords(context.Background(), rec)
-			if err != nil {
-				return KMsgFetchedMsg{
-					records: nil,
-					err:     err,
-				}
-			}
-		}
-		return KMsgFetchedMsg{
-			records: fetches.Records(),
-			err:     nil,
-		}
+		records, err := k.FetchMessages(cl, true, numRecords)
+		return msgFetchedMsg{records, err}
 	}
 }
 
-func saveRecordMetadataToDisk(record *kgo.Record, msgMetadata string) tea.Cmd {
+func saveRecordValueToDisk(uniqueKey string, value string) tea.Cmd {
 	return func() tea.Msg {
-		filePath := fmt.Sprintf("records/%s/%d/%d-%s-metadata.md",
-			record.Topic,
-			record.Partition,
-			record.Offset,
-			record.Key,
-		)
+		filePath := fmt.Sprintf("records/%s.txt", uniqueKey)
 		dir := filepath.Dir(filePath)
 		err := os.MkdirAll(dir, 0o755)
 		if err != nil {
-			return RecordSavedToDiskMsg{err: err}
+			return msgSavedToDiskMsg{err: err}
 		}
-		data := fmt.Sprintf("Metadata\n---\n\n```\n%s```", msgMetadata)
-		err = os.WriteFile(filePath, []byte(data), 0o644)
+		err = os.WriteFile(filePath, []byte(value), 0o644)
 		if err != nil {
-			return RecordSavedToDiskMsg{err: err}
+			return msgSavedToDiskMsg{err: err}
 		}
-		return RecordSavedToDiskMsg{path: filePath}
+		return msgSavedToDiskMsg{path: filePath}
 	}
 }
 
-func saveRecordValueToDisk(record *kgo.Record, value string) tea.Cmd {
-	return func() tea.Msg {
-		filePath := fmt.Sprintf("records/%s/%d/%d-%s-value.md",
-			record.Topic,
-			record.Partition,
-			record.Offset,
-			record.Key,
-		)
-		dir := filepath.Dir(filePath)
-		err := os.MkdirAll(dir, 0o755)
-		if err != nil {
-			return RecordSavedToDiskMsg{err: err}
-		}
-		var data string
-		if len(record.Value) == 0 {
-			data = fmt.Sprintf("Value\n---\n\n%s\n", "Tombstone")
-		} else {
-			data = fmt.Sprintf("Value\n---\n\n```json\n%s```", value)
-		}
-		err = os.WriteFile(filePath, []byte(data), 0o644)
-		if err != nil {
-			return RecordSavedToDiskMsg{err: err}
-		}
-		return RecordSavedToDiskMsg{path: filePath}
-	}
-}
-
-func saveRecordMetadata(record *kgo.Record) tea.Cmd {
+func generateRecordDetails(record *kgo.Record, deserializationFmt d.DeserializationFmt) tea.Cmd {
 	return func() tea.Msg {
 		msgMetadata := d.GetRecordMetadata(record)
-		uniqueKey := fmt.Sprintf("-%d-%d", record.Partition, record.Offset)
-		return KMsgMetadataReadyMsg{storeKey: uniqueKey, record: record, msgMetadata: msgMetadata}
-	}
-}
+		uniqueKey := fmt.Sprintf("records/%s/%d/%d-%s",
+			record.Topic,
+			record.Partition,
+			record.Offset,
+			record.Key,
+		)
 
-func saveRecordValue(record *kgo.Record, deserializationFmt d.DeserializationFmt) tea.Cmd {
-	return func() tea.Msg {
-		var msgValue string
+		var zeroValue []byte
+
+		if len(record.Value) == 0 {
+			return msgDataReadyMsg{uniqueKey, messageDetails{msgMetadata, zeroValue, true, nil}}
+		}
+
+		var valueBytes []byte
 		var err error
 		switch deserializationFmt {
 		case d.JSON:
-			msgValue, err = d.GetRecordValueJSON(record)
+			valueBytes, err = d.GetPrettyJSON(record.Value)
 		case d.Protobuf:
-			msgValue, err = d.GetRecordValue(record)
+			valueBytes, err = d.GetPrettyJSONFromProtoBytes(record.Value)
+		default:
+			valueBytes = record.Value
 		}
+
 		if err != nil {
-			return KMsgValueReadyMsg{err: err}
+			return msgDataReadyMsg{uniqueKey, messageDetails{msgMetadata, zeroValue, false, err}}
 		}
-		uniqueKey := fmt.Sprintf("-%d-%d", record.Partition, record.Offset)
-		return KMsgValueReadyMsg{storeKey: uniqueKey, record: record, msgValue: msgValue}
+
+		return msgDataReadyMsg{uniqueKey, messageDetails{msgMetadata, valueBytes, false, nil}}
 	}
 }
 
 func hideHelp(interval time.Duration) tea.Cmd {
 	return tea.Tick(interval, func(time.Time) tea.Msg {
-		return HideHelpMsg{}
+		return hideHelpMsg{}
 	})
+}
+
+func copyToClipboard(data string) tea.Cmd {
+	return func() tea.Msg {
+		err := clipboard.WriteAll(data)
+		return dataWrittenToClipboard{err}
+	}
 }

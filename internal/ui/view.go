@@ -14,23 +14,17 @@ var (
 
 func (m Model) View() string {
 	var content string
-	var footer string
 	var msgsViewPtr string
 	var mode string
-	var msgMetadataTitleStyle lipgloss.Style
-	var msgValueTitleStyle lipgloss.Style
-
-	m.kMsgsList.Styles.Title = m.kMsgsList.Styles.Title.Background(lipgloss.Color(inactivePaneColor))
-	msgMetadataTitleStyle = msgDetailsTitleStyle
-	msgValueTitleStyle = msgDetailsTitleStyle
+	var msgDetailsTitleStyle lipgloss.Style
 
 	switch m.activeView {
-	case kMsgsListView:
-		m.kMsgsList.Styles.Title = m.kMsgsList.Styles.Title.Background(lipgloss.Color(activeHeaderColor))
-	case kMsgMetadataView:
-		msgMetadataTitleStyle = msgMetadataTitleStyle.Background(lipgloss.Color(activeHeaderColor))
-	case kMsgValueView:
-		msgValueTitleStyle = msgValueTitleStyle.Background(lipgloss.Color(activeHeaderColor))
+	case msgListView:
+		m.msgsList.Styles.Title = m.msgsList.Styles.Title.Background(lipgloss.Color(activeHeaderColor))
+		msgDetailsTitleStyle = inactiveMsgDetailsTitleStyle
+	case msgDetailsView:
+		m.msgsList.Styles.Title = m.msgsList.Styles.Title.Background(lipgloss.Color(inactivePaneColor))
+		msgDetailsTitleStyle = inactiveMsgDetailsTitleStyle.Background(lipgloss.Color(activeHeaderColor))
 	}
 
 	if m.persistRecords {
@@ -41,29 +35,22 @@ func (m Model) View() string {
 		mode += " " + skippingStyle.Render("skipping records!")
 	}
 
-	m.kMsgsList.Title += msgsViewPtr
+	m.msgsList.Title += msgsViewPtr
 
 	var statusBar string
-	if m.msg != "" {
-		statusBar = utils.TrimRight(m.msg, 120)
-	}
-	var errorMsg string
-	if m.errorMsg != "" {
-		errorMsg = " error: " + utils.TrimRight(m.errorMsg, 120)
+	if m.msg != "" && m.errorMsg != "" {
+		statusBar = fmt.Sprintf("%s %s", successMsgStyle.Render(m.msg), errorMsgStyle.Render(m.errorMsg))
+	} else if m.msg != "" {
+		statusBar = successMsgStyle.Render(m.msg)
+	} else {
+		statusBar = errorMsgStyle.Render(m.errorMsg)
 	}
 
-	var msgMetadataVPContent string
-	if !m.msgValueVPReady {
-		msgMetadataVPContent = vpNotReadyMsg
+	var msgDetailsVPContent string
+	if !m.msgDetailsVPReady {
+		msgDetailsVPContent = vpNotReadyMsg
 	} else {
-		msgMetadataVPContent = fmt.Sprintf("%s\n\n%s\n", msgMetadataTitleStyle.Render("Message Metadata"), m.msgMetadataVP.View())
-	}
-
-	var msgValueVPContent string
-	if !m.msgValueVPReady {
-		msgValueVPContent = vpNotReadyMsg
-	} else {
-		msgValueVPContent = fmt.Sprintf("%s\n\n%s\n", msgValueTitleStyle.Render("Message Value"), m.msgValueVP.View())
+		msgDetailsVPContent = fmt.Sprintf("%s\n\n%s\n", msgDetailsTitleStyle.Render("Message Details"), m.msgDetailsVP.View())
 	}
 	var helpVPContent string
 	if !m.helpVPReady {
@@ -72,45 +59,29 @@ func (m Model) View() string {
 		helpVPContent = fmt.Sprintf("%s\n\n%s\n", helpVPTitleStyle.Render("Help"), m.helpVP.View())
 	}
 
-	switch m.vpFullScreen {
-	case false:
+	switch m.activeView {
+	case msgListView, msgDetailsView:
 		content = lipgloss.JoinHorizontal(
 			lipgloss.Top,
-			messageListStyle.Render(m.kMsgsList.View()),
-			lipgloss.JoinVertical(lipgloss.Left,
-				viewPortStyle.Render(msgMetadataVPContent),
-				viewPortStyle.Render(msgValueVPContent),
-			),
+			messageListStyle.Render(m.msgsList.View()),
+			viewPortStyle.Render(msgDetailsVPContent),
 		)
-	case true:
-		switch m.activeView {
-		case kMsgMetadataView:
-			content = viewPortFullScreenStyle.Render(msgMetadataVPContent)
-		case kMsgValueView:
-			content = viewPortFullScreenStyle.Render(msgValueVPContent)
-		case helpView:
-			content = viewPortFullScreenStyle.Render(helpVPContent)
-		}
+	case helpView:
+		content = viewPortFullScreenStyle.Render(helpVPContent)
 	}
-
-	footerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#282828")).
-		Background(lipgloss.Color("#7c6f64"))
 
 	var helpMsg string
 	if m.showHelpIndicator {
 		helpMsg = " " + helpMsgStyle.Render("Press ? for help")
 	}
-	kConfigMsg := kConfigStyle.Render(fmt.Sprintf(" [%s] ", utils.TrimLeft(m.config.Topic, 40)))
+	topicMarker := topicStyle.Render(fmt.Sprintf(" [%s] ", utils.TrimLeft(m.config.Topic, 40)))
 
-	footerStr := fmt.Sprintf("%s%s%s%s%s",
-		modeStyle.Render("kplay"),
-		kConfigMsg,
+	footer := fmt.Sprintf("%s%s%s%s",
+		toolNameStyle.Render("kplay"),
+		topicMarker,
 		helpMsg,
 		mode,
-		errorMsg,
 	)
-	footer = footerStyle.Render(footerStr)
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		content,

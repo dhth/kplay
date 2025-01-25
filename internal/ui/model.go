@@ -13,41 +13,33 @@ import (
 type stateView uint
 
 const (
-	kMsgsListView stateView = iota
-	kMsgMetadataView
-	kMsgValueView
+	msgListView stateView = iota
+	msgDetailsView
 	helpView
 )
 
 type Model struct {
-	config              d.Config
-	kCl                 *kgo.Client
-	activeView          stateView
-	lastView            stateView
-	kMsgsList           list.Model
-	kMsgsCurrentIndex   int
-	firstMsgMetadataSet bool
-	firstMsgValueSet    bool
-	helpVP              viewport.Model
-	msgMetadataVP       viewport.Model
-	msgMetadataVPHeight int
-	msgValueVP          viewport.Model
-	msgValueVPHeight    int
-	recordMetadataStore map[string]string
-	recordValueStore    map[string]string
-	showHelpIndicator   bool
-	skipRecords         bool
-	persistRecords      bool
-	msgMetadataVPReady  bool
-	msgValueVPReady     bool
-	helpVPReady         bool
-	vpFullScreen        bool
-	terminalWidth       int
-	terminalHeight      int
-	msg                 string
-	errorMsg            string
+	config            d.Config
+	client            *kgo.Client
+	activeView        stateView
+	lastView          stateView
+	msgsList          list.Model
+	currentMsgIndex   int
+	firstMsgValueSet  bool
+	helpVP            viewport.Model
+	msgDetailsVP      viewport.Model
+	msgDetailsVPReady bool
+	msgDetailsStore   map[string]messageDetails
+	showHelpIndicator bool
+	skipRecords       bool
+	persistRecords    bool
+	helpVPReady       bool
+	terminalWidth     int
+	terminalHeight    int
+	msg               string
+	errorMsg          string
 }
 
 func (Model) Init() tea.Cmd {
-	return hideHelp(time.Second * 3)
+	return hideHelp(time.Second * 30)
 }

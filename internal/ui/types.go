@@ -25,5 +25,17 @@ func (item KMsgItem) Description() string {
 }
 
 func (item KMsgItem) FilterValue() string {
-	return fmt.Sprintf("-%d-%d", item.record.Partition, item.record.Offset)
+	return fmt.Sprintf("records/%s/%d/%d-%s",
+		item.record.Topic,
+		item.record.Partition,
+		item.record.Offset,
+		item.record.Key,
+	)
+}
+
+type messageDetails struct {
+	metadata  string
+	value     []byte
+	tombstone bool
+	err       error
 }
