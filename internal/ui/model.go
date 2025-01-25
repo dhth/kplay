@@ -13,8 +13,8 @@ import (
 type stateView uint
 
 const (
-	kMsgsListView stateView = iota
-	kMsgValueView
+	msgListView stateView = iota
+	msgDetailsView
 	helpView
 )
 

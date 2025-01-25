@@ -51,10 +51,10 @@ var (
 			Bold(true).
 			Background(lipgloss.Color(toolNameColor))
 
-	msgDetailsTitleStyle = baseStyle.
-				Bold(true).
-				Background(lipgloss.Color(inactivePaneColor)).
-				Align(lipgloss.Left)
+	inactiveMsgDetailsTitleStyle = baseStyle.
+					Bold(true).
+					Background(lipgloss.Color(inactivePaneColor)).
+					Align(lipgloss.Left)
 
 	topicStyle = baseStyle.
 			Bold(true).

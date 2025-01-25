@@ -16,16 +16,15 @@ func (m Model) View() string {
 	var content string
 	var msgsViewPtr string
 	var mode string
-	var msgValueTitleStyle lipgloss.Style
-
-	m.msgsList.Styles.Title = m.msgsList.Styles.Title.Background(lipgloss.Color(inactivePaneColor))
-	msgValueTitleStyle = msgDetailsTitleStyle
+	var msgDetailsTitleStyle lipgloss.Style
 
 	switch m.activeView {
-	case kMsgsListView:
+	case msgListView:
 		m.msgsList.Styles.Title = m.msgsList.Styles.Title.Background(lipgloss.Color(activeHeaderColor))
-	case kMsgValueView:
-		msgValueTitleStyle = msgValueTitleStyle.Background(lipgloss.Color(activeHeaderColor))
+		msgDetailsTitleStyle = inactiveMsgDetailsTitleStyle
+	case msgDetailsView:
+		m.msgsList.Styles.Title = m.msgsList.Styles.Title.Background(lipgloss.Color(inactivePaneColor))
+		msgDetailsTitleStyle = inactiveMsgDetailsTitleStyle.Background(lipgloss.Color(activeHeaderColor))
 	}
 
 	if m.persistRecords {
@@ -47,11 +46,11 @@ func (m Model) View() string {
 		statusBar = errorMsgStyle.Render(m.errorMsg)
 	}
 
-	var msgValueVPContent string
+	var msgDetailsVPContent string
 	if !m.msgDetailsVPReady {
-		msgValueVPContent = vpNotReadyMsg
+		msgDetailsVPContent = vpNotReadyMsg
 	} else {
-		msgValueVPContent = fmt.Sprintf("%s\n\n%s\n", msgValueTitleStyle.Render("Message Value"), m.msgDetailsVP.View())
+		msgDetailsVPContent = fmt.Sprintf("%s\n\n%s\n", msgDetailsTitleStyle.Render("Message Details"), m.msgDetailsVP.View())
 	}
 	var helpVPContent string
 	if !m.helpVPReady {
@@ -61,11 +60,11 @@ func (m Model) View() string {
 	}
 
 	switch m.activeView {
-	case kMsgsListView, kMsgValueView:
+	case msgListView, msgDetailsView:
 		content = lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			messageListStyle.Render(m.msgsList.View()),
-			viewPortStyle.Render(msgValueVPContent),
+			viewPortStyle.Render(msgDetailsVPContent),
 		)
 	case helpView:
 		content = viewPortFullScreenStyle.Render(helpVPContent)

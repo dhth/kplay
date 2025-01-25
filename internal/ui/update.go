@@ -25,10 +25,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			switch m.activeView {
-			case kMsgsListView:
+			case msgListView:
 				return m, tea.Quit
-			case kMsgValueView:
-				m.activeView = kMsgsListView
+			case msgDetailsView:
+				m.activeView = msgListView
 			case helpView:
 				m.activeView = m.lastView
 			}
@@ -142,7 +142,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.msgDetailsVP.SetContent(detailsStr)
 		case "j", "down":
 			switch m.activeView {
-			case kMsgValueView:
+			case msgDetailsView:
 				if m.msgDetailsVP.AtBottom() {
 					break
 				}
@@ -155,7 +155,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "k", "up":
 			switch m.activeView {
-			case kMsgValueView:
+			case msgDetailsView:
 				if m.msgDetailsVP.AtTop() {
 					break
 				}
@@ -172,10 +172,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			switch m.activeView {
-			case kMsgsListView:
-				m.activeView = kMsgValueView
-			case kMsgValueView:
-				m.activeView = kMsgsListView
+			case msgListView:
+				m.activeView = msgDetailsView
+			case msgDetailsView:
+				m.activeView = msgListView
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -273,10 +273,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch m.activeView {
-	case kMsgsListView:
+	case msgListView:
 		m.msgsList, cmd = m.msgsList.Update(msg)
 		cmds = append(cmds, cmd)
-	case kMsgValueView:
+	case msgDetailsView:
 		m.msgDetailsVP, cmd = m.msgDetailsVP.Update(msg)
 		cmds = append(cmds, cmd)
 	case helpView:
