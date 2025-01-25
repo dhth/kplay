@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,26 +9,14 @@ import (
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	d "github.com/dhth/kplay/internal/domain"
+	k "github.com/dhth/kplay/internal/kafka"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 func FetchRecords(cl *kgo.Client, numRecords int) tea.Cmd {
 	return func() tea.Msg {
-		fetches := cl.PollRecords(context.Background(), numRecords)
-		records := fetches.Records()
-		for _, rec := range records {
-			err := cl.CommitRecords(context.Background(), rec)
-			if err != nil {
-				return msgFetchedMsg{
-					records: nil,
-					err:     err,
-				}
-			}
-		}
-		return msgFetchedMsg{
-			records: fetches.Records(),
-			err:     nil,
-		}
+		records, err := k.FetchMessages(cl, true, numRecords)
+		return msgFetchedMsg{records, err}
 	}
 }
 

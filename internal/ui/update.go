@@ -293,11 +293,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if ok {
 			detailsStylized := getMsgDetailsStylized(msgDetails)
 			m.msgDetailsVP.SetContent(detailsStylized)
+			m.currentMsgIndex = msgIndex
 		} else {
 			m.msgDetailsVP.SetContent(msgAttributeNotFoundMsg)
 		}
-
-		m.currentMsgIndex = msgIndex
 	}
 
 	return m, tea.Batch(cmds...)
