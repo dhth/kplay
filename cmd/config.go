@@ -117,14 +117,19 @@ func GetProfileConfig(bytes []byte, profileName string, homeDir string) (c.Confi
 				return config, fmt.Errorf("%w: %s", ErrIssueWithProtobufFileDescriptorSet, err.Error())
 			}
 
+			protoCfg := c.ProtoConfig{
+				DescriptorSetFile: pr.ProtoConfig.DescriptorSetFile,
+				DescriptorName:    pr.ProtoConfig.DescriptorName,
+				MsgDescriptor:     msgDescriptor,
+			}
 			return c.Config{
-				Name:               profileName,
-				Authentication:     auth,
-				Encoding:           encodingFmt,
-				Brokers:            pr.Brokers,
-				Topic:              pr.Topic,
-				ConsumerGroup:      pr.ConsumerGroup,
-				ProtoMsgDescriptor: &msgDescriptor,
+				Name:           profileName,
+				Authentication: auth,
+				Encoding:       encodingFmt,
+				Brokers:        pr.Brokers,
+				Topic:          pr.Topic,
+				ConsumerGroup:  pr.ConsumerGroup,
+				Proto:          &protoCfg,
 			}, nil
 		}
 

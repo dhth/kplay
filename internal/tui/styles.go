@@ -20,6 +20,7 @@ const (
 	toolNameColor            = "#b8bb26"
 	persistingMsgsColor      = "#fb4934"
 	skippingMsgsColor        = "#fabd2f"
+	committingMsgsColor      = "#fe8019"
 	msgDetailsHeadingColor   = "#fabd2f"
 	msgDetailsTombstoneColor = "#a89984"
 )
@@ -73,6 +74,9 @@ var (
 
 	skippingStyle = footerMsgStyle.
 			Foreground(lipgloss.Color(skippingMsgsColor))
+
+	committingStyle = footerMsgStyle.
+			Foreground(lipgloss.Color(committingMsgsColor))
 
 	helpMsgStyle = footerMsgStyle.
 			Foreground(lipgloss.Color(helpMsgColor))

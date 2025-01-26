@@ -13,19 +13,18 @@ import (
 	s "github.com/dhth/kplay/internal/serde"
 	"github.com/dhth/kplay/internal/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func FetchRecords(cl *kgo.Client, numRecords int) tea.Cmd {
+func FetchRecords(cl *kgo.Client, commit bool, numRecords int) tea.Cmd {
 	return func() tea.Msg {
-		records, err := k.FetchMessages(cl, true, numRecords)
-		return msgFetchedMsg{records, err}
+		records, err := k.FetchMessages(cl, commit, numRecords)
+		return msgsFetchedMsg{records, err}
 	}
 }
 
 func saveRecordValueToDisk(uniqueKey string, value string) tea.Cmd {
 	return func() tea.Msg {
-		filePath := fmt.Sprintf("records/%s.txt", uniqueKey)
+		filePath := fmt.Sprintf("messages/%s.txt", uniqueKey)
 		dir := filepath.Dir(filePath)
 		err := os.MkdirAll(dir, 0o755)
 		if err != nil {
@@ -39,10 +38,10 @@ func saveRecordValueToDisk(uniqueKey string, value string) tea.Cmd {
 	}
 }
 
-func generateRecordDetails(record *kgo.Record, deserializationFmt c.EncodingFormat, protoMsgDescriptor *protoreflect.MessageDescriptor) tea.Cmd {
+func generateRecordDetails(record *kgo.Record, deserializationFmt c.EncodingFormat, protoConfig *c.ProtoConfig) tea.Cmd {
 	return func() tea.Msg {
 		msgMetadata := utils.GetRecordMetadata(record)
-		uniqueKey := fmt.Sprintf("records/%s/%d/%d-%s",
+		uniqueKey := fmt.Sprintf("messages/%s/%d/%d-%s",
 			record.Topic,
 			record.Partition,
 			record.Offset,
@@ -61,10 +60,10 @@ func generateRecordDetails(record *kgo.Record, deserializationFmt c.EncodingForm
 		case c.JSON:
 			valueBytes, err = s.ParseJSONEncodedBytes(record.Value)
 		case c.Protobuf:
-			if protoMsgDescriptor == nil {
+			if protoConfig == nil {
 				err = fmt.Errorf("%w: protobuf descriptor is nil when it shouldn't be", errSomethingUnexpectedHappened)
 			} else {
-				valueBytes, err = s.ParseProtobufEncodedBytes(record.Value, *protoMsgDescriptor)
+				valueBytes, err = s.ParseProtobufEncodedBytes(record.Value, protoConfig.MsgDescriptor)
 			}
 		default:
 			valueBytes = record.Value

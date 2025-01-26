@@ -1,6 +1,10 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+
+	"google.golang.org/protobuf/reflect/protoreflect"
+)
 
 type EncodingFormat uint
 
@@ -21,4 +25,10 @@ func ValidateEncodingFmtValue(value string) (EncodingFormat, error) {
 	default:
 		return JSON, fmt.Errorf("encoding format is missing/incorrect; possible values: [json, protobuf, raw]")
 	}
+}
+
+type ProtoConfig struct {
+	DescriptorSetFile string
+	DescriptorName    string
+	MsgDescriptor     protoreflect.MessageDescriptor
 }
