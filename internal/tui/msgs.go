@@ -12,12 +12,14 @@ type msgsFetchedMsg struct {
 }
 
 type msgSavedToDiskMsg struct {
-	path string
-	err  error
+	path                string
+	notifyUserOnSuccess bool
+	err                 error
 }
 
 type msgDataReadyMsg struct {
 	uniqueKey string
+	record    *kgo.Record
 	details   messageDetails
 }
 

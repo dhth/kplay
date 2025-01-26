@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Allow consuming messages without committing them
+- Allow persisting a single message
+
 ## [v1.0.0] - Jan 26, 2025
 
 ### Added
@@ -34,6 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow persisting messages to the local filesystem
 - Allow skipping messages
 
-[unreleased]: https://github.com/dhth/kplay/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/dhth/kplay/compare/v1.0.0...HEAD
 [v1.0.0]: https://github.com/dhth/kplay/compare/v0.1.0...v1.0.0
 [v0.1.0]: https://github.com/dhth/kplay/commits/v0.1.0
