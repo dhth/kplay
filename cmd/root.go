@@ -12,6 +12,7 @@ import (
 	c "github.com/dhth/kplay/internal/config"
 	k "github.com/dhth/kplay/internal/kafka"
 	"github.com/dhth/kplay/internal/tui"
+	"github.com/dhth/kplay/internal/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +24,7 @@ const (
 var (
 	errCouldntCreateKafkaClient = errors.New("couldn't create kafka client")
 	errCouldntPingBrokers       = errors.New("couldn't ping the brokers")
+	errCouldntGetUserHomeDir    = errors.New("couldn't get your home directory")
 	errCouldntGetUserConfigDir  = errors.New("couldn't get your config directory")
 	ErrCouldntReadConfigFile    = errors.New("couldn't read config file")
 	ErrConfigInvalid            = errors.New("config is invalid")
@@ -39,26 +41,34 @@ func Execute() error {
 
 func NewRootCommand() (*cobra.Command, error) {
 	var (
-		configPath      string
-		persistMessages bool
-		skipMessages    bool
-		consumerGroup   string
-		config          c.Config
-		listConfig      bool
+		configPath        string
+		configPathFull    string
+		homeDir           string
+		persistMessages   bool
+		skipMessages      bool
+		consumerGroup     string
+		config            c.Config
+		displayConfigOnly bool
 	)
 
 	rootCmd := &cobra.Command{
-		Use:          "kplay <PROFILE>",
-		Short:        "kplay (\"kafka playground\") lets you inspect messages in a Kafka topic in a simple and deliberate manner.",
+		Use:   "kplay <PROFILE>",
+		Short: "kplay lets you inspect messages in a Kafka topic in a simple and deliberate manner.",
+		Long: `kplay ("kafka playground") lets you inspect messages in a Kafka topic in a simple and deliberate manner.",
+
+kplay relies on a configuration file that contains profiles for various Kafka topics, each with its own details related
+to brokers, message encoding, authentication, etc.
+`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			configBytes, err := os.ReadFile(configPath)
+			configPathFull = utils.ExpandTilde(configPath, homeDir)
+			configBytes, err := os.ReadFile(configPathFull)
 			if err != nil {
 				return fmt.Errorf("%w: %w", ErrCouldntReadConfigFile, err)
 			}
 
-			config, err = GetProfileConfig(configBytes, args[0])
+			config, err = GetProfileConfig(configBytes, args[0], homeDir)
 			if errors.Is(err, errProfileNotFound) {
 				return err
 			} else if err != nil {
@@ -77,7 +87,7 @@ func NewRootCommand() (*cobra.Command, error) {
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			behaviours := c.Behaviours{PersistMessages: persistMessages, SkipMessages: skipMessages}
-			if listConfig {
+			if displayConfigOnly {
 				fmt.Printf(`Config:
 ---
 
@@ -121,6 +131,12 @@ Behaviours
 		},
 	}
 
+	var err error
+	homeDir, err = os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", errCouldntGetUserHomeDir, err.Error())
+	}
+
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", errCouldntGetUserConfigDir, err.Error())
@@ -132,7 +148,7 @@ Behaviours
 	rootCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the \"persist messages\" setting ON")
 	rootCmd.Flags().BoolVarP(&skipMessages, "skip-messages", "s", false, "whether to start the TUI with the \"skip messages\" setting ON")
 	rootCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
-	rootCmd.Flags().BoolVar(&listConfig, "list-config", false, "whether to list config picked up by kplay")
+	rootCmd.Flags().BoolVar(&displayConfigOnly, "display-config-only", false, "whether to only display config picked up by kplay")
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 

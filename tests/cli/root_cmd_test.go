@@ -53,7 +53,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-correct.yml"
-		c := exec.Command(binPath, "local", "-c", configPath, "--list-config")
+		c := exec.Command(binPath, "local", "-c", configPath, "--display-config-only")
 		o, err := c.CombinedOutput()
 		// THEN
 		if err != nil {
@@ -66,7 +66,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/non-existent-file.yml"
-		c := exec.Command(binPath, "local", "-c", configPath, "--list-config")
+		c := exec.Command(binPath, "local", "-c", configPath, "--display-config-only")
 		o, err := c.CombinedOutput()
 
 		// THEN
@@ -84,7 +84,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-incorrect-yml.yml"
-		c := exec.Command(binPath, "local", "-c", configPath, "--list-config")
+		c := exec.Command(binPath, "local", "-c", configPath, "--display-config-only")
 		o, err := c.CombinedOutput()
 
 		// THEN
@@ -102,7 +102,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-correct.yml"
-		c := exec.Command(binPath, "local", "-c", configPath, "-g", "   ", "--list-config")
+		c := exec.Command(binPath, "local", "-c", configPath, "-g", "   ", "--display-config-only")
 		o, err := c.CombinedOutput()
 
 		// THEN
@@ -120,7 +120,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-protobuf-incorrect-desc-name.yml"
-		c := exec.Command(binPath, "local", "-c", configPath, "-g", "   ", "--list-config")
+		c := exec.Command(binPath, "local", "-c", configPath, "-g", "   ", "--display-config-only")
 		o, err := c.CombinedOutput()
 
 		// THEN
@@ -138,7 +138,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-protobuf-incorrect-desc-set.yml"
-		c := exec.Command(binPath, "local", "-c", configPath, "-g", "   ", "--list-config")
+		c := exec.Command(binPath, "local", "-c", configPath, "-g", "   ", "--display-config-only")
 		o, err := c.CombinedOutput()
 
 		// THEN

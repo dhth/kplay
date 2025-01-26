@@ -8,6 +8,7 @@ import (
 
 	c "github.com/dhth/kplay/internal/config"
 	k "github.com/dhth/kplay/internal/kafka"
+	"github.com/dhth/kplay/internal/utils"
 	yaml "github.com/goccy/go-yaml"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -44,7 +45,7 @@ type protoConfig struct {
 	DescriptorName    string `yaml:"descriptorName"`
 }
 
-func GetProfileConfig(bytes []byte, profileName string) (c.Config, error) {
+func GetProfileConfig(bytes []byte, profileName string, homeDir string) (c.Config, error) {
 	var kConfig kplayConfig
 	var config c.Config
 
@@ -94,6 +95,8 @@ func GetProfileConfig(bytes []byte, profileName string) (c.Config, error) {
 			if strings.TrimSpace(pr.ProtoConfig.DescriptorSetFile) == "" {
 				return config, fmt.Errorf("protobuf descriptor set file is empty/missing")
 			}
+
+			pr.ProtoConfig.DescriptorSetFile = utils.ExpandTilde(pr.ProtoConfig.DescriptorSetFile, homeDir)
 
 			if strings.TrimSpace(pr.ProtoConfig.DescriptorName) == "" {
 				return config, fmt.Errorf("protobuf descriptor name is empty/missing")

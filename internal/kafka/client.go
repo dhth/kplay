@@ -46,7 +46,13 @@ func GetClient(auth c.AuthType, brokers []string, group, topic string) (*kgo.Cli
 			}, nil
 		})),
 		)
-		opts = append(opts, kgo.Dialer((&tls.Dialer{NetDialer: &net.Dialer{Timeout: 10 * time.Second}}).DialContext))
+		dialer := tls.Dialer{
+			NetDialer: &net.Dialer{
+				Timeout: 10 * time.Second,
+			},
+		}
+		opts = append(opts, kgo.Dialer(
+			(&dialer).DialContext))
 	}
 
 	return kgo.NewClient(opts...)
