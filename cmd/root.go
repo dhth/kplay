@@ -54,7 +54,7 @@ func NewRootCommand() (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
 		Use:   "kplay <PROFILE>",
 		Short: "kplay lets you inspect messages in a Kafka topic in a simple and deliberate manner.",
-		Long: `kplay ("kafka playground") lets you inspect messages in a Kafka topic in a simple and deliberate manner.",
+		Long: `kplay ("kafka playground") lets you inspect messages in a Kafka topic in a simple and deliberate manner.
 
 kplay relies on a configuration file that contains profiles for various Kafka topics, each with its own details related
 to brokers, message encoding, authentication, etc.
@@ -105,8 +105,8 @@ Behaviours
 `,
 					config.Topic,
 					config.ConsumerGroup,
-					config.AuthenticationValue(),
-					config.EncodingValue(),
+					config.AuthenticationDisplay(),
+					config.EncodingDisplay(),
 					config.Brokers,
 					behaviours.PersistMessages,
 					behaviours.SkipMessages)

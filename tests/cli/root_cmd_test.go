@@ -39,6 +39,7 @@ func TestCLI(t *testing.T) {
 		}
 	}()
 
+	// SUCCESSES
 	t.Run("Help", func(t *testing.T) {
 		// GIVEN
 		// WHEN
@@ -62,6 +63,20 @@ func TestCLI(t *testing.T) {
 		assert.NoError(t, err, "output:\n%s", o)
 	})
 
+	t.Run("Parsing profile with raw encoding works", func(t *testing.T) {
+		// GIVEN
+		// WHEN
+		configPath := "assets/config-raw-encoding.yml"
+		c := exec.Command(binPath, "local", "-c", configPath, "--display-config-only")
+		o, err := c.CombinedOutput()
+		// THEN
+		if err != nil {
+			fmt.Printf("output:\n%s", o)
+		}
+		assert.NoError(t, err, "output:\n%s", o)
+	})
+
+	// FAILURES
 	t.Run("Fails for absent config file", func(t *testing.T) {
 		// GIVEN
 		// WHEN
