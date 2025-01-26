@@ -12,18 +12,12 @@ import (
 )
 
 var (
-	errCouldntUnmarshallDescriptorSet  = errors.New("couldn't unmarshall descriptor set file contents")
+	errCouldntUnmarshallDescriptorSet  = errors.New("couldn't unmarshal descriptor set file contents")
 	errCouldntCreateProtoRegistryFiles = errors.New("couldn't create proto registry files from descriptor set")
-	errDescriptorNameIsInvalid         = errors.New("descriptor name is invalid")
 	errCouldntFindDescriptor           = errors.New("couldn't find descriptor by name")
 )
 
-func GetDescriptorFromDescriptorSet(descSetBytes []byte, descName string) (protoreflect.MessageDescriptor, error) {
-	descriptorName := protoreflect.FullName(descName)
-	if !descriptorName.IsValid() {
-		return nil, errDescriptorNameIsInvalid
-	}
-
+func GetDescriptorFromDescriptorSet(descSetBytes []byte, descriptorName protoreflect.FullName) (protoreflect.MessageDescriptor, error) {
 	var fds descriptorpb.FileDescriptorSet
 	err := proto.Unmarshal(descSetBytes, &fds)
 	if err != nil {

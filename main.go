@@ -17,13 +17,19 @@ func main() {
 	err := cmd.Execute()
 	if err != nil {
 		if errors.Is(err, cmd.ErrConfigInvalid) || errors.Is(err, cmd.ErrCouldntReadConfigFile) {
-			fmt.Fprintf(os.Stderr, `
+			if errors.Is(err, cmd.ErrIssueWithProtobufFileDescriptorSet) {
+				fmt.Fprint(os.Stderr, `
+A protobuf file descriptor set can be created using the "Protocol Buffer Compiler" (https://grpc.io/docs/protoc-installation) as follows:
+
+$ protoc path/to/proto/file.proto --descriptor_set_out=path/to/descriptor_set.pb --include_imports 
+`)
+			} else {
+				fmt.Fprintf(os.Stderr, `
 kplay's config looks like this:
 ---
 %s---
-
-Run kplay -h for more details.
 `, sampleConfig)
+			}
 		}
 		os.Exit(1)
 	}

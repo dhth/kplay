@@ -115,4 +115,40 @@ func TestCLI(t *testing.T) {
 			t.Fatalf("couldn't get error code")
 		}
 	})
+
+	t.Run("Fails if descriptor name incorrect", func(t *testing.T) {
+		// GIVEN
+		// WHEN
+		configPath := "assets/config-protobuf-incorrect-desc-name.yml"
+		c := exec.Command(binPath, "local", "-c", configPath, "-g", "   ", "--list-config")
+		o, err := c.CombinedOutput()
+
+		// THEN
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
+			exitCode := exitError.ExitCode()
+			require.Equal(t, 1, exitCode, "exit code is not correct: got %d, expected: 1; output:\n%s", exitCode, o)
+			assert.Contains(t, string(o), "descriptor name is invalid")
+		} else {
+			t.Fatalf("couldn't get error code")
+		}
+	})
+
+	t.Run("Fails if descriptor set incorrect", func(t *testing.T) {
+		// GIVEN
+		// WHEN
+		configPath := "assets/config-protobuf-incorrect-desc-set.yml"
+		c := exec.Command(binPath, "local", "-c", configPath, "-g", "   ", "--list-config")
+		o, err := c.CombinedOutput()
+
+		// THEN
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
+			exitCode := exitError.ExitCode()
+			require.Equal(t, 1, exitCode, "exit code is not correct: got %d, expected: 1; output:\n%s", exitCode, o)
+			assert.Contains(t, string(o), "there's an issue with the file descriptor set")
+		} else {
+			t.Fatalf("couldn't get error code")
+		}
+	})
 }

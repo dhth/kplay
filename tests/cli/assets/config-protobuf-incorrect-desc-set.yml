@@ -1,0 +1,11 @@
+profiles:
+  - name: local
+    authentication: none
+    encodingFormat: protobuf
+    protoConfig:
+      descriptorSetFile: assets/config-protobuf-incorrect-desc-set.yml
+      descriptorName: sample.ApplicationState
+    brokers:
+      - 127.0.0.1:9092
+    topic: kplay-test-4
+    consumerGroup: kplay-consumer-group-1

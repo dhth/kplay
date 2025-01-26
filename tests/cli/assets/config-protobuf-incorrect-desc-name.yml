@@ -1,0 +1,11 @@
+profiles:
+  - name: local
+    authentication: none
+    encodingFormat: protobuf
+    protoConfig:
+      descriptorSetFile: assets/sample_descriptor.pb
+      descriptorName: incorrect value
+    brokers:
+      - 127.0.0.1:9092
+    topic: kplay-test-4
+    consumerGroup: kplay-consumer-group-1

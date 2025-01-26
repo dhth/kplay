@@ -9,17 +9,20 @@ import (
 	c "github.com/dhth/kplay/internal/config"
 	k "github.com/dhth/kplay/internal/kafka"
 	yaml "github.com/goccy/go-yaml"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 var (
-	errCouldntParseConfig           = errors.New("couldn't parse config file")
-	errProfileNotFound              = errors.New("profile not found")
-	errBrokersEmpty                 = errors.New("brokers cannot be empty")
-	errTopicEmpty                   = errors.New("topic cannot be empty")
-	errConsumerGroupEmpty           = errors.New("consumer group cannot be empty")
-	errNoProfilesDefined            = errors.New("no profiles defined")
-	errProtoConfigMissing           = errors.New("protobuf config missing")
-	errCouldntReadDescriptorSetFile = errors.New("couldn't read descriptor set file")
+	errCouldntParseConfig                 = errors.New("couldn't parse config file")
+	errProfileNotFound                    = errors.New("profile not found")
+	errBrokersEmpty                       = errors.New("brokers cannot be empty")
+	errTopicEmpty                         = errors.New("topic cannot be empty")
+	errConsumerGroupEmpty                 = errors.New("consumer group cannot be empty")
+	errNoProfilesDefined                  = errors.New("no profiles defined")
+	errProtoConfigMissing                 = errors.New("protobuf config missing")
+	errCouldntReadDescriptorSetFile       = errors.New("couldn't read descriptor set file")
+	ErrIssueWithProtobufFileDescriptorSet = errors.New("there's an issue with the file descriptor set")
+	errDescriptorNameIsInvalid            = errors.New("descriptor name is invalid")
 )
 
 type kplayConfig struct {
@@ -101,9 +104,14 @@ func GetProfileConfig(bytes []byte, profileName string) (c.Config, error) {
 				return config, fmt.Errorf("%w: %s", errCouldntReadDescriptorSetFile, err.Error())
 			}
 
-			msgDescriptor, err := k.GetDescriptorFromDescriptorSet(descriptorBytes, pr.ProtoConfig.DescriptorName)
+			descriptorName := protoreflect.FullName(pr.ProtoConfig.DescriptorName)
+			if !descriptorName.IsValid() {
+				return config, errDescriptorNameIsInvalid
+			}
+
+			msgDescriptor, err := k.GetDescriptorFromDescriptorSet(descriptorBytes, descriptorName)
 			if err != nil {
-				return config, err
+				return config, fmt.Errorf("%w: %s", ErrIssueWithProtobufFileDescriptorSet, err.Error())
 			}
 
 			return c.Config{
