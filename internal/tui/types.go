@@ -25,12 +25,7 @@ func (item KMsgItem) Description() string {
 }
 
 func (item KMsgItem) FilterValue() string {
-	return fmt.Sprintf("messages/%s/%d/%d-%s",
-		item.record.Topic,
-		item.record.Partition,
-		item.record.Offset,
-		item.record.Key,
-	)
+	return utils.GetUniqueKey(&item.record)
 }
 
 type messageDetails struct {

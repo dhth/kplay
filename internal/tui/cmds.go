@@ -22,36 +22,38 @@ func FetchRecords(cl *kgo.Client, commit bool, numRecords int) tea.Cmd {
 	}
 }
 
-func saveRecordValueToDisk(uniqueKey string, value string) tea.Cmd {
+func saveRecordDetailsToDisk(record *kgo.Record, details string, notifyUserOnSuccess bool) tea.Cmd {
 	return func() tea.Msg {
-		filePath := fmt.Sprintf("messages/%s.txt", uniqueKey)
+		filePath := filepath.Join("messages",
+			record.Topic,
+			fmt.Sprintf("partition-%d", record.Partition),
+			fmt.Sprintf("offset-%d.txt", record.Offset),
+		)
+
 		dir := filepath.Dir(filePath)
 		err := os.MkdirAll(dir, 0o755)
 		if err != nil {
 			return msgSavedToDiskMsg{err: err}
 		}
-		err = os.WriteFile(filePath, []byte(value), 0o644)
+
+		err = os.WriteFile(filePath, []byte(details), 0o644)
 		if err != nil {
 			return msgSavedToDiskMsg{err: err}
 		}
-		return msgSavedToDiskMsg{path: filePath}
+
+		return msgSavedToDiskMsg{path: filePath, notifyUserOnSuccess: notifyUserOnSuccess}
 	}
 }
 
 func generateRecordDetails(record *kgo.Record, deserializationFmt c.EncodingFormat, protoConfig *c.ProtoConfig) tea.Cmd {
 	return func() tea.Msg {
 		msgMetadata := utils.GetRecordMetadata(record)
-		uniqueKey := fmt.Sprintf("messages/%s/%d/%d-%s",
-			record.Topic,
-			record.Partition,
-			record.Offset,
-			record.Key,
-		)
+		uniqueKey := utils.GetUniqueKey(record)
 
 		var zeroValue []byte
 
 		if len(record.Value) == 0 {
-			return msgDataReadyMsg{uniqueKey, messageDetails{msgMetadata, zeroValue, true, nil}}
+			return msgDataReadyMsg{uniqueKey, record, messageDetails{msgMetadata, zeroValue, true, nil}}
 		}
 
 		var valueBytes []byte
@@ -70,10 +72,10 @@ func generateRecordDetails(record *kgo.Record, deserializationFmt c.EncodingForm
 		}
 
 		if err != nil {
-			return msgDataReadyMsg{uniqueKey, messageDetails{msgMetadata, zeroValue, false, err}}
+			return msgDataReadyMsg{uniqueKey, record, messageDetails{msgMetadata, zeroValue, false, err}}
 		}
 
-		return msgDataReadyMsg{uniqueKey, messageDetails{msgMetadata, valueBytes, false, nil}}
+		return msgDataReadyMsg{uniqueKey, record, messageDetails{msgMetadata, valueBytes, false, nil}}
 	}
 }
 

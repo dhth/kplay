@@ -34,14 +34,15 @@ kplay has 2 views:
     n                              Fetch the next message from the topic
     N                              Fetch the next 10 messages from the topic
     }                              Fetch the next 100 messages from the topic
-    s                              Toggle skipping mode; kplay will consume messages,
+    s                              Toggle skipping mode (if ON, kplay will consume messages,
                                        but not populate its internal list, effectively
-                                       skipping over them
-    p                              Toggle persist mode (kplay will start persisting
+                                       skipping over them)
+    p                              Toggle persist mode (if ON, kplay will start persisting
                                        messages at the location
-                                       messages/<topic>/<partition>/<offset>-<key>.txt
-    c                              Toggle commit mode (whether to commit messages back
-                                        to Kafka or not)
+                                       messages/<topic>/partition-<partition>/offset-<offset>.txt)
+    P                              Persist current message to local filesystem
+    c                              Toggle commit mode (if OFF, kplay will consume messages without
+                                        committing them)
     y                              Copy message details to clipboard
     [                              Move to previous item in list
     ]                              Move to next item in list

@@ -199,6 +199,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case msgDetailsView:
 				m.activeView = msgListView
 			}
+		case "P":
+			if m.activeView == helpView {
+				break
+			}
+
+			if len(m.msgsList.Items()) == 0 {
+				m.errorMsg = "no item in list"
+				break
+			}
+
+			item, ok := m.msgsList.SelectedItem().(KMsgItem)
+			if !ok {
+				m.errorMsg = genericErrMsg
+				break
+			}
+
+			msgDetails, ok := m.msgDetailsStore[item.FilterValue()]
+			if !ok {
+				m.errorMsg = genericErrMsg
+				break
+			}
+
+			details := getMsgDetails(msgDetails)
+			cmds = append(cmds, saveRecordDetailsToDisk(&item.record, details, true))
 		}
 	case tea.WindowSizeMsg:
 		w1, h1 := messageListStyle.GetFrameSize()
@@ -255,7 +279,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.behaviours.PersistMessages {
 			details := getMsgDetails(msg.details)
-			cmds = append(cmds, saveRecordValueToDisk(msg.uniqueKey, details))
+			cmds = append(cmds, saveRecordDetailsToDisk(msg.record, details, false))
 		}
 
 	case msgsFetchedMsg:
@@ -284,6 +308,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgSavedToDiskMsg:
 		if msg.err != nil {
 			m.errorMsg = fmt.Sprintf("Error saving to disk: %s", msg.err.Error())
+		} else if msg.notifyUserOnSuccess {
+			m.msg = "written to file"
 		}
 	case dataWrittenToClipboard:
 		if msg.err != nil {
