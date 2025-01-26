@@ -17,7 +17,7 @@ var helpText = fmt.Sprintf(`%s
 
 kplay has 2 views:
   - Message List and Details View
-  - Help Pane (this one)
+  - Help View (this one)
 `),
 	helpHeaderStyle.Render("Keyboard Shortcuts"),
 	helpHeaderStyle.Render("General"),

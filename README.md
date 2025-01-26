@@ -12,6 +12,8 @@ to your local filesystem.
 
 ![demo](https://github.com/user-attachments/assets/e64e148c-f267-4393-9f35-e563045ab765)
 
+![screenshot](https://github.com/user-attachments/assets/c78b23f1-47fa-474e-841f-161aa825359b)
+
 Install
 ---
 
@@ -49,8 +51,8 @@ Flags:
   -g, --consumer-group string   consumer group to use (overrides the one in kplay's config file)
       --display-config-only     whether to only display config picked up by kplay
   -h, --help                    help for kplay
-  -p, --persist-messages        whether to start the TUI with the "persist messages" setting ON
-  -s, --skip-messages           whether to start the TUI with the "skip messages" setting ON
+  -p, --persist-messages        whether to start the TUI with the setting "persist messages" ON
+  -s, --skip-messages           whether to start the TUI with the setting "skip messages" ON
 ```
 
 🔧 Configuration
@@ -129,6 +131,43 @@ the `descriptorName` "sample.ApplicationState".
 
 By default, `kplay` operates under the assumption that brokers do not
 authenticate requests. Besides this, it supports [AWS IAM authentication][2].
+
+📄 TUI Reference Manual
+---
+
+```
+kplay has 2 views:
+- Message List and Details View
+- Help View
+
+Keyboard Shortcuts
+
+General
+
+  ?                              Show help view
+  q                              Go back/quit
+  Q                              Quit from anywhere
+
+Message List and Details View
+
+  <tab>/<shift-tab>              Switch focus between panes
+  j/<Down>                       Move cursor/details pane down
+  k/<Up>                         Move cursor/details pane up
+  n                              Fetch the next message from the topic
+  N                              Fetch the next 10 messages from the topic
+  }                              Fetch the next 100 messages from the topic
+  s                              Toggle skipping mode (if ON, kplay will consume messages,
+                                     but not populate its internal list, effectively
+                                     skipping over them)
+  p                              Toggle persist mode (if ON, kplay will start persisting
+                                     messages at the location
+                                     messages/<topic>/partition-<partition>/offset-<offset>.txt)
+  c                              Toggle commit mode (if OFF, kplay will consume messages without
+                                      committing them)
+  y                              Copy message details to clipboard
+  [                              Move to previous item in list
+  ]                              Move to next item in list
+```
 
 🔐 Verifying release artifacts
 ---
