@@ -1,0 +1,19 @@
+profiles:
+  - name: json-encoded
+    authentication: none
+    encodingFormat: json
+    brokers:
+      - 127.0.0.1:9092
+    topic: kplay-test-1
+    consumerGroup: kplay-consumer-group-1
+
+  - name: proto-encoded
+    authentication: none
+    encodingFormat: protobuf
+    protoConfig:
+      descriptorSetFile: path/to/descriptor/set/file.pb
+      descriptorName: sample.DescriptorName
+    brokers:
+      - 127.0.0.1:9092
+    topic: kplay-test-2
+    consumerGroup: kplay-consumer-group-1

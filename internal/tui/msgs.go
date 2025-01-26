@@ -1,4 +1,4 @@
-package ui
+package tui
 
 import (
 	"github.com/twmb/franz-go/pkg/kgo"

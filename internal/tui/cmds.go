@@ -1,4 +1,4 @@
-package ui
+package tui
 
 import (
 	"fmt"
@@ -8,9 +8,12 @@ import (
 
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
-	d "github.com/dhth/kplay/internal/domain"
+	c "github.com/dhth/kplay/internal/config"
 	k "github.com/dhth/kplay/internal/kafka"
+	s "github.com/dhth/kplay/internal/serde"
+	"github.com/dhth/kplay/internal/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func FetchRecords(cl *kgo.Client, numRecords int) tea.Cmd {
@@ -36,9 +39,9 @@ func saveRecordValueToDisk(uniqueKey string, value string) tea.Cmd {
 	}
 }
 
-func generateRecordDetails(record *kgo.Record, deserializationFmt d.DeserializationFmt) tea.Cmd {
+func generateRecordDetails(record *kgo.Record, deserializationFmt c.EncodingFormat, protoMsgDescriptor *protoreflect.MessageDescriptor) tea.Cmd {
 	return func() tea.Msg {
-		msgMetadata := d.GetRecordMetadata(record)
+		msgMetadata := utils.GetRecordMetadata(record)
 		uniqueKey := fmt.Sprintf("records/%s/%d/%d-%s",
 			record.Topic,
 			record.Partition,
@@ -55,10 +58,14 @@ func generateRecordDetails(record *kgo.Record, deserializationFmt d.Deserializat
 		var valueBytes []byte
 		var err error
 		switch deserializationFmt {
-		case d.JSON:
-			valueBytes, err = d.GetPrettyJSON(record.Value)
-		case d.Protobuf:
-			valueBytes, err = d.GetPrettyJSONFromProtoBytes(record.Value)
+		case c.JSON:
+			valueBytes, err = s.ParseJSONEncodedBytes(record.Value)
+		case c.Protobuf:
+			if protoMsgDescriptor == nil {
+				err = fmt.Errorf("%w: protobuf descriptor is nil when it shouldn't be", errSomethingUnexpectedHappened)
+			} else {
+				valueBytes, err = s.ParseProtobufEncodedBytes(record.Value, *protoMsgDescriptor)
+			}
 		default:
 			valueBytes = record.Value
 		}

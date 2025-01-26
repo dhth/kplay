@@ -1,4 +1,4 @@
-package ui
+package tui
 
 import (
 	"errors"
@@ -6,13 +6,13 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	d "github.com/dhth/kplay/internal/domain"
+	c "github.com/dhth/kplay/internal/config"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 var errCouldntSetupDebugLogging = errors.New("couldn't set up debug logging")
 
-func RenderUI(kCl *kgo.Client, kconfig d.Config) error {
+func Render(kCl *kgo.Client, config c.Config, behaviours c.Behaviours) error {
 	if len(os.Getenv("DEBUG")) > 0 {
 		f, err := tea.LogToFile("debug.log", "debug")
 		if err != nil {
@@ -21,7 +21,7 @@ func RenderUI(kCl *kgo.Client, kconfig d.Config) error {
 		defer f.Close()
 	}
 
-	p := tea.NewProgram(InitialModel(kCl, kconfig), tea.WithAltScreen())
+	p := tea.NewProgram(InitialModel(kCl, config, behaviours), tea.WithAltScreen())
 	_, err := p.Run()
 
 	return err
