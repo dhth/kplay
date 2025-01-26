@@ -23,7 +23,7 @@ const (
 
 var (
 	errCouldntCreateKafkaClient = errors.New("couldn't create kafka client")
-	errCouldntPingBrokers       = errors.New("couldn't ping the brokers")
+	errCouldntPingBrokers       = errors.New("couldn't ping brokers")
 	errCouldntGetUserHomeDir    = errors.New("couldn't get your home directory")
 	errCouldntGetUserConfigDir  = errors.New("couldn't get your config directory")
 	ErrCouldntReadConfigFile    = errors.New("couldn't read config file")
@@ -46,6 +46,7 @@ func NewRootCommand() (*cobra.Command, error) {
 		homeDir           string
 		persistMessages   bool
 		skipMessages      bool
+		commitMessages    bool
 		consumerGroup     string
 		config            c.Config
 		displayConfigOnly bool
@@ -86,7 +87,12 @@ to brokers, message encoding, authentication, etc.
 			return nil
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
-			behaviours := c.Behaviours{PersistMessages: persistMessages, SkipMessages: skipMessages}
+			behaviours := c.Behaviours{
+				PersistMessages: persistMessages,
+				SkipMessages:    skipMessages,
+				CommitMessages:  commitMessages,
+			}
+
 			if displayConfigOnly {
 				fmt.Printf(`Config:
 ---
@@ -102,6 +108,7 @@ Behaviours
 
 - persist messages        %v
 - skip messages           %v
+- commit messages         %v
 `,
 					config.Topic,
 					config.ConsumerGroup,
@@ -109,7 +116,9 @@ Behaviours
 					config.EncodingDisplay(),
 					config.Brokers,
 					behaviours.PersistMessages,
-					behaviours.SkipMessages)
+					behaviours.SkipMessages,
+					behaviours.CommitMessages,
+				)
 				return nil
 			}
 
@@ -145,8 +154,9 @@ Behaviours
 	defaultConfigPath := filepath.Join(configDir, configFileName)
 
 	rootCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
-	rootCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the \"persist messages\" setting ON")
-	rootCmd.Flags().BoolVarP(&skipMessages, "skip-messages", "s", false, "whether to start the TUI with the \"skip messages\" setting ON")
+	rootCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the setting \"persist messages\" ON")
+	rootCmd.Flags().BoolVarP(&skipMessages, "skip-messages", "s", false, "whether to start the TUI with the setting \"skip messages\" ON")
+	rootCmd.Flags().BoolVar(&commitMessages, "commit-messages", true, "whether to start the TUI with the setting \"commit messages\" ON")
 	rootCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
 	rootCmd.Flags().BoolVar(&displayConfigOnly, "display-config-only", false, "whether to only display config picked up by kplay")
 

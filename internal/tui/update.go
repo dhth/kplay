@@ -13,6 +13,7 @@ const (
 	viewPortMoveLineCount      = 3
 	msgAttributeNotFoundMsg    = "something went wrong (with kplay)"
 	genericErrMsg              = "something went wrong"
+	alreadyFetchingMsg         = "already fetching"
 )
 
 var errSomethingUnexpectedHappened = errors.New("something unexpected happened; let @dhth know via https://github.com/dhth/kplay/issues")
@@ -42,34 +43,58 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			cmds = append(cmds, FetchRecords(m.client, 1))
+			if m.fetchingInProgress {
+				m.errorMsg = alreadyFetchingMsg
+				break
+			}
+
+			cmds = append(cmds, FetchRecords(m.client, m.behaviours.CommitMessages, 1))
+			m.fetchingInProgress = true
 		case "N":
 			if m.activeView == helpView {
 				break
 			}
 
-			cmds = append(cmds, FetchRecords(m.client, 10))
+			if m.fetchingInProgress {
+				m.errorMsg = alreadyFetchingMsg
+				break
+			}
+
+			cmds = append(cmds, FetchRecords(m.client, m.behaviours.CommitMessages, 10))
+			m.fetchingInProgress = true
 		case "}":
 			if m.activeView == helpView {
 				break
 			}
 
-			cmds = append(cmds, FetchRecords(m.client, 100))
+			if m.fetchingInProgress {
+				m.errorMsg = alreadyFetchingMsg
+				break
+			}
+
+			cmds = append(cmds, FetchRecords(m.client, m.behaviours.CommitMessages, 100))
+			m.fetchingInProgress = true
 		case "?":
 			m.lastView = m.activeView
 			m.activeView = helpView
+		case "c":
+			if m.activeView == helpView {
+				break
+			}
+
+			m.behaviours.CommitMessages = !m.behaviours.CommitMessages
 		case "p":
 			if m.activeView == helpView {
 				break
 			}
 
-			m.persistMessages = !m.persistMessages
+			m.behaviours.PersistMessages = !m.behaviours.PersistMessages
 		case "s":
 			if m.activeView == helpView {
 				break
 			}
 
-			m.skipMessages = !m.skipMessages
+			m.behaviours.SkipMessages = !m.behaviours.SkipMessages
 		case "y":
 			if len(m.msgsList.Items()) == 0 {
 				break
@@ -228,12 +253,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		if m.persistMessages {
+		if m.behaviours.PersistMessages {
 			details := getMsgDetails(msg.details)
 			cmds = append(cmds, saveRecordValueToDisk(msg.uniqueKey, details))
 		}
 
-	case msgFetchedMsg:
+	case msgsFetchedMsg:
+		m.fetchingInProgress = false
 		if msg.err != nil {
 			m.errorMsg = msg.err.Error()
 			break
@@ -244,11 +270,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 
-		switch m.skipMessages {
+		switch m.behaviours.SkipMessages {
 		case false:
 			for _, rec := range msg.records {
 				m.msgsList.InsertItem(len(m.msgsList.Items()), KMsgItem{record: *rec})
-				cmds = append(cmds, generateRecordDetails(rec, m.config.Encoding, m.config.ProtoMsgDescriptor))
+				cmds = append(cmds, generateRecordDetails(rec, m.config.Encoding, m.config.Proto))
 			}
 			m.msg = fmt.Sprintf("%d message(s) fetched", len(msg.records))
 		case true:

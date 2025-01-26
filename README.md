@@ -7,7 +7,7 @@
 
 `kplay` (short for "kafka-playground") lets you inspect messages in a Kafka
 topic in a simple and deliberate manner. Using it, you can pull one or more
-records on demand, peruse through them in a list, and, if needed, persist them
+messages on demand, peruse through them in a list, and, if needed, persist them
 to your local filesystem.
 
 ![demo](https://github.com/user-attachments/assets/e64e148c-f267-4393-9f35-e563045ab765)
@@ -36,7 +36,7 @@ authenticity of released artifacts [here](#-verifying-release-artifacts).
 ```text
 # kplay -h
 
-kplay ("kafka playground") lets you inspect messages in a Kafka topic in a simple and deliberate manner.",
+kplay ("kafka playground") lets you inspect messages in a Kafka topic in a simple and deliberate manner.
 
 kplay relies on a configuration file that contains profiles for various Kafka topics, each with its own details related
 to brokers, message encoding, authentication, etc.

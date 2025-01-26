@@ -19,25 +19,25 @@ const (
 )
 
 type Model struct {
-	config            c.Config
-	client            *kgo.Client
-	activeView        stateView
-	lastView          stateView
-	msgsList          list.Model
-	currentMsgIndex   int
-	firstMsgValueSet  bool
-	helpVP            viewport.Model
-	msgDetailsVP      viewport.Model
-	msgDetailsVPReady bool
-	msgDetailsStore   map[string]messageDetails
-	showHelpIndicator bool
-	skipMessages      bool
-	persistMessages   bool
-	helpVPReady       bool
-	terminalWidth     int
-	terminalHeight    int
-	msg               string
-	errorMsg          string
+	config             c.Config
+	client             *kgo.Client
+	activeView         stateView
+	lastView           stateView
+	msgsList           list.Model
+	currentMsgIndex    int
+	firstMsgValueSet   bool
+	fetchingInProgress bool
+	helpVP             viewport.Model
+	msgDetailsVP       viewport.Model
+	msgDetailsVPReady  bool
+	msgDetailsStore    map[string]messageDetails
+	showHelpIndicator  bool
+	behaviours         c.Behaviours
+	helpVPReady        bool
+	terminalWidth      int
+	terminalHeight     int
+	msg                string
+	errorMsg           string
 }
 
 func (Model) Init() tea.Cmd {

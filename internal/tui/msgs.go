@@ -6,7 +6,7 @@ import (
 
 type hideHelpMsg struct{}
 
-type msgFetchedMsg struct {
+type msgsFetchedMsg struct {
 	records []*kgo.Record
 	err     error
 }

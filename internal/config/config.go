@@ -1,17 +1,17 @@
 package config
 
 import (
-	"google.golang.org/protobuf/reflect/protoreflect"
+	"fmt"
 )
 
 type Config struct {
-	Name               string
-	Authentication     AuthType
-	Encoding           EncodingFormat
-	Brokers            []string
-	Topic              string
-	ConsumerGroup      string
-	ProtoMsgDescriptor *protoreflect.MessageDescriptor
+	Name           string
+	Authentication AuthType
+	Encoding       EncodingFormat
+	Brokers        []string
+	Topic          string
+	ConsumerGroup  string
+	Proto          *ProtoConfig
 }
 
 func (c Config) AuthenticationDisplay() string {
@@ -30,15 +30,10 @@ func (c Config) EncodingDisplay() string {
 	case JSON:
 		return "json"
 	case Protobuf:
-		return "protobuf"
+		return fmt.Sprintf("protobuf (descriptor set: %s, descriptor name: %s)", c.Proto.DescriptorSetFile, c.Proto.DescriptorName)
 	case Raw:
 		return "raw"
 	default:
 		return "unknown"
 	}
-}
-
-type Behaviours struct {
-	PersistMessages bool
-	SkipMessages    bool
 }

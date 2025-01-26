@@ -17,8 +17,7 @@ func InitialModel(kCl *kgo.Client, config c.Config, behaviours c.Behaviours) Mod
 		client:            kCl,
 		msgsList:          list.New(jobItems, appDelegate, listWidth, 0),
 		currentMsgIndex:   -1,
-		persistMessages:   behaviours.PersistMessages,
-		skipMessages:      behaviours.SkipMessages,
+		behaviours:        behaviours,
 		msgDetailsStore:   make(map[string]messageDetails),
 		showHelpIndicator: true,
 	}

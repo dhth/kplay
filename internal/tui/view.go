@@ -18,8 +18,7 @@ var (
 
 func (m Model) View() string {
 	var content string
-	var msgsViewPtr string
-	var mode string
+	var behavioursMsg string
 	var msgDetailsTitleStyle lipgloss.Style
 
 	switch m.activeView {
@@ -31,15 +30,17 @@ func (m Model) View() string {
 		msgDetailsTitleStyle = inactiveMsgDetailsTitleStyle.Background(lipgloss.Color(activeHeaderColor))
 	}
 
-	if m.persistMessages {
-		mode += " " + persistingStyle.Render("persisting records!")
+	if m.behaviours.PersistMessages {
+		behavioursMsg += persistingStyle.Render("persisting messages!")
 	}
 
-	if m.skipMessages {
-		mode += " " + skippingStyle.Render("skipping records!")
+	if m.behaviours.SkipMessages {
+		behavioursMsg += skippingStyle.Render("skipping messages!")
 	}
 
-	m.msgsList.Title += msgsViewPtr
+	if !m.behaviours.CommitMessages {
+		behavioursMsg += committingStyle.Render("not committing messages!")
+	}
 
 	var statusBar string
 	if m.msg != "" && m.errorMsg != "" {
@@ -84,8 +85,8 @@ func (m Model) View() string {
 	footer := fmt.Sprintf("%s  %s%s%s",
 		toolNameStyle.Render("kplay"),
 		configMsg,
+		behavioursMsg,
 		helpMsg,
-		mode,
 	)
 
 	return lipgloss.JoinVertical(lipgloss.Left,
