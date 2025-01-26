@@ -1,8 +1,10 @@
 Output demo.gif
-Set FontSize 20
+Set FontSize 18
 Set Width 1920
 Set Height 1080
 Set Theme "GruvboxDark"
+Set FontFamily "MesloLGS Nerd Font"
+Set LineHeight 1.2
 
 Set Shell zsh
 Type@80ms "kplay local-proto"

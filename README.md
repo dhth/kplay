@@ -10,7 +10,7 @@ topic in a simple and deliberate manner. Using it, you can pull one or more
 records on demand, peruse through them in a list, and, if needed, persist them
 to your local filesystem.
 
-![demo](https://github.com/user-attachments/assets/7892315a-d860-40da-b11f-bbd044aee894)
+![demo](https://github.com/user-attachments/assets/e64e148c-f267-4393-9f35-e563045ab765)
 
 Install
 ---
