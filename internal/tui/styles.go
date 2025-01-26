@@ -1,4 +1,4 @@
-package ui
+package tui
 
 import "github.com/charmbracelet/lipgloss"
 
@@ -10,6 +10,7 @@ const (
 	inactivePaneColor        = "#bdae93"
 	listPaneBorderColor      = "#363230"
 	topicColor               = "#d3869b"
+	consumerGroupColor       = "#fabd2f"
 	helpMsgColor             = "#83a598"
 	helpViewTitleColor       = "#83a598"
 	helpHeaderColor          = "#83a598"
@@ -56,20 +57,24 @@ var (
 					Background(lipgloss.Color(inactivePaneColor)).
 					Align(lipgloss.Left)
 
-	topicStyle = baseStyle.
+	footerMsgStyle = lipgloss.NewStyle().
 			Bold(true).
+			PaddingRight(2)
+
+	topicStyle = footerMsgStyle.
 			Foreground(lipgloss.Color(topicColor))
 
-	persistingStyle = baseStyle.
-			Bold(true).
+	consumerGroupStyle = footerMsgStyle.
+				PaddingRight(1).
+				Foreground(lipgloss.Color(consumerGroupColor))
+
+	persistingStyle = footerMsgStyle.
 			Foreground(lipgloss.Color(persistingMsgsColor))
 
-	skippingStyle = baseStyle.
-			Bold(true).
+	skippingStyle = footerMsgStyle.
 			Foreground(lipgloss.Color(skippingMsgsColor))
 
-	helpMsgStyle = baseStyle.
-			Bold(true).
+	helpMsgStyle = footerMsgStyle.
 			Foreground(lipgloss.Color(helpMsgColor))
 
 	helpVPTitleStyle = baseStyle.

@@ -1,10 +1,14 @@
-package ui
+package tui
 
 import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dhth/kplay/internal/utils"
+)
+
+const (
+	configKeyMaxLength = 50
 )
 
 var (
@@ -27,11 +31,11 @@ func (m Model) View() string {
 		msgDetailsTitleStyle = inactiveMsgDetailsTitleStyle.Background(lipgloss.Color(activeHeaderColor))
 	}
 
-	if m.persistRecords {
+	if m.persistMessages {
 		mode += " " + persistingStyle.Render("persisting records!")
 	}
 
-	if m.skipRecords {
+	if m.skipMessages {
 		mode += " " + skippingStyle.Render("skipping records!")
 	}
 
@@ -72,13 +76,14 @@ func (m Model) View() string {
 
 	var helpMsg string
 	if m.showHelpIndicator {
-		helpMsg = " " + helpMsgStyle.Render("Press ? for help")
+		helpMsg = helpMsgStyle.Render("Press ? for help")
 	}
-	topicMarker := topicStyle.Render(fmt.Sprintf(" [%s] ", utils.TrimLeft(m.config.Topic, 40)))
 
-	footer := fmt.Sprintf("%s%s%s%s",
+	configMsg := fmt.Sprintf("%s<-- %s", consumerGroupStyle.Render(utils.TrimLeft(m.config.ConsumerGroup, configKeyMaxLength)), topicStyle.Render(utils.TrimLeft(m.config.Topic, configKeyMaxLength)))
+
+	footer := fmt.Sprintf("%s  %s%s%s",
 		toolNameStyle.Render("kplay"),
-		topicMarker,
+		configMsg,
 		helpMsg,
 		mode,
 	)

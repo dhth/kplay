@@ -1,4 +1,4 @@
-package ui
+package tui
 
 import (
 	"time"
@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	d "github.com/dhth/kplay/internal/domain"
+	c "github.com/dhth/kplay/internal/config"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -19,7 +19,7 @@ const (
 )
 
 type Model struct {
-	config            d.Config
+	config            c.Config
 	client            *kgo.Client
 	activeView        stateView
 	lastView          stateView
@@ -31,8 +31,8 @@ type Model struct {
 	msgDetailsVPReady bool
 	msgDetailsStore   map[string]messageDetails
 	showHelpIndicator bool
-	skipRecords       bool
-	persistRecords    bool
+	skipMessages      bool
+	persistMessages   bool
 	helpVPReady       bool
 	terminalWidth     int
 	terminalHeight    int

@@ -1,6 +1,7 @@
-package ui
+package tui
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -13,6 +14,8 @@ const (
 	msgAttributeNotFoundMsg    = "something went wrong (with kplay)"
 	genericErrMsg              = "something went wrong"
 )
+
+var errSomethingUnexpectedHappened = errors.New("something unexpected happened; let @dhth know via https://github.com/dhth/kplay/issues")
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -60,19 +63,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			if !m.persistRecords {
-				m.skipRecords = false
-			}
-			m.persistRecords = !m.persistRecords
+			m.persistMessages = !m.persistMessages
 		case "s":
 			if m.activeView == helpView {
 				break
 			}
 
-			if !m.skipRecords {
-				m.persistRecords = false
-			}
-			m.skipRecords = !m.skipRecords
+			m.skipMessages = !m.skipMessages
 		case "y":
 			if len(m.msgsList.Items()) == 0 {
 				break
@@ -231,7 +228,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		if m.persistRecords {
+		if m.persistMessages {
 			details := getMsgDetails(msg.details)
 			cmds = append(cmds, saveRecordValueToDisk(msg.uniqueKey, details))
 		}
@@ -247,11 +244,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 
-		switch m.skipRecords {
+		switch m.skipMessages {
 		case false:
 			for _, rec := range msg.records {
 				m.msgsList.InsertItem(len(m.msgsList.Items()), KMsgItem{record: *rec})
-				cmds = append(cmds, generateRecordDetails(rec, m.config.DeserFmt))
+				cmds = append(cmds, generateRecordDetails(rec, m.config.Encoding, m.config.ProtoMsgDescriptor))
 			}
 			m.msg = fmt.Sprintf("%d message(s) fetched", len(msg.records))
 		case true:

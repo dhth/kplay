@@ -1,13 +1,13 @@
-package ui
+package tui
 
 import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/lipgloss"
-	d "github.com/dhth/kplay/internal/domain"
+	c "github.com/dhth/kplay/internal/config"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func InitialModel(kCl *kgo.Client, config d.Config) Model {
+func InitialModel(kCl *kgo.Client, config c.Config, behaviours c.Behaviours) Model {
 	appDelegateKeys := newAppDelegateKeyMap()
 	appDelegate := newAppItemDelegate(appDelegateKeys)
 	jobItems := make([]list.Item, 0)
@@ -17,7 +17,8 @@ func InitialModel(kCl *kgo.Client, config d.Config) Model {
 		client:            kCl,
 		msgsList:          list.New(jobItems, appDelegate, listWidth, 0),
 		currentMsgIndex:   -1,
-		persistRecords:    false,
+		persistMessages:   behaviours.PersistMessages,
+		skipMessages:      behaviours.SkipMessages,
 		msgDetailsStore:   make(map[string]messageDetails),
 		showHelpIndicator: true,
 	}
