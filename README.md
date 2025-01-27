@@ -36,8 +36,6 @@ authenticity of released artifacts [here](#-verifying-release-artifacts).
 ---
 
 ```text
-# kplay -h
-
 kplay ("kafka playground") lets you inspect messages in a Kafka topic in a simple and deliberate manner.
 
 kplay relies on a configuration file that contains profiles for various Kafka topics, each with its own details related
@@ -47,7 +45,7 @@ Usage:
   kplay <PROFILE> [flags]
 
 Flags:
-  -c, --config-path string      location of kplay's config file (default "/Users/dhruvthakur/Library/Application Support/kplay/kplay.yml")
+  -c, --config-path string      location of kplay's config file (default "/Users/user/Library/Application Support/kplay/kplay.yml")
   -g, --consumer-group string   consumer group to use (overrides the one in kplay's config file)
       --display-config-only     whether to only display config picked up by kplay
   -h, --help                    help for kplay
@@ -93,14 +91,14 @@ profiles:
 🔤 Message Encoding
 ---
 
-kplay supports parsing messages that are encoded in two data formats: JSON and
+`kplay` supports parsing messages that are encoded in two data formats: JSON and
 protobuf. It also supports parsing raw data (using the `encodingFormat` "raw").
 
 ### Parsing protobuf encoded messages
 
 For parsing protobuf encoded messages, `kplay` needs to be provided with a
-`FileDescriptorSet` and a descriptor name. For example, consider a proto file
-like the following:
+`FileDescriptorSet` and a descriptor name. Consider a .proto file like the
+following:
 
 ```text
 // application_state.proto
@@ -116,15 +114,19 @@ message ApplicationState {
 }
 ```
 
-A `FileDescriptorSet` can be generated for this file using the protocol buffer
-compiler.
+A `FileDescriptorSet` can be generated for this file using the [protocol buffer
+compiler][5].
 
 ```bash
-protoc application_state.proto --descriptor_set_out=application_state.pb --include_imports
+protoc application_state.proto \
+    --descriptor_set_out=application_state.pb \
+    --include_imports
 ```
 
 This descriptor set file can then be used in `kplay`'s config file, alongside
 the `descriptorName` "sample.ApplicationState".
+
+> Read more about self describing protocol messages [here][3].
 
 🔑 Authentication
 ---
@@ -220,3 +222,4 @@ Acknowledgements
 [2]: https://docs.aws.amazon.com/msk/latest/developerguide/iam-access-control.html
 [3]: https://protobuf.dev/programming-guides/techniques/#self-description
 [4]: https://github.com/dhth/kplay/releases
+[5]: https://grpc.io/docs/protoc-installation
