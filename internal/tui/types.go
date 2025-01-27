@@ -20,7 +20,7 @@ func (item KMsgItem) Description() string {
 	if len(item.record.Value) == 0 {
 		tombstoneInfo = " 🪦"
 	}
-	offsetInfo := fmt.Sprintf("offset: %d, partition: %d", item.record.Partition, item.record.Offset)
+	offsetInfo := fmt.Sprintf("offset: %d, partition: %d", item.record.Offset, item.record.Partition)
 	return utils.RightPadTrim(fmt.Sprintf("%s%s", offsetInfo, tombstoneInfo), listWidth-4)
 }
 
