@@ -10,9 +10,9 @@ topic in a simple and deliberate manner. Using it, you can pull one or more
 messages on demand, peruse through them in a list, and, if needed, persist them
 to your local filesystem.
 
-![demo](https://github.com/user-attachments/assets/e64e148c-f267-4393-9f35-e563045ab765)
+<video src="https://github.com/user-attachments/assets/c06ec742-06da-4836-ac33-ef25d3a40786"></video>
 
-![screenshot](https://github.com/user-attachments/assets/c78b23f1-47fa-474e-841f-161aa825359b)
+![screenshot](https://github.com/user-attachments/assets/613727e7-bca8-4855-b19c-bed2faf80314)
 
 Install
 ---
@@ -45,6 +45,7 @@ Usage:
   kplay <PROFILE> [flags]
 
 Flags:
+      --commit-messages         whether to start the TUI with the setting "commit messages" ON (default true)
   -c, --config-path string      location of kplay's config file (default "/Users/user/Library/Application Support/kplay/kplay.yml")
   -g, --consumer-group string   consumer group to use (overrides the one in kplay's config file)
       --display-config-only     whether to only display config picked up by kplay
