@@ -1,14 +1,13 @@
 module github.com/dhth/kplay
 
 go 1.23.6
-
 require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/aws/aws-sdk-go-v2/config v1.29.6
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.3.0
 	github.com/charmbracelet/lipgloss v1.0.0
-	github.com/goccy/go-yaml v1.15.19
+	github.com/goccy/go-yaml v1.17.1
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/pretty v1.2.1
