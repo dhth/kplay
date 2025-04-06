@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tidwall/pretty"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -23,10 +22,13 @@ func ParseProtobufEncodedBytes(bytes []byte, msgDescriptor protoreflect.MessageD
 		return nil, fmt.Errorf("%w: %s", errCouldntUnmarshalProtoMsg, err.Error())
 	}
 
-	jsonBytes, err := protojson.Marshal(msg)
+	marshallOptions := protojson.MarshalOptions{
+		Indent: "  ",
+	}
+	jsonBytes, err := marshallOptions.Marshal(msg)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", errCouldntConvertProtoMsgToJSON, err.Error())
 	}
 
-	return pretty.Pretty(jsonBytes), nil
+	return jsonBytes, nil
 }
