@@ -6,23 +6,23 @@ import lustre/element
 import lustre/element/html
 import lustre/event
 import model.{type Model, display_model}
-import types.{type MessageDetails, type Msg}
+import types.{type Config, type MessageDetails, type Msg}
 import utils.{http_error_to_string}
 
 pub fn view(model: Model) -> element.Element(Msg) {
   html.div([attribute.class("bg-[#282828] text-[#ebdbb2] mt-4 mx-4")], [
     html.div([], [
       html.div([], [
-        model_debug_div(model),
+        model_debug_section(model),
         messages_section(model),
-        controls_div(model),
+        controls_section(model),
         error_section(model),
       ]),
     ]),
   ])
 }
 
-fn model_debug_div(model: Model) -> element.Element(Msg) {
+fn model_debug_section(model: Model) -> element.Element(Msg) {
   case model.debug {
     True ->
       html.div(
@@ -38,10 +38,66 @@ fn model_debug_div(model: Model) -> element.Element(Msg) {
 }
 
 fn messages_section(model: Model) -> element.Element(Msg) {
-  let height = case model.fetch_err {
-    option.None -> "h-[91vh]"
-    option.Some(_) -> "h-[80vh]"
+  let height_class = case model.http_error {
+    option.None -> "h-[calc(100vh-4.3rem)]"
+    option.Some(_) -> "h-[calc(100vh-9rem)]"
   }
+  case model.messages {
+    [] -> messages_section_empty(height_class)
+    [_, ..] -> messages_section_with_messages(model, height_class)
+  }
+}
+
+fn messages_section_empty(height_class: String) -> element.Element(Msg) {
+  html.div(
+    [
+      attribute.class(
+        "mt-4 "
+        <> height_class
+        <> " flex border-2 border-[#928374] border-opacity-20 items-center flex justify-center",
+      ),
+    ],
+    [
+      html.pre([attribute.class("text-[#928374]")], [
+        element.text(
+          "
+kkkkkkkk                               lllllll                                         
+k::::::k                               l:::::l                                         
+k::::::k                               l:::::l                                         
+k::::::k                               l:::::l                                         
+ k:::::k    kkkkkkkppppp   ppppppppp    l::::l   aaaaaaaaaaaaayyyyyyy           yyyyyyy
+ k:::::k   k:::::k p::::ppp:::::::::p   l::::l   a::::::::::::ay:::::y         y:::::y 
+ k:::::k  k:::::k  p:::::::::::::::::p  l::::l   aaaaaaaaa:::::ay:::::y       y:::::y  
+ k:::::k k:::::k   pp::::::ppppp::::::p l::::l            a::::a y:::::y     y:::::y   
+ k::::::k:::::k     p:::::p     p:::::p l::::l     aaaaaaa:::::a  y:::::y   y:::::y    
+ k:::::::::::k      p:::::p     p:::::p l::::l   aa::::::::::::a   y:::::y y:::::y     
+ k:::::::::::k      p:::::p     p:::::p l::::l  a::::aaaa::::::a    y:::::y:::::y      
+ k::::::k:::::k     p:::::p    p::::::p l::::l a::::a    a:::::a     y:::::::::y       
+k::::::k k:::::k    p:::::ppppp:::::::pl::::::la::::a    a:::::a      y:::::::y        
+k::::::k  k:::::k   p::::::::::::::::p l::::::la:::::aaaa::::::a       y:::::y         
+k::::::k   k:::::k  p::::::::::::::pp  l::::::l a::::::::::aa:::a     y:::::y          
+kkkkkkkk    kkkkkkk p::::::pppppppp    llllllll  aaaaaaaaaa  aaaa    y:::::y           
+                    p:::::p                                         y:::::y            
+                    p:::::p                                        y:::::y             
+                   p:::::::p                                      y:::::y              
+                   p:::::::p                                     y:::::y               
+                   p:::::::p                                    yyyyyyy                
+                   ppppppppp
+
+kplay lets you inspect messages in a Kafka topic in a simple and deliberate manner
+
+Click on the buttons below to start fetching messages
+",
+        ),
+      ]),
+    ],
+  )
+}
+
+fn messages_section_with_messages(
+  model: Model,
+  height_class: String,
+) -> element.Element(Msg) {
   let current_index =
     model.current_message
     |> option.map(fn(a) {
@@ -49,16 +105,16 @@ fn messages_section(model: Model) -> element.Element(Msg) {
         #(i, _) -> i
       }
     })
-  let content = case model.messages {
-    [] -> [
-      html.p([attribute.class("text-[#928374] p-4")], [
-        element.text(
-          "kplay lets you inspect messages in a Kafka topic in a simple and deliberate manner. "
-          <> "Click on the buttons below to start fetching messages.",
-        ),
-      ]),
-    ]
-    [_, ..] -> [
+
+  html.div(
+    [
+      attribute.class(
+        "mt-4 "
+        <> height_class
+        <> " flex border-2 border-[#928374] border-opacity-20",
+      ),
+    ],
+    [
       html.div([attribute.class("w-2/5 overflow-auto")], [
         html.div([attribute.class("p-4")], [
           html.h2([attribute.class("text-[#fe8019] text-xl font-bold mb-4")], [
@@ -74,15 +130,7 @@ fn messages_section(model: Model) -> element.Element(Msg) {
         ]),
       ]),
       message_details_pane(model),
-    ]
-  }
-  html.div(
-    [
-      attribute.class(
-        "mt-4 " <> height <> " flex border-2 border-[#928374] border-opacity-20",
-      ),
     ],
-    content,
   )
 }
 
@@ -170,7 +218,15 @@ fn message_details_pane(model: Model) -> element.Element(Msg) {
   ])
 }
 
-fn controls_div(model: Model) -> element.Element(Msg) {
+fn controls_section(model: Model) -> element.Element(Msg) {
+  case model.config {
+    option.Some(c) ->
+      controls_div_with_config(c, model.fetching, model.select_on_hover)
+    option.None -> controls_div_when_no_config()
+  }
+}
+
+fn controls_div_when_no_config() -> element.Element(Msg) {
   html.div([attribute.class("flex items-center space-x-2 mt-4")], [
     html.button(
       [
@@ -189,12 +245,45 @@ fn controls_div(model: Model) -> element.Element(Msg) {
         ),
       ],
     ),
+    html.p([attribute.class("text-[#bdae93]")], [
+      element.text(
+        "couldn't load config; make sure \"kplay serve\" is still running. "
+        <> "If it still doesn't work let @dhth know about this error via https://github.com/dhth/kplay/issues",
+      ),
+    ]),
+  ])
+}
+
+fn controls_div_with_config(
+  config: types.Config,
+  fetching: Bool,
+  select_on_hover: Bool,
+) -> element.Element(Msg) {
+  html.div([attribute.class("flex items-center space-x-2 mt-4")], [
+    html.button(
+      [
+        attribute.class(
+          "font-bold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fe8019]",
+        ),
+        attribute.disabled(True),
+      ],
+      [
+        html.a(
+          [
+            attribute.href("https://github.com/dhth/kplay"),
+            attribute.target("_blank"),
+          ],
+          [element.text("kplay")],
+        ),
+      ],
+    ),
+    consumer_info(config),
     html.button(
       [
         attribute.class(
           "font-semibold px-4 py-1 bg-[#d3869b] text-[#282828] hover:bg-[#fabd2f]",
         ),
-        attribute.disabled(model.fetching),
+        attribute.disabled(fetching),
         event.on_click(types.FetchMessages(1)),
       ],
       [element.text("Fetch next")],
@@ -204,7 +293,7 @@ fn controls_div(model: Model) -> element.Element(Msg) {
         attribute.class(
           "font-semibold px-4 py-1 bg-[#d3869b] text-[#282828] hover:bg-[#fabd2f]",
         ),
-        attribute.disabled(model.fetching),
+        attribute.disabled(fetching),
         event.on_click(types.FetchMessages(10)),
       ],
       [element.text("Fetch next 10")],
@@ -214,7 +303,7 @@ fn controls_div(model: Model) -> element.Element(Msg) {
         attribute.class(
           "font-semibold px-4 py-1 bg-[#bdae93] text-[#282828] hover:bg-[#fabd2f]",
         ),
-        attribute.disabled(model.fetching),
+        attribute.disabled(fetching),
         event.on_click(types.ClearMessages),
       ],
       [element.text("Clear Messages")],
@@ -236,22 +325,35 @@ fn controls_div(model: Model) -> element.Element(Msg) {
           attribute.id("hover-control-input"),
           attribute.type_("checkbox"),
           event.on_check(types.HoverSettingsChanged),
-          attribute.checked(model.select_on_hover),
+          attribute.checked(select_on_hover),
         ]),
       ],
     ),
   ])
 }
 
+fn consumer_info(config: Config) -> element.Element(Msg) {
+  html.div(
+    [attribute.class("font-bold px-4 py-1 flex items-center space-x-2")],
+    [
+      html.p([attribute.class("text-[#fabd2f]")], [element.text(config.topic)]),
+      html.p([attribute.class("text-[#d5c4a1]")], [element.text("<-")]),
+      html.p([attribute.class("text-[#d3869b]")], [
+        element.text(config.consumer_group),
+      ]),
+    ],
+  )
+}
+
 fn error_section(model: Model) -> element.Element(Msg) {
-  case model.fetch_err {
+  case model.http_error {
     option.None -> element.none()
     option.Some(err) ->
       html.div(
         [
           attribute.role("alert"),
           attribute.class(
-            "text-[#fb4934] border-2 border-[#fb4934] border-opacity-50 px-4 py-4 mt-8",
+            "text-[#fb4934] border-2 border-[#fb4934] border-opacity-50 px-4 py-4 mt-4",
           ),
         ],
         [

@@ -5,14 +5,13 @@ import gleam/list
 import gleam/option
 import lustre_http
 import types.{type Config, type MessageDetails, display_config}
-import utils.{http_error_to_string}
 
 pub type Model {
   Model(
-    config: option.Option(Result(Config, lustre_http.HttpError)),
+    config: option.Option(Config),
     messages: List(MessageDetails),
     messages_cache: dict.Dict(Int, MessageDetails),
-    fetch_err: option.Option(lustre_http.HttpError),
+    http_error: option.Option(lustre_http.HttpError),
     current_message: option.Option(#(Int, MessageDetails)),
     select_on_hover: Bool,
     fetching: Bool,
@@ -23,11 +22,7 @@ pub type Model {
 pub fn display_model(model: Model) -> String {
   let config = case model.config {
     option.None -> "empty"
-    option.Some(result) ->
-      case result {
-        Error(e) -> http_error_to_string(e)
-        Ok(c) -> c |> display_config
-      }
+    option.Some(c) -> c |> display_config
   }
   let current_message_index =
     model.current_message
@@ -58,7 +53,7 @@ pub fn test_init_model() -> Model {
     config: option.None,
     messages: messages,
     messages_cache: messages_cache,
-    fetch_err: option.None,
+    http_error: option.None,
     current_message: option.None,
     select_on_hover: True,
     fetching: False,
@@ -71,7 +66,7 @@ pub fn init_model() -> Model {
     config: option.None,
     messages: [],
     messages_cache: dict.new(),
-    fetch_err: option.None,
+    http_error: option.None,
     current_message: option.None,
     select_on_hover: True,
     fetching: False,

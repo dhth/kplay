@@ -8,12 +8,13 @@ import types.{type Msg}
 
 pub fn update(model: Model, msg: Msg) -> #(Model, effect.Effect(Msg)) {
   case msg {
-    types.ConfigFetched(res) -> #(
-      Model(..model, config: option.Some(res)),
-      effect.none(),
-    )
+    types.ConfigFetched(res) ->
+      case res {
+        Error(e) -> #(Model(..model, http_error: option.Some(e)), effect.none())
+        Ok(c) -> #(Model(..model, config: option.Some(c)), effect.none())
+      }
     types.FetchMessages(num) -> #(
-      Model(..model, fetching: True, fetch_err: option.None),
+      Model(..model, fetching: True, http_error: option.None),
       fetch_messages(num),
     )
     types.ClearMessages -> #(
@@ -22,7 +23,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, effect.Effect(Msg)) {
         messages: [],
         messages_cache: dict.new(),
         current_message: option.None,
-        fetch_err: option.None,
+        http_error: option.None,
       ),
       effect.none(),
     )
@@ -45,7 +46,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, effect.Effect(Msg)) {
     types.MessagesFetched(result) ->
       case result {
         Error(e) -> #(
-          Model(..model, fetching: False, fetch_err: option.Some(e)),
+          Model(..model, fetching: False, http_error: option.Some(e)),
           effect.none(),
         )
         Ok(messages) -> {

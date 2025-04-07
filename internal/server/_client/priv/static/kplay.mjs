@@ -4397,60 +4397,14 @@ function fetch_messages(num) {
   );
 }
 
-// build/dev/javascript/kplay/utils.mjs
-function http_error_to_string(error) {
-  if (error instanceof BadUrl) {
-    let u = error[0];
-    return "bad url:" + u;
-  } else if (error instanceof InternalServerError) {
-    let e = error[0];
-    return "internal server error: " + e;
-  } else if (error instanceof JsonError) {
-    let e = error[0];
-    if (e instanceof UnableToDecode) {
-      let de = e[0];
-      let _pipe = de;
-      let _pipe$1 = map2(
-        _pipe,
-        (err) => {
-          {
-            let exp2 = err.expected;
-            let found = err.found;
-            return "couldn't decode JSON; expected: " + exp2 + ", found: " + found;
-          }
-        }
-      );
-      return join(_pipe$1, ", ");
-    } else if (e instanceof UnexpectedByte) {
-      return "unexpected byte";
-    } else if (e instanceof UnexpectedEndOfInput) {
-      return "unexpected end of input";
-    } else if (e instanceof UnexpectedFormat) {
-      return "unexpected format";
-    } else {
-      return "unexpected sequence";
-    }
-  } else if (error instanceof NetworkError2) {
-    return "network error";
-  } else if (error instanceof NotFound) {
-    return "not found";
-  } else if (error instanceof OtherError) {
-    let code2 = error[0];
-    let body2 = error[1];
-    return "non success HTTP response; status: " + to_string(code2) + ", body: " + body2;
-  } else {
-    return "unauthorized";
-  }
-}
-
 // build/dev/javascript/kplay/model.mjs
 var Model2 = class extends CustomType {
-  constructor(config, messages, messages_cache, fetch_err, current_message, select_on_hover, fetching, debug) {
+  constructor(config, messages, messages_cache, http_error, current_message, select_on_hover, fetching, debug) {
     super();
     this.config = config;
     this.messages = messages;
     this.messages_cache = messages_cache;
-    this.fetch_err = fetch_err;
+    this.http_error = http_error;
     this.current_message = current_message;
     this.select_on_hover = select_on_hover;
     this.fetching = fetching;
@@ -4463,15 +4417,9 @@ function display_model(model) {
     if ($ instanceof None) {
       return "empty";
     } else {
-      let result = $[0];
-      if (!result.isOk()) {
-        let e = result[0];
-        return http_error_to_string(e);
-      } else {
-        let c = result[0];
-        let _pipe = c;
-        return display_config(_pipe);
-      }
+      let c = $[0];
+      let _pipe = c;
+      return display_config(_pipe);
     }
   })();
   let current_message_index = (() => {
@@ -4509,22 +4457,43 @@ function init_model() {
 function update(model, msg) {
   if (msg instanceof ConfigFetched) {
     let res = msg[0];
-    return [
-      (() => {
-        let _record = model;
-        return new Model2(
-          new Some(res),
-          _record.messages,
-          _record.messages_cache,
-          _record.fetch_err,
-          _record.current_message,
-          _record.select_on_hover,
-          _record.fetching,
-          _record.debug
-        );
-      })(),
-      none()
-    ];
+    if (!res.isOk()) {
+      let e = res[0];
+      return [
+        (() => {
+          let _record = model;
+          return new Model2(
+            _record.config,
+            _record.messages,
+            _record.messages_cache,
+            new Some(e),
+            _record.current_message,
+            _record.select_on_hover,
+            _record.fetching,
+            _record.debug
+          );
+        })(),
+        none()
+      ];
+    } else {
+      let c = res[0];
+      return [
+        (() => {
+          let _record = model;
+          return new Model2(
+            new Some(c),
+            _record.messages,
+            _record.messages_cache,
+            _record.http_error,
+            _record.current_message,
+            _record.select_on_hover,
+            _record.fetching,
+            _record.debug
+          );
+        })(),
+        none()
+      ];
+    }
   } else if (msg instanceof FetchMessages) {
     let num = msg[0];
     return [
@@ -4569,7 +4538,7 @@ function update(model, msg) {
           _record.config,
           _record.messages,
           _record.messages_cache,
-          _record.fetch_err,
+          _record.http_error,
           _record.current_message,
           selected,
           _record.fetching,
@@ -4599,7 +4568,7 @@ function update(model, msg) {
             _record.config,
             _record.messages,
             _record.messages_cache,
-            _record.fetch_err,
+            _record.http_error,
             new Some([index5, msg$1]),
             _record.select_on_hover,
             _record.fetching,
@@ -4649,7 +4618,7 @@ function update(model, msg) {
             _record.config,
             updated_messages,
             messages_cache,
-            _record.fetch_err,
+            _record.http_error,
             _record.current_message,
             _record.select_on_hover,
             false,
@@ -4727,8 +4696,54 @@ function on_check(msg) {
   );
 }
 
+// build/dev/javascript/kplay/utils.mjs
+function http_error_to_string(error) {
+  if (error instanceof BadUrl) {
+    let u = error[0];
+    return "bad url:" + u;
+  } else if (error instanceof InternalServerError) {
+    let e = error[0];
+    return "internal server error: " + e;
+  } else if (error instanceof JsonError) {
+    let e = error[0];
+    if (e instanceof UnableToDecode) {
+      let de = e[0];
+      let _pipe = de;
+      let _pipe$1 = map2(
+        _pipe,
+        (err) => {
+          {
+            let exp2 = err.expected;
+            let found = err.found;
+            return "couldn't decode JSON; expected: " + exp2 + ", found: " + found;
+          }
+        }
+      );
+      return join(_pipe$1, ", ");
+    } else if (e instanceof UnexpectedByte) {
+      return "unexpected byte";
+    } else if (e instanceof UnexpectedEndOfInput) {
+      return "unexpected end of input";
+    } else if (e instanceof UnexpectedFormat) {
+      return "unexpected format";
+    } else {
+      return "unexpected sequence";
+    }
+  } else if (error instanceof NetworkError2) {
+    return "network error";
+  } else if (error instanceof NotFound) {
+    return "not found";
+  } else if (error instanceof OtherError) {
+    let code2 = error[0];
+    let body2 = error[1];
+    return "non success HTTP response; status: " + to_string(code2) + ", body: " + body2;
+  } else {
+    return "unauthorized";
+  }
+}
+
 // build/dev/javascript/kplay/view.mjs
-function model_debug_div(model) {
+function model_debug_section(model) {
   let $ = model.debug;
   if ($) {
     return div(
@@ -4751,6 +4766,25 @@ function model_debug_div(model) {
   } else {
     return none2();
   }
+}
+function messages_section_empty(height_class) {
+  return div(
+    toList([
+      class$(
+        "mt-4 " + height_class + " flex border-2 border-[#928374] border-opacity-20 items-center flex justify-center"
+      )
+    ]),
+    toList([
+      pre(
+        toList([class$("text-[#928374]")]),
+        toList([
+          text(
+            "\nkkkkkkkk                               lllllll                                         \nk::::::k                               l:::::l                                         \nk::::::k                               l:::::l                                         \nk::::::k                               l:::::l                                         \n k:::::k    kkkkkkkppppp   ppppppppp    l::::l   aaaaaaaaaaaaayyyyyyy           yyyyyyy\n k:::::k   k:::::k p::::ppp:::::::::p   l::::l   a::::::::::::ay:::::y         y:::::y \n k:::::k  k:::::k  p:::::::::::::::::p  l::::l   aaaaaaaaa:::::ay:::::y       y:::::y  \n k:::::k k:::::k   pp::::::ppppp::::::p l::::l            a::::a y:::::y     y:::::y   \n k::::::k:::::k     p:::::p     p:::::p l::::l     aaaaaaa:::::a  y:::::y   y:::::y    \n k:::::::::::k      p:::::p     p:::::p l::::l   aa::::::::::::a   y:::::y y:::::y     \n k:::::::::::k      p:::::p     p:::::p l::::l  a::::aaaa::::::a    y:::::y:::::y      \n k::::::k:::::k     p:::::p    p::::::p l::::l a::::a    a:::::a     y:::::::::y       \nk::::::k k:::::k    p:::::ppppp:::::::pl::::::la::::a    a:::::a      y:::::::y        \nk::::::k  k:::::k   p::::::::::::::::p l::::::la:::::aaaa::::::a       y:::::y         \nk::::::k   k:::::k  p::::::::::::::pp  l::::::l a::::::::::aa:::a     y:::::y          \nkkkkkkkk    kkkkkkk p::::::pppppppp    llllllll  aaaaaaaaaa  aaaa    y:::::y           \n                    p:::::p                                         y:::::y            \n                    p:::::p                                        y:::::y             \n                   p:::::::p                                      y:::::y              \n                   p:::::::p                                     y:::::y               \n                   p:::::::p                                    yyyyyyy                \n                   ppppppppp\n\nkplay lets you inspect messages in a Kafka topic in a simple and deliberate manner\n\nClick on the buttons below to start fetching messages\n"
+          )
+        ])
+      )
+    ])
+  );
 }
 function message_list_item(message, index5, current_index, select_on_hover) {
   let border_class = (() => {
@@ -4881,15 +4915,7 @@ function message_details_pane(model) {
     ])
   );
 }
-function messages_section(model) {
-  let height = (() => {
-    let $ = model.fetch_err;
-    if ($ instanceof None) {
-      return "h-[91vh]";
-    } else {
-      return "h-[80vh]";
-    }
-  })();
+function messages_section_with_messages(model, height_class) {
   let current_index = (() => {
     let _pipe = model.current_message;
     return map(
@@ -4902,68 +4928,67 @@ function messages_section(model) {
       }
     );
   })();
-  let content = (() => {
-    let $ = model.messages;
-    if ($.hasLength(0)) {
-      return toList([
-        p(
-          toList([class$("text-[#928374] p-4")]),
-          toList([
-            text(
-              "kplay lets you inspect messages in a Kafka topic in a simple and deliberate manner. Click on the buttons below to start fetching messages."
-            )
-          ])
-        )
-      ]);
-    } else {
-      return toList([
-        div(
-          toList([class$("w-2/5 overflow-auto")]),
-          toList([
-            div(
-              toList([class$("p-4")]),
-              toList([
-                h2(
-                  toList([
-                    class$("text-[#fe8019] text-xl font-bold mb-4")
-                  ]),
-                  toList([text2("Messages")])
-                ),
-                div(
-                  toList([]),
-                  (() => {
-                    let _pipe = model.messages;
-                    return index_map(
-                      _pipe,
-                      (m, i) => {
-                        return message_list_item(
-                          m,
-                          i,
-                          current_index,
-                          model.select_on_hover
-                        );
-                      }
-                    );
-                  })()
-                )
-              ])
-            )
-          ])
-        ),
-        message_details_pane(model)
-      ]);
-    }
-  })();
   return div(
     toList([
       class$(
-        "mt-4 " + height + " flex border-2 border-[#928374] border-opacity-20"
+        "mt-4 " + height_class + " flex border-2 border-[#928374] border-opacity-20"
       )
     ]),
-    content
+    toList([
+      div(
+        toList([class$("w-2/5 overflow-auto")]),
+        toList([
+          div(
+            toList([class$("p-4")]),
+            toList([
+              h2(
+                toList([
+                  class$("text-[#fe8019] text-xl font-bold mb-4")
+                ]),
+                toList([text2("Messages")])
+              ),
+              div(
+                toList([]),
+                (() => {
+                  let _pipe = model.messages;
+                  return index_map(
+                    _pipe,
+                    (m, i) => {
+                      return message_list_item(
+                        m,
+                        i,
+                        current_index,
+                        model.select_on_hover
+                      );
+                    }
+                  );
+                })()
+              )
+            ])
+          )
+        ])
+      ),
+      message_details_pane(model)
+    ])
   );
 }
-function controls_div(model) {
+function messages_section(model) {
+  let height_class = (() => {
+    let $2 = model.http_error;
+    if ($2 instanceof None) {
+      return "h-[calc(100vh-4.3rem)]";
+    } else {
+      return "h-[calc(100vh-9rem)]";
+    }
+  })();
+  let $ = model.messages;
+  if ($.hasLength(0)) {
+    return messages_section_empty(height_class);
+  } else {
+    return messages_section_with_messages(model, height_class);
+  }
+}
+function controls_div_when_no_config() {
   return div(
     toList([class$("flex items-center space-x-2 mt-4")]),
     toList([
@@ -4984,12 +5009,66 @@ function controls_div(model) {
           )
         ])
       ),
+      p(
+        toList([class$("text-[#bdae93]")]),
+        toList([
+          text(
+            `couldn't load config; make sure "kplay serve" is still running. If it still doesn't work let @dhth know about this error via https://github.com/dhth/kplay/issues`
+          )
+        ])
+      )
+    ])
+  );
+}
+function consumer_info(config) {
+  return div(
+    toList([
+      class$("font-bold px-4 py-1 flex items-center space-x-2")
+    ]),
+    toList([
+      p(
+        toList([class$("text-[#fabd2f]")]),
+        toList([text(config.topic)])
+      ),
+      p(
+        toList([class$("text-[#d5c4a1]")]),
+        toList([text("<-")])
+      ),
+      p(
+        toList([class$("text-[#d3869b]")]),
+        toList([text(config.consumer_group)])
+      )
+    ])
+  );
+}
+function controls_div_with_config(config, fetching, select_on_hover) {
+  return div(
+    toList([class$("flex items-center space-x-2 mt-4")]),
+    toList([
+      button(
+        toList([
+          class$(
+            "font-bold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fe8019]"
+          ),
+          disabled(true)
+        ]),
+        toList([
+          a(
+            toList([
+              href("https://github.com/dhth/kplay"),
+              target("_blank")
+            ]),
+            toList([text("kplay")])
+          )
+        ])
+      ),
+      consumer_info(config),
       button(
         toList([
           class$(
             "font-semibold px-4 py-1 bg-[#d3869b] text-[#282828] hover:bg-[#fabd2f]"
           ),
-          disabled(model.fetching),
+          disabled(fetching),
           on_click(new FetchMessages(1))
         ]),
         toList([text("Fetch next")])
@@ -4999,7 +5078,7 @@ function controls_div(model) {
           class$(
             "font-semibold px-4 py-1 bg-[#d3869b] text-[#282828] hover:bg-[#fabd2f]"
           ),
-          disabled(model.fetching),
+          disabled(fetching),
           on_click(new FetchMessages(10))
         ]),
         toList([text("Fetch next 10")])
@@ -5009,7 +5088,7 @@ function controls_div(model) {
           class$(
             "font-semibold px-4 py-1 bg-[#bdae93] text-[#282828] hover:bg-[#fabd2f]"
           ),
-          disabled(model.fetching),
+          disabled(fetching),
           on_click(new ClearMessages())
         ]),
         toList([text("Clear Messages")])
@@ -5040,7 +5119,7 @@ function controls_div(model) {
                   return new HoverSettingsChanged(var0);
                 }
               ),
-              checked(model.select_on_hover)
+              checked(select_on_hover)
             ])
           )
         ])
@@ -5048,8 +5127,17 @@ function controls_div(model) {
     ])
   );
 }
+function controls_section(model) {
+  let $ = model.config;
+  if ($ instanceof Some) {
+    let c = $[0];
+    return controls_div_with_config(c, model.fetching, model.select_on_hover);
+  } else {
+    return controls_div_when_no_config();
+  }
+}
 function error_section(model) {
-  let $ = model.fetch_err;
+  let $ = model.http_error;
   if ($ instanceof None) {
     return none2();
   } else {
@@ -5058,7 +5146,7 @@ function error_section(model) {
       toList([
         role("alert"),
         class$(
-          "text-[#fb4934] border-2 border-[#fb4934] border-opacity-50 px-4 py-4 mt-8"
+          "text-[#fb4934] border-2 border-[#fb4934] border-opacity-50 px-4 py-4 mt-4"
         )
       ]),
       toList([
@@ -5091,9 +5179,9 @@ function view(model) {
           div(
             toList([]),
             toList([
-              model_debug_div(model),
+              model_debug_section(model),
               messages_section(model),
-              controls_div(model),
+              controls_section(model),
               error_section(model)
             ])
           )
