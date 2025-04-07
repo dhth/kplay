@@ -21,7 +21,7 @@ Before committing code
 ---
 
 ```sh
-# ensure local changes in client/src/effects.gleam are
+# ensure local changes in _client/src/effects.gleam are
 # reverted
 cd client
 

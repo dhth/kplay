@@ -6,4 +6,4 @@ cosign.key
 cosign.pub
 screenshots
 demo.gif
-internal/server/client/build
+internal/server/_client/build

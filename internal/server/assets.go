@@ -13,16 +13,16 @@ const (
 	contentTypeImage      = "image/png"
 )
 
-//go:embed client/index.html
+//go:embed _client/index.html
 var indexHTMLBytes []byte
 
-//go:embed client/priv/static/kplay.css
+//go:embed _client/priv/static/kplay.css
 var cssBytes []byte
 
-//go:embed client/priv/static/favicon.png
+//go:embed _client/priv/static/favicon.png
 var faviconBytes []byte
 
-//go:embed client/priv/static/kplay.mjs
+//go:embed _client/priv/static/kplay.mjs
 var jsBytes []byte
 
 func getIndex(w http.ResponseWriter, _ *http.Request) {

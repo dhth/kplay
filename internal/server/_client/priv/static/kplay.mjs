@@ -4825,7 +4825,16 @@ function message_details_pane(model) {
       return p(
         toList([class$("text-[#928374]")]),
         toList([
-          text2("Hover on an entry in the left pane to view details here.")
+          text2(
+            (() => {
+              let $1 = model.select_on_hover;
+              if ($1) {
+                return "Hover on";
+              } else {
+                return "Select";
+              }
+            })() + " an entry in the left pane to view details here."
+          )
         ])
       );
     } else {

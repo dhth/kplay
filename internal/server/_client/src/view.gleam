@@ -133,7 +133,13 @@ fn message_details_pane(model: Model) -> element.Element(Msg) {
   let message_details = case model.current_message {
     option.None ->
       html.p([attribute.class("text-[#928374]")], [
-        html.text("Hover on an entry in the left pane to view details here."),
+        html.text(
+          case model.select_on_hover {
+            True -> "Hover on"
+            False -> "Select"
+          }
+          <> " an entry in the left pane to view details here.",
+        ),
       ])
     option.Some(#(_, msg)) ->
       html.div([], [
