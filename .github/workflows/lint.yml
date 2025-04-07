@@ -23,9 +23,9 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: v1.63
+          version: v2.0
 
   lint-gleam:
     runs-on: ubuntu-latest
