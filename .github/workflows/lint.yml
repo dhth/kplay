@@ -38,6 +38,6 @@ jobs:
           rebar3-version: "3"
       - name: Compile gleam to js
         run: |
-          cd internal/server/client
+          cd internal/server/_client
           gleam deps download
           gleam format src --check
