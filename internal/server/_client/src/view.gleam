@@ -1,6 +1,7 @@
 import gleam/int
 import gleam/list
 import gleam/option
+import gleam/string
 import lustre/attribute
 import lustre/element
 import lustre/element/html
@@ -8,6 +9,10 @@ import lustre/event
 import model.{type Model, display_model}
 import types.{type Config, type MessageDetails, type Msg}
 import utils.{http_error_to_string}
+
+const topic_name_max_width = 80
+
+const consumer_group_max_width = 80
 
 pub fn view(model: Model) -> element.Element(Msg) {
   html.div([attribute.class("bg-[#282828] text-[#ebdbb2] mt-4 mx-4")], [
@@ -86,7 +91,7 @@ kkkkkkkk    kkkkkkk p::::::pppppppp    llllllll  aaaaaaaaaa  aaaa    y:::::y
 
 kplay lets you inspect messages in a Kafka topic in a simple and deliberate manner
 
-Click on the buttons below to start fetching messages
+            Click on the buttons below to start fetching messages
 ",
         ),
       ]),
@@ -124,7 +129,12 @@ fn messages_section_with_messages(
             [],
             model.messages
               |> list.index_map(fn(m, i) {
-                message_list_item(m, i, current_index, model.select_on_hover)
+                message_list_item(
+                  m,
+                  i,
+                  current_index,
+                  model.behaviours.select_on_hover,
+                )
               }),
           ),
         ]),
@@ -141,7 +151,7 @@ fn message_list_item(
   select_on_hover: Bool,
 ) -> element.Element(Msg) {
   let border_class = case current_index {
-    option.Some(i) if i == index -> " text-[#b8bb26] border-l-[#b8bb26]"
+    option.Some(i) if i == index -> " text-[#fe8019] border-l-[#fe8019]"
     _ -> " text-[#d5c4a1] border-l-[#282828]"
   }
   let event_handler = case select_on_hover {
@@ -152,8 +162,8 @@ fn message_list_item(
   html.div(
     [
       attribute.class(
-        "py-2 px-4 border-l-2 hover:border-l-[#fe8019]"
-        <> " hover:text-[#fe8019] hover:border-l-2 cursor-pointer transition duration-100"
+        "py-2 px-4 border-l-2 hover:border-l-[#b8bb26]"
+        <> " hover:text-[#b8bb26] hover:border-l-2 cursor-pointer transition duration-100"
         <> " ease-in-out"
         <> border_class,
       ),
@@ -182,7 +192,7 @@ fn message_details_pane(model: Model) -> element.Element(Msg) {
     option.None ->
       html.p([attribute.class("text-[#928374]")], [
         html.text(
-          case model.select_on_hover {
+          case model.behaviours.select_on_hover {
             True -> "Hover on"
             False -> "Select"
           }
@@ -221,7 +231,11 @@ fn message_details_pane(model: Model) -> element.Element(Msg) {
 fn controls_section(model: Model) -> element.Element(Msg) {
   case model.config {
     option.Some(c) ->
-      controls_div_with_config(c, model.fetching, model.select_on_hover)
+      controls_div_with_config(
+        c,
+        model.fetching,
+        model.behaviours.select_on_hover,
+      )
     option.None -> controls_div_when_no_config()
   }
 }
@@ -231,7 +245,7 @@ fn controls_div_when_no_config() -> element.Element(Msg) {
     html.button(
       [
         attribute.class(
-          "font-bold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fe8019]",
+          "font-bold px-4 py-1 bg-[#fe8019] text-[#282828] hover:bg-[#b8bb26] cursor-pointer",
         ),
         attribute.disabled(True),
       ],
@@ -263,7 +277,7 @@ fn controls_div_with_config(
     html.button(
       [
         attribute.class(
-          "font-bold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fe8019]",
+          "font-bold px-4 py-1 bg-[#fe8019] text-[#282828] hover:bg-[#b8bb26] cursor-pointer",
         ),
         attribute.disabled(True),
       ],
@@ -281,7 +295,7 @@ fn controls_div_with_config(
     html.button(
       [
         attribute.class(
-          "font-semibold px-4 py-1 bg-[#d3869b] text-[#282828] hover:bg-[#fabd2f]",
+          "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]",
         ),
         attribute.disabled(fetching),
         event.on_click(types.FetchMessages(1)),
@@ -291,7 +305,7 @@ fn controls_div_with_config(
     html.button(
       [
         attribute.class(
-          "font-semibold px-4 py-1 bg-[#d3869b] text-[#282828] hover:bg-[#fabd2f]",
+          "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]",
         ),
         attribute.disabled(fetching),
         event.on_click(types.FetchMessages(10)),
@@ -333,14 +347,20 @@ fn controls_div_with_config(
 }
 
 fn consumer_info(config: Config) -> element.Element(Msg) {
+  let topic = case config.topic |> string.length {
+    n if n <= topic_name_max_width -> config.topic
+    _ -> config.topic |> string.slice(0, topic_name_max_width)
+  }
+  let consumer_group = case config.consumer_group |> string.length {
+    n if n <= consumer_group_max_width -> config.consumer_group
+    _ -> config.topic |> string.slice(0, consumer_group_max_width)
+  }
   html.div(
     [attribute.class("font-bold px-4 py-1 flex items-center space-x-2")],
     [
-      html.p([attribute.class("text-[#fabd2f]")], [element.text(config.topic)]),
+      html.p([attribute.class("text-[#fabd2f]")], [element.text(topic)]),
       html.p([attribute.class("text-[#d5c4a1]")], [element.text("<-")]),
-      html.p([attribute.class("text-[#d3869b]")], [
-        element.text(config.consumer_group),
-      ]),
+      html.p([attribute.class("text-[#d3869b]")], [element.text(consumer_group)]),
     ],
   )
 }

@@ -1111,6 +1111,21 @@ function identity(x) {
 function to_string(term) {
   return term.toString();
 }
+function string_length(string6) {
+  if (string6 === "") {
+    return 0;
+  }
+  const iterator = graphemes_iterator(string6);
+  if (iterator) {
+    let i = 0;
+    for (const _ of iterator) {
+      i++;
+    }
+    return i;
+  } else {
+    return string6.match(/./gsu).length;
+  }
+}
 var segmenter = void 0;
 function graphemes_iterator(string6) {
   if (globalThis.Intl && Intl.Segmenter) {
@@ -1154,6 +1169,28 @@ function concat(xs) {
     result = result + x;
   }
   return result;
+}
+function string_slice(string6, idx, len) {
+  if (len <= 0 || idx >= string6.length) {
+    return "";
+  }
+  const iterator = graphemes_iterator(string6);
+  if (iterator) {
+    while (idx-- > 0) {
+      iterator.next();
+    }
+    let result = "";
+    while (len-- > 0) {
+      const v = iterator.next().value;
+      if (v === void 0) {
+        break;
+      }
+      result += v.segment;
+    }
+    return result;
+  } else {
+    return string6.match(/./gsu).slice(idx, idx + len).join("");
+  }
 }
 function string_codeunit_slice(str, from2, length4) {
   return str.slice(from2, from2 + length4);
@@ -1436,6 +1473,25 @@ function index_fold(list3, initial, fun) {
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/string.mjs
+function slice(string6, idx, len) {
+  let $ = len < 0;
+  if ($) {
+    return "";
+  } else {
+    let $1 = idx < 0;
+    if ($1) {
+      let translated_idx = string_length(string6) + idx;
+      let $2 = translated_idx < 0;
+      if ($2) {
+        return "";
+      } else {
+        return string_slice(string6, translated_idx, len);
+      }
+    } else {
+      return string_slice(string6, idx, len);
+    }
+  }
+}
 function concat2(strings) {
   let _pipe = strings;
   let _pipe$1 = concat(_pipe);
@@ -2041,6 +2097,18 @@ function from(effect) {
 }
 function none() {
   return new Effect(toList([]));
+}
+function batch(effects) {
+  return new Effect(
+    fold(
+      effects,
+      toList([]),
+      (b, _use1) => {
+        let a2 = _use1.all;
+        return append(b, a2);
+      }
+    )
+  );
 }
 
 // build/dev/javascript/lustre/lustre/internals/vdom.mjs
@@ -4232,6 +4300,12 @@ var Config = class extends CustomType {
     this.consumer_group = consumer_group;
   }
 };
+var Behaviours = class extends CustomType {
+  constructor(select_on_hover) {
+    super();
+    this.select_on_hover = select_on_hover;
+  }
+};
 var MessageDetails = class extends CustomType {
   constructor(key2, offset, partition, metadata, value2, tombstone, error) {
     super();
@@ -4245,6 +4319,12 @@ var MessageDetails = class extends CustomType {
   }
 };
 var ConfigFetched = class extends CustomType {
+  constructor(x0) {
+    super();
+    this[0] = x0;
+  }
+};
+var BehavioursFetched = class extends CustomType {
   constructor(x0) {
     super();
     this[0] = x0;
@@ -4315,6 +4395,18 @@ function display_config(config) {
     return join(_pipe, ", ");
   })() + "\n -> topic: " + config.topic + "\n -> consumer_group: " + config.consumer_group;
 }
+function default_behaviours() {
+  return new Behaviours(false);
+}
+function behaviours_decoder() {
+  return field2(
+    "select_on_hover",
+    bool2,
+    (select_on_hover) => {
+      return success(new Behaviours(select_on_hover));
+    }
+  );
+}
 function message_details_decoder() {
   return field2(
     "key",
@@ -4372,6 +4464,15 @@ function message_details_decoder() {
 }
 
 // build/dev/javascript/kplay/effects.mjs
+var dev = false;
+function base_url() {
+  let $ = dev;
+  if (!$) {
+    return location();
+  } else {
+    return "http://127.0.0.1:6500/";
+  }
+}
 function fetch_config() {
   let expect = expect_json(
     config_decoder(),
@@ -4379,7 +4480,16 @@ function fetch_config() {
       return new ConfigFetched(var0);
     }
   );
-  return get(location() + "api/config", expect);
+  return get(base_url() + "api/config", expect);
+}
+function fetch_behaviours() {
+  let expect = expect_json(
+    behaviours_decoder(),
+    (var0) => {
+      return new BehavioursFetched(var0);
+    }
+  );
+  return get(base_url() + "api/behaviours", expect);
 }
 function fetch_messages(num) {
   let expect = expect_json(
@@ -4389,7 +4499,7 @@ function fetch_messages(num) {
     }
   );
   return get(
-    location() + "api/fetch?num=" + (() => {
+    base_url() + "api/fetch?num=" + (() => {
       let _pipe = num;
       return to_string(_pipe);
     })(),
@@ -4399,14 +4509,14 @@ function fetch_messages(num) {
 
 // build/dev/javascript/kplay/model.mjs
 var Model2 = class extends CustomType {
-  constructor(config, messages, messages_cache, http_error, current_message, select_on_hover, fetching, debug) {
+  constructor(config, behaviours, messages, messages_cache, http_error, current_message, fetching, debug) {
     super();
     this.config = config;
+    this.behaviours = behaviours;
     this.messages = messages;
     this.messages_cache = messages_cache;
     this.http_error = http_error;
     this.current_message = current_message;
-    this.select_on_hover = select_on_hover;
     this.fetching = fetching;
     this.debug = debug;
   }
@@ -4443,11 +4553,11 @@ function display_model(model) {
 function init_model() {
   return new Model2(
     new None(),
+    default_behaviours(),
     toList([]),
     new_map(),
     new None(),
     new None(),
-    true,
     false,
     false
   );
@@ -4464,11 +4574,11 @@ function update(model, msg) {
           let _record = model;
           return new Model2(
             _record.config,
+            _record.behaviours,
             _record.messages,
             _record.messages_cache,
             new Some(e),
             _record.current_message,
-            _record.select_on_hover,
             _record.fetching,
             _record.debug
           );
@@ -4482,11 +4592,34 @@ function update(model, msg) {
           let _record = model;
           return new Model2(
             new Some(c),
+            _record.behaviours,
             _record.messages,
             _record.messages_cache,
             _record.http_error,
             _record.current_message,
-            _record.select_on_hover,
+            _record.fetching,
+            _record.debug
+          );
+        })(),
+        none()
+      ];
+    }
+  } else if (msg instanceof BehavioursFetched) {
+    let res = msg[0];
+    if (!res.isOk()) {
+      return [model, none()];
+    } else {
+      let b = res[0];
+      return [
+        (() => {
+          let _record = model;
+          return new Model2(
+            _record.config,
+            b,
+            _record.messages,
+            _record.messages_cache,
+            _record.http_error,
+            _record.current_message,
             _record.fetching,
             _record.debug
           );
@@ -4501,11 +4634,11 @@ function update(model, msg) {
         let _record = model;
         return new Model2(
           _record.config,
+          _record.behaviours,
           _record.messages,
           _record.messages_cache,
           new None(),
           _record.current_message,
-          _record.select_on_hover,
           true,
           _record.debug
         );
@@ -4518,11 +4651,11 @@ function update(model, msg) {
         let _record = model;
         return new Model2(
           _record.config,
+          _record.behaviours,
           toList([]),
           new_map(),
           new None(),
           new None(),
-          _record.select_on_hover,
           _record.fetching,
           _record.debug
         );
@@ -4536,11 +4669,11 @@ function update(model, msg) {
         let _record = model;
         return new Model2(
           _record.config,
+          new Behaviours(selected),
           _record.messages,
           _record.messages_cache,
           _record.http_error,
           _record.current_message,
-          selected,
           _record.fetching,
           _record.debug
         );
@@ -4566,11 +4699,11 @@ function update(model, msg) {
           let _record = model;
           return new Model2(
             _record.config,
+            _record.behaviours,
             _record.messages,
             _record.messages_cache,
             _record.http_error,
             new Some([index5, msg$1]),
-            _record.select_on_hover,
             _record.fetching,
             _record.debug
           );
@@ -4587,11 +4720,11 @@ function update(model, msg) {
           let _record = model;
           return new Model2(
             _record.config,
+            _record.behaviours,
             _record.messages,
             _record.messages_cache,
             new Some(e),
             _record.current_message,
-            _record.select_on_hover,
             false,
             _record.debug
           );
@@ -4616,11 +4749,11 @@ function update(model, msg) {
           let _record = model;
           return new Model2(
             _record.config,
+            _record.behaviours,
             updated_messages,
             messages_cache,
             _record.http_error,
             _record.current_message,
-            _record.select_on_hover,
             false,
             _record.debug
           );
@@ -4779,7 +4912,7 @@ function messages_section_empty(height_class) {
         toList([class$("text-[#928374]")]),
         toList([
           text(
-            "\nkkkkkkkk                               lllllll                                         \nk::::::k                               l:::::l                                         \nk::::::k                               l:::::l                                         \nk::::::k                               l:::::l                                         \n k:::::k    kkkkkkkppppp   ppppppppp    l::::l   aaaaaaaaaaaaayyyyyyy           yyyyyyy\n k:::::k   k:::::k p::::ppp:::::::::p   l::::l   a::::::::::::ay:::::y         y:::::y \n k:::::k  k:::::k  p:::::::::::::::::p  l::::l   aaaaaaaaa:::::ay:::::y       y:::::y  \n k:::::k k:::::k   pp::::::ppppp::::::p l::::l            a::::a y:::::y     y:::::y   \n k::::::k:::::k     p:::::p     p:::::p l::::l     aaaaaaa:::::a  y:::::y   y:::::y    \n k:::::::::::k      p:::::p     p:::::p l::::l   aa::::::::::::a   y:::::y y:::::y     \n k:::::::::::k      p:::::p     p:::::p l::::l  a::::aaaa::::::a    y:::::y:::::y      \n k::::::k:::::k     p:::::p    p::::::p l::::l a::::a    a:::::a     y:::::::::y       \nk::::::k k:::::k    p:::::ppppp:::::::pl::::::la::::a    a:::::a      y:::::::y        \nk::::::k  k:::::k   p::::::::::::::::p l::::::la:::::aaaa::::::a       y:::::y         \nk::::::k   k:::::k  p::::::::::::::pp  l::::::l a::::::::::aa:::a     y:::::y          \nkkkkkkkk    kkkkkkk p::::::pppppppp    llllllll  aaaaaaaaaa  aaaa    y:::::y           \n                    p:::::p                                         y:::::y            \n                    p:::::p                                        y:::::y             \n                   p:::::::p                                      y:::::y              \n                   p:::::::p                                     y:::::y               \n                   p:::::::p                                    yyyyyyy                \n                   ppppppppp\n\nkplay lets you inspect messages in a Kafka topic in a simple and deliberate manner\n\nClick on the buttons below to start fetching messages\n"
+            "\nkkkkkkkk                               lllllll                                         \nk::::::k                               l:::::l                                         \nk::::::k                               l:::::l                                         \nk::::::k                               l:::::l                                         \n k:::::k    kkkkkkkppppp   ppppppppp    l::::l   aaaaaaaaaaaaayyyyyyy           yyyyyyy\n k:::::k   k:::::k p::::ppp:::::::::p   l::::l   a::::::::::::ay:::::y         y:::::y \n k:::::k  k:::::k  p:::::::::::::::::p  l::::l   aaaaaaaaa:::::ay:::::y       y:::::y  \n k:::::k k:::::k   pp::::::ppppp::::::p l::::l            a::::a y:::::y     y:::::y   \n k::::::k:::::k     p:::::p     p:::::p l::::l     aaaaaaa:::::a  y:::::y   y:::::y    \n k:::::::::::k      p:::::p     p:::::p l::::l   aa::::::::::::a   y:::::y y:::::y     \n k:::::::::::k      p:::::p     p:::::p l::::l  a::::aaaa::::::a    y:::::y:::::y      \n k::::::k:::::k     p:::::p    p::::::p l::::l a::::a    a:::::a     y:::::::::y       \nk::::::k k:::::k    p:::::ppppp:::::::pl::::::la::::a    a:::::a      y:::::::y        \nk::::::k  k:::::k   p::::::::::::::::p l::::::la:::::aaaa::::::a       y:::::y         \nk::::::k   k:::::k  p::::::::::::::pp  l::::::l a::::::::::aa:::a     y:::::y          \nkkkkkkkk    kkkkkkk p::::::pppppppp    llllllll  aaaaaaaaaa  aaaa    y:::::y           \n                    p:::::p                                         y:::::y            \n                    p:::::p                                        y:::::y             \n                   p:::::::p                                      y:::::y              \n                   p:::::::p                                     y:::::y               \n                   p:::::::p                                    yyyyyyy                \n                   ppppppppp\n\nkplay lets you inspect messages in a Kafka topic in a simple and deliberate manner\n\n            Click on the buttons below to start fetching messages\n"
           )
         ])
       )
@@ -4790,7 +4923,7 @@ function message_list_item(message, index5, current_index, select_on_hover) {
   let border_class = (() => {
     if (current_index instanceof Some && current_index[0] === index5) {
       let i = current_index[0];
-      return " text-[#b8bb26] border-l-[#b8bb26]";
+      return " text-[#fe8019] border-l-[#fe8019]";
     } else {
       return " text-[#d5c4a1] border-l-[#282828]";
     }
@@ -4805,7 +4938,7 @@ function message_list_item(message, index5, current_index, select_on_hover) {
   return div(
     toList([
       class$(
-        "py-2 px-4 border-l-2 hover:border-l-[#fe8019] hover:text-[#fe8019] hover:border-l-2 cursor-pointer transition duration-100 ease-in-out" + border_class
+        "py-2 px-4 border-l-2 hover:border-l-[#b8bb26] hover:text-[#b8bb26] hover:border-l-2 cursor-pointer transition duration-100 ease-in-out" + border_class
       ),
       event_handler
     ]),
@@ -4861,7 +4994,7 @@ function message_details_pane(model) {
         toList([
           text2(
             (() => {
-              let $1 = model.select_on_hover;
+              let $1 = model.behaviours.select_on_hover;
               if ($1) {
                 return "Hover on";
               } else {
@@ -4958,7 +5091,7 @@ function messages_section_with_messages(model, height_class) {
                         m,
                         i,
                         current_index,
-                        model.select_on_hover
+                        model.behaviours.select_on_hover
                       );
                     }
                   );
@@ -4995,7 +5128,7 @@ function controls_div_when_no_config() {
       button(
         toList([
           class$(
-            "font-bold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fe8019]"
+            "font-bold px-4 py-1 bg-[#fe8019] text-[#282828] hover:bg-[#b8bb26] cursor-pointer"
           ),
           disabled(true)
         ]),
@@ -5020,7 +5153,68 @@ function controls_div_when_no_config() {
     ])
   );
 }
+function error_section(model) {
+  let $ = model.http_error;
+  if ($ instanceof None) {
+    return none2();
+  } else {
+    let err = $[0];
+    return div(
+      toList([
+        role("alert"),
+        class$(
+          "text-[#fb4934] border-2 border-[#fb4934] border-opacity-50 px-4 py-4 mt-4"
+        )
+      ]),
+      toList([
+        strong(
+          toList([class$("font-bold")]),
+          toList([text2("Error: ")])
+        ),
+        span(
+          toList([class$("block sm:inline")]),
+          toList([
+            text2(
+              (() => {
+                let _pipe = err;
+                return http_error_to_string(_pipe);
+              })()
+            )
+          ])
+        )
+      ])
+    );
+  }
+}
+var topic_name_max_width = 80;
+var consumer_group_max_width = 80;
 function consumer_info(config) {
+  let topic = (() => {
+    let $ = (() => {
+      let _pipe = config.topic;
+      return string_length(_pipe);
+    })();
+    if ($ <= 80) {
+      let n = $;
+      return config.topic;
+    } else {
+      let _pipe = config.topic;
+      return slice(_pipe, 0, topic_name_max_width);
+    }
+  })();
+  let consumer_group = (() => {
+    let $ = (() => {
+      let _pipe = config.consumer_group;
+      return string_length(_pipe);
+    })();
+    if ($ <= 80) {
+      let n = $;
+      return config.consumer_group;
+    } else {
+      let _pipe = config.topic;
+      return slice(_pipe, 0, consumer_group_max_width);
+    }
+  })();
   return div(
     toList([
       class$("font-bold px-4 py-1 flex items-center space-x-2")
@@ -5028,7 +5222,7 @@ function consumer_info(config) {
     toList([
       p(
         toList([class$("text-[#fabd2f]")]),
-        toList([text(config.topic)])
+        toList([text(topic)])
       ),
       p(
         toList([class$("text-[#d5c4a1]")]),
@@ -5036,7 +5230,7 @@ function consumer_info(config) {
       ),
       p(
         toList([class$("text-[#d3869b]")]),
-        toList([text(config.consumer_group)])
+        toList([text(consumer_group)])
       )
     ])
   );
@@ -5048,7 +5242,7 @@ function controls_div_with_config(config, fetching, select_on_hover) {
       button(
         toList([
           class$(
-            "font-bold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fe8019]"
+            "font-bold px-4 py-1 bg-[#fe8019] text-[#282828] hover:bg-[#b8bb26] cursor-pointer"
           ),
           disabled(true)
         ]),
@@ -5066,7 +5260,7 @@ function controls_div_with_config(config, fetching, select_on_hover) {
       button(
         toList([
           class$(
-            "font-semibold px-4 py-1 bg-[#d3869b] text-[#282828] hover:bg-[#fabd2f]"
+            "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]"
           ),
           disabled(fetching),
           on_click(new FetchMessages(1))
@@ -5076,7 +5270,7 @@ function controls_div_with_config(config, fetching, select_on_hover) {
       button(
         toList([
           class$(
-            "font-semibold px-4 py-1 bg-[#d3869b] text-[#282828] hover:bg-[#fabd2f]"
+            "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]"
           ),
           disabled(fetching),
           on_click(new FetchMessages(10))
@@ -5131,42 +5325,13 @@ function controls_section(model) {
   let $ = model.config;
   if ($ instanceof Some) {
     let c = $[0];
-    return controls_div_with_config(c, model.fetching, model.select_on_hover);
+    return controls_div_with_config(
+      c,
+      model.fetching,
+      model.behaviours.select_on_hover
+    );
   } else {
     return controls_div_when_no_config();
-  }
-}
-function error_section(model) {
-  let $ = model.http_error;
-  if ($ instanceof None) {
-    return none2();
-  } else {
-    let err = $[0];
-    return div(
-      toList([
-        role("alert"),
-        class$(
-          "text-[#fb4934] border-2 border-[#fb4934] border-opacity-50 px-4 py-4 mt-4"
-        )
-      ]),
-      toList([
-        strong(
-          toList([class$("font-bold")]),
-          toList([text2("Error: ")])
-        ),
-        span(
-          toList([class$("block sm:inline")]),
-          toList([
-            text2(
-              (() => {
-                let _pipe = err;
-                return http_error_to_string(_pipe);
-              })()
-            )
-          ])
-        )
-      ])
-    );
   }
 }
 function view(model) {
@@ -5193,7 +5358,10 @@ function view(model) {
 
 // build/dev/javascript/kplay/kplay.mjs
 function init2(_) {
-  return [init_model(), fetch_config()];
+  return [
+    init_model(),
+    batch(toList([fetch_config(), fetch_behaviours()]))
+  ];
 }
 function main() {
   let app = application(init2, update, view);

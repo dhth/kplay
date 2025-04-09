@@ -126,3 +126,18 @@ func getMessageFromRecord(record *kgo.Record, deserializationFmt c.EncodingForma
 		Err:       err,
 	}
 }
+
+func getBehaviours(behaviours c.WebBehaviours) func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		jsonBytes, err := json.Marshal(behaviours)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to encode JSON: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set(contentType, applicationJSON)
+		if _, err := w.Write(jsonBytes); err != nil {
+			log.Printf("failed to write bytes to HTTP connection: %s", err.Error())
+		}
+	}
+}

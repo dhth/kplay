@@ -3,26 +3,39 @@ import gleam/int
 import lustre/effect
 import lustre_http
 import plinth/browser/window
-import types.{
-  type Msg, ConfigFetched, MessagesFetched, config_decoder,
-  message_details_decoder,
+import types.{behaviours_decoder, config_decoder, message_details_decoder}
+
+const dev = False
+
+fn base_url() -> String {
+  case dev {
+    False -> window.location()
+    True -> "http://127.0.0.1:6500/"
+  }
 }
 
-pub fn fetch_config() -> effect.Effect(Msg) {
-  let expect = lustre_http.expect_json(config_decoder(), ConfigFetched)
+pub fn fetch_config() -> effect.Effect(types.Msg) {
+  let expect = lustre_http.expect_json(config_decoder(), types.ConfigFetched)
 
-  lustre_http.get(window.location() <> "api/config", expect)
+  lustre_http.get(base_url() <> "api/config", expect)
 }
 
-pub fn fetch_messages(num: Int) -> effect.Effect(Msg) {
+pub fn fetch_behaviours() -> effect.Effect(types.Msg) {
+  let expect =
+    lustre_http.expect_json(behaviours_decoder(), types.BehavioursFetched)
+
+  lustre_http.get(base_url() <> "api/behaviours", expect)
+}
+
+pub fn fetch_messages(num: Int) -> effect.Effect(types.Msg) {
   let expect =
     lustre_http.expect_json(
       decode.list(message_details_decoder()),
-      MessagesFetched,
+      types.MessagesFetched,
     )
 
   lustre_http.get(
-    window.location() <> "api/fetch?num=" <> num |> int.to_string,
+    base_url() <> "api/fetch?num=" <> num |> int.to_string,
     expect,
   )
 }

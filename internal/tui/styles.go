@@ -17,7 +17,7 @@ const (
 	helpSectionColor         = "#fabd2f"
 	successMsgcolor          = "#83a598"
 	errorMsgcolor            = "#fb4934"
-	toolNameColor            = "#b8bb26"
+	toolNameColor            = "#fe8019"
 	persistingMsgsColor      = "#fb4934"
 	skippingMsgsColor        = "#fabd2f"
 	committingMsgsColor      = "#fe8019"

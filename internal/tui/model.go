@@ -32,7 +32,7 @@ type Model struct {
 	msgDetailsVPReady  bool
 	msgDetailsStore    map[string]messageDetails
 	showHelpIndicator  bool
-	behaviours         c.Behaviours
+	behaviours         c.TUIBehaviours
 	helpVPReady        bool
 	terminalWidth      int
 	terminalHeight     int

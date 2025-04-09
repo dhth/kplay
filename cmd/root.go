@@ -48,6 +48,7 @@ func NewRootCommand() (*cobra.Command, error) {
 		persistMessages bool
 		skipMessages    bool
 		commitMessages  bool
+		selectOnHover   bool
 		consumerGroup   string
 		config          c.Config
 		debug           bool
@@ -94,7 +95,7 @@ to brokers, message encoding, authentication, etc.
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			behaviours := c.Behaviours{
+			behaviours := c.TUIBehaviours{
 				PersistMessages: persistMessages,
 				SkipMessages:    skipMessages,
 				CommitMessages:  commitMessages,
@@ -110,21 +111,16 @@ to brokers, message encoding, authentication, etc.
 - encoding                %s
 - brokers                 %v
 
-Behaviours 
+Behaviours
 ---
-
-- persist messages        %v
-- skip messages           %v
-- commit messages         %v
+%s
 `,
 					config.Topic,
 					config.ConsumerGroup,
 					config.AuthenticationDisplay(),
 					config.EncodingDisplay(),
 					config.Brokers,
-					behaviours.PersistMessages,
-					behaviours.SkipMessages,
-					behaviours.CommitMessages,
+					behaviours.Display(),
 				)
 				return nil
 			}
@@ -153,6 +149,9 @@ Behaviours
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
+			behaviours := c.WebBehaviours{
+				SelectOnHover: selectOnHover,
+			}
 			if debug {
 				fmt.Printf(`Config:
 ---
@@ -162,12 +161,17 @@ Behaviours
 - authentication          %s
 - encoding                %s
 - brokers                 %v
+
+Behaviours
+---
+%s
 `,
 					config.Topic,
 					config.ConsumerGroup,
 					config.AuthenticationDisplay(),
 					config.EncodingDisplay(),
 					config.Brokers,
+					behaviours.Display(),
 				)
 				return nil
 			}
@@ -186,7 +190,7 @@ Behaviours
 				return fmt.Errorf("%w: %s", errCouldntPingBrokers, err.Error())
 			}
 
-			return server.Serve(cl, config, webOpen)
+			return server.Serve(cl, config, behaviours, webOpen)
 		},
 	}
 
@@ -212,6 +216,7 @@ Behaviours
 
 	serveCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	serveCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
+	serveCmd.Flags().BoolVarP(&selectOnHover, "select-on-hover", "S", false, "whether to start the web interface with the setting \"select on hover\" ON")
 	serveCmd.Flags().BoolVarP(&webOpen, "open", "o", false, "whether to open web interface in browser automatically")
 	serveCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 

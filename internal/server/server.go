@@ -19,7 +19,7 @@ var (
 	errForcefulShutdownFailed = errors.New("forceful shutdown failed")
 )
 
-func Serve(client *kgo.Client, config c.Config, open bool) error {
+func Serve(client *kgo.Client, config c.Config, initialBehaviours c.WebBehaviours, open bool) error {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /", getIndex)
@@ -27,6 +27,7 @@ func Serve(client *kgo.Client, config c.Config, open bool) error {
 	mux.HandleFunc("GET /priv/static/kplay.css", getCSS)
 	mux.HandleFunc("GET /priv/static/kplay.mjs", getJS)
 	mux.HandleFunc("GET /api/config", getConfig(config))
+	mux.HandleFunc("GET /api/behaviours", getBehaviours(initialBehaviours))
 	mux.HandleFunc("GET /api/fetch", getMessages(client, config))
 	muxWithCors := corsMiddleware(mux)
 

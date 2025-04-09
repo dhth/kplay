@@ -4,7 +4,7 @@ import gleam/list
 import gleam/option
 import lustre/effect
 import model.{type Model, Model}
-import types.{type Msg}
+import types.{type Msg, Behaviours}
 
 pub fn update(model: Model, msg: Msg) -> #(Model, effect.Effect(Msg)) {
   case msg {
@@ -12,6 +12,11 @@ pub fn update(model: Model, msg: Msg) -> #(Model, effect.Effect(Msg)) {
       case res {
         Error(e) -> #(Model(..model, http_error: option.Some(e)), effect.none())
         Ok(c) -> #(Model(..model, config: option.Some(c)), effect.none())
+      }
+    types.BehavioursFetched(res) ->
+      case res {
+        Error(_) -> #(model, effect.none())
+        Ok(b) -> #(Model(..model, behaviours: b), effect.none())
       }
     types.FetchMessages(num) -> #(
       Model(..model, fetching: True, http_error: option.None),
@@ -28,7 +33,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, effect.Effect(Msg)) {
       effect.none(),
     )
     types.HoverSettingsChanged(selected) -> #(
-      Model(..model, select_on_hover: selected),
+      Model(..model, behaviours: Behaviours(select_on_hover: selected)),
       effect.none(),
     )
     types.GoToEnd -> #(model, effect.none())

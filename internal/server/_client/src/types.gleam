@@ -34,6 +34,19 @@ pub fn display_config(config: Config) -> String {
   <> config.consumer_group
 }
 
+pub type Behaviours {
+  Behaviours(select_on_hover: Bool)
+}
+
+pub fn default_behaviours() -> Behaviours {
+  Behaviours(select_on_hover: False)
+}
+
+pub fn behaviours_decoder() -> decode.Decoder(Behaviours) {
+  use select_on_hover <- decode.field("select_on_hover", decode.bool)
+  decode.success(Behaviours(select_on_hover:))
+}
+
 pub type MessageOffset =
   Int
 
@@ -70,6 +83,7 @@ pub fn message_details_decoder() -> decode.Decoder(MessageDetails) {
 
 pub type Msg {
   ConfigFetched(Result(Config, lustre_http.HttpError))
+  BehavioursFetched(Result(Behaviours, lustre_http.HttpError))
   FetchMessages(Int)
   ClearMessages
   HoverSettingsChanged(Bool)
