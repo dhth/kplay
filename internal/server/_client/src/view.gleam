@@ -230,12 +230,7 @@ fn message_details_pane(model: Model) -> element.Element(Msg) {
 
 fn controls_section(model: Model) -> element.Element(Msg) {
   case model.config {
-    option.Some(c) ->
-      controls_div_with_config(
-        c,
-        model.fetching,
-        model.behaviours.select_on_hover,
-      )
+    option.Some(c) -> controls_div_with_config(model, c)
     option.None -> controls_div_when_no_config()
   }
 }
@@ -269,9 +264,8 @@ fn controls_div_when_no_config() -> element.Element(Msg) {
 }
 
 fn controls_div_with_config(
+  model: Model,
   config: types.Config,
-  fetching: Bool,
-  select_on_hover: Bool,
 ) -> element.Element(Msg) {
   html.div([attribute.class("flex items-center space-x-2 mt-4")], [
     html.button(
@@ -297,7 +291,7 @@ fn controls_div_with_config(
         attribute.class(
           "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]",
         ),
-        attribute.disabled(fetching),
+        attribute.disabled(model.fetching),
         event.on_click(types.FetchMessages(1)),
       ],
       [element.text("Fetch next")],
@@ -307,7 +301,7 @@ fn controls_div_with_config(
         attribute.class(
           "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]",
         ),
-        attribute.disabled(fetching),
+        attribute.disabled(model.fetching),
         event.on_click(types.FetchMessages(10)),
       ],
       [element.text("Fetch next 10")],
@@ -317,29 +311,53 @@ fn controls_div_with_config(
         attribute.class(
           "font-semibold px-4 py-1 bg-[#bdae93] text-[#282828] hover:bg-[#fabd2f]",
         ),
-        attribute.disabled(fetching),
+        attribute.disabled(model.fetching),
         event.on_click(types.ClearMessages),
       ],
       [element.text("Clear Messages")],
     ),
     html.div(
-      [attribute.class("font-semibold px-4 py-1 flex items-center space-x-2")],
       [
-        html.label(
-          [
-            attribute.class("cursor-pointer"),
-            attribute.for("hover-control-input"),
-          ],
-          [element.text("select on hover")],
+        attribute.class(
+          "border-2 border-[#928374] border-opacity-40 border-dashed font-semibold px-4 py-1 flex items-center space-x-4",
         ),
-        html.input([
-          attribute.class(
-            "w-4 h-4 text-[#fabd2f] bg-[#282828] focus:ring-[#fabd2f] cursor-pointer",
+      ],
+      [
+        html.div([attribute.class("flex items-center space-x-2")], [
+          html.label(
+            [
+              attribute.class("cursor-pointer"),
+              attribute.for("hover-control-input"),
+            ],
+            [element.text("select on hover")],
           ),
-          attribute.id("hover-control-input"),
-          attribute.type_("checkbox"),
-          event.on_check(types.HoverSettingsChanged),
-          attribute.checked(select_on_hover),
+          html.input([
+            attribute.class(
+              "w-4 h-4 text-[#fabd2f] bg-[#282828] focus:ring-[#fabd2f] cursor-pointer",
+            ),
+            attribute.id("hover-control-input"),
+            attribute.type_("checkbox"),
+            event.on_check(types.HoverSettingsChanged),
+            attribute.checked(model.behaviours.select_on_hover),
+          ]),
+        ]),
+        html.div([attribute.class("flex items-center space-x-2")], [
+          html.label(
+            [
+              attribute.class("cursor-pointer"),
+              attribute.for("commit-messages"),
+            ],
+            [element.text("commit messages")],
+          ),
+          html.input([
+            attribute.class(
+              "w-4 h-4 text-[#fabd2f] bg-[#282828] focus:ring-[#fabd2f] cursor-pointer",
+            ),
+            attribute.id("commit-messages"),
+            attribute.type_("checkbox"),
+            event.on_check(types.CommitSettingsChanged),
+            attribute.checked(model.behaviours.commit_messages),
+          ]),
         ]),
       ],
     ),

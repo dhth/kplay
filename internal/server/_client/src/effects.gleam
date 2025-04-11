@@ -5,7 +5,7 @@ import lustre_http
 import plinth/browser/window
 import types.{behaviours_decoder, config_decoder, message_details_decoder}
 
-const dev = False
+const dev = True
 
 fn base_url() -> String {
   case dev {
@@ -27,15 +27,24 @@ pub fn fetch_behaviours() -> effect.Effect(types.Msg) {
   lustre_http.get(base_url() <> "api/behaviours", expect)
 }
 
-pub fn fetch_messages(num: Int) -> effect.Effect(types.Msg) {
+pub fn fetch_messages(num: Int, commit: Bool) -> effect.Effect(types.Msg) {
   let expect =
     lustre_http.expect_json(
       decode.list(message_details_decoder()),
       types.MessagesFetched,
     )
 
+  let commit_query_param = case commit {
+    False -> "false"
+    True -> "true"
+  }
+
   lustre_http.get(
-    base_url() <> "api/fetch?num=" <> num |> int.to_string,
+    base_url()
+      <> "api/fetch?num="
+      <> num |> int.to_string
+      <> "&commit="
+      <> commit_query_param,
     expect,
   )
 }

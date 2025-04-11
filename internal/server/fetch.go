@@ -38,12 +38,28 @@ func getMessages(client *kgo.Client, config c.Config) func(w http.ResponseWriter
 		numMessages := 1
 		if numMessagesStr != "" {
 			num, err := strconv.Atoi(numMessagesStr)
-			if err == nil && num > 1 {
-				numMessages = num
+			if err != nil || num < 1 {
+				http.Error(w, fmt.Sprintf("incorrect value provided for query param \"num\": %s", err.Error()), http.StatusBadRequest)
+				return
 			}
+			numMessages = num
+		}
+		if numMessages > 10 {
+			numMessages = 10
 		}
 
-		records, err := k.FetchMessages(client, true, numMessages)
+		commitStr := queryParams.Get("commit")
+		var commitMessages bool
+		if commitStr != "" {
+			parsed, err := strconv.ParseBool(commitStr)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("incorrect value provided for query param \"commit\": %s", err.Error()), http.StatusBadRequest)
+				return
+			}
+			commitMessages = parsed
+		}
+
+		records, err := k.FetchMessages(client, commitMessages, numMessages)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to fetch messages: %s", err.Error()), http.StatusInternalServerError)
 			return

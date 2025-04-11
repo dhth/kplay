@@ -35,16 +35,17 @@ pub fn display_config(config: Config) -> String {
 }
 
 pub type Behaviours {
-  Behaviours(select_on_hover: Bool)
+  Behaviours(commit_messages: Bool, select_on_hover: Bool)
 }
 
 pub fn default_behaviours() -> Behaviours {
-  Behaviours(select_on_hover: False)
+  Behaviours(commit_messages: True, select_on_hover: False)
 }
 
 pub fn behaviours_decoder() -> decode.Decoder(Behaviours) {
+  use commit_messages <- decode.field("commit_messages", decode.bool)
   use select_on_hover <- decode.field("select_on_hover", decode.bool)
-  decode.success(Behaviours(select_on_hover:))
+  decode.success(Behaviours(commit_messages:, select_on_hover:))
 }
 
 pub type MessageOffset =
@@ -86,6 +87,7 @@ pub type Msg {
   BehavioursFetched(Result(Behaviours, lustre_http.HttpError))
   FetchMessages(Int)
   ClearMessages
+  CommitSettingsChanged(Bool)
   HoverSettingsChanged(Bool)
   MessageChosen(Int)
   MessagesFetched(Result(List(MessageDetails), lustre_http.HttpError))

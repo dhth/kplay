@@ -4301,8 +4301,9 @@ var Config = class extends CustomType {
   }
 };
 var Behaviours = class extends CustomType {
-  constructor(select_on_hover) {
+  constructor(commit_messages, select_on_hover) {
     super();
+    this.commit_messages = commit_messages;
     this.select_on_hover = select_on_hover;
   }
 };
@@ -4337,6 +4338,12 @@ var FetchMessages = class extends CustomType {
   }
 };
 var ClearMessages = class extends CustomType {
+};
+var CommitSettingsChanged = class extends CustomType {
+  constructor(x0) {
+    super();
+    this[0] = x0;
+  }
 };
 var HoverSettingsChanged = class extends CustomType {
   constructor(x0) {
@@ -4396,14 +4403,22 @@ function display_config(config) {
   })() + "\n -> topic: " + config.topic + "\n -> consumer_group: " + config.consumer_group;
 }
 function default_behaviours() {
-  return new Behaviours(false);
+  return new Behaviours(true, false);
 }
 function behaviours_decoder() {
   return field2(
-    "select_on_hover",
+    "commit_messages",
     bool2,
-    (select_on_hover) => {
-      return success(new Behaviours(select_on_hover));
+    (commit_messages) => {
+      return field2(
+        "select_on_hover",
+        bool2,
+        (select_on_hover) => {
+          return success(
+            new Behaviours(commit_messages, select_on_hover)
+          );
+        }
+      );
     }
   );
 }
@@ -4464,7 +4479,7 @@ function message_details_decoder() {
 }
 
 // build/dev/javascript/kplay/effects.mjs
-var dev = false;
+var dev = true;
 function base_url() {
   let $ = dev;
   if (!$) {
@@ -4491,18 +4506,25 @@ function fetch_behaviours() {
   );
   return get(base_url() + "api/behaviours", expect);
 }
-function fetch_messages(num) {
+function fetch_messages(num, commit) {
   let expect = expect_json(
     list2(message_details_decoder()),
     (var0) => {
       return new MessagesFetched(var0);
     }
   );
+  let commit_query_param = (() => {
+    if (!commit) {
+      return "false";
+    } else {
+      return "true";
+    }
+  })();
   return get(
     base_url() + "api/fetch?num=" + (() => {
       let _pipe = num;
       return to_string(_pipe);
-    })(),
+    })() + "&commit=" + commit_query_param,
     expect
   );
 }
@@ -4643,7 +4665,7 @@ function update(model, msg) {
           _record.debug
         );
       })(),
-      fetch_messages(num)
+      fetch_messages(num, model.behaviours.commit_messages)
     ];
   } else if (msg instanceof ClearMessages) {
     return [
@@ -4662,6 +4684,27 @@ function update(model, msg) {
       })(),
       none()
     ];
+  } else if (msg instanceof CommitSettingsChanged) {
+    let selected = msg[0];
+    return [
+      (() => {
+        let _record = model;
+        return new Model2(
+          _record.config,
+          (() => {
+            let _record$1 = model.behaviours;
+            return new Behaviours(selected, _record$1.select_on_hover);
+          })(),
+          _record.messages,
+          _record.messages_cache,
+          _record.http_error,
+          _record.current_message,
+          _record.fetching,
+          _record.debug
+        );
+      })(),
+      none()
+    ];
   } else if (msg instanceof HoverSettingsChanged) {
     let selected = msg[0];
     return [
@@ -4669,7 +4712,10 @@ function update(model, msg) {
         let _record = model;
         return new Model2(
           _record.config,
-          new Behaviours(selected),
+          (() => {
+            let _record$1 = model.behaviours;
+            return new Behaviours(_record$1.commit_messages, selected);
+          })(),
           _record.messages,
           _record.messages_cache,
           _record.http_error,
@@ -5235,7 +5281,7 @@ function consumer_info(config) {
     ])
   );
 }
-function controls_div_with_config(config, fetching, select_on_hover) {
+function controls_div_with_config(model, config) {
   return div(
     toList([class$("flex items-center space-x-2 mt-4")]),
     toList([
@@ -5262,7 +5308,7 @@ function controls_div_with_config(config, fetching, select_on_hover) {
           class$(
             "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]"
           ),
-          disabled(fetching),
+          disabled(model.fetching),
           on_click(new FetchMessages(1))
         ]),
         toList([text("Fetch next")])
@@ -5272,7 +5318,7 @@ function controls_div_with_config(config, fetching, select_on_hover) {
           class$(
             "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]"
           ),
-          disabled(fetching),
+          disabled(model.fetching),
           on_click(new FetchMessages(10))
         ]),
         toList([text("Fetch next 10")])
@@ -5282,7 +5328,7 @@ function controls_div_with_config(config, fetching, select_on_hover) {
           class$(
             "font-semibold px-4 py-1 bg-[#bdae93] text-[#282828] hover:bg-[#fabd2f]"
           ),
-          disabled(fetching),
+          disabled(model.fetching),
           on_click(new ClearMessages())
         ]),
         toList([text("Clear Messages")])
@@ -5290,30 +5336,62 @@ function controls_div_with_config(config, fetching, select_on_hover) {
       div(
         toList([
           class$(
-            "font-semibold px-4 py-1 flex items-center space-x-2"
+            "border-2 border-[#928374] border-opacity-40 border-dashed font-semibold px-4 py-1 flex items-center space-x-4"
           )
         ]),
         toList([
-          label(
+          div(
+            toList([class$("flex items-center space-x-2")]),
             toList([
-              class$("cursor-pointer"),
-              for$("hover-control-input")
-            ]),
-            toList([text("select on hover")])
+              label(
+                toList([
+                  class$("cursor-pointer"),
+                  for$("hover-control-input")
+                ]),
+                toList([text("select on hover")])
+              ),
+              input(
+                toList([
+                  class$(
+                    "w-4 h-4 text-[#fabd2f] bg-[#282828] focus:ring-[#fabd2f] cursor-pointer"
+                  ),
+                  id("hover-control-input"),
+                  type_("checkbox"),
+                  on_check(
+                    (var0) => {
+                      return new HoverSettingsChanged(var0);
+                    }
+                  ),
+                  checked(model.behaviours.select_on_hover)
+                ])
+              )
+            ])
           ),
-          input(
+          div(
+            toList([class$("flex items-center space-x-2")]),
             toList([
-              class$(
-                "w-4 h-4 text-[#fabd2f] bg-[#282828] focus:ring-[#fabd2f] cursor-pointer"
+              label(
+                toList([
+                  class$("cursor-pointer"),
+                  for$("commit-messages")
+                ]),
+                toList([text("commit messages")])
               ),
-              id("hover-control-input"),
-              type_("checkbox"),
-              on_check(
-                (var0) => {
-                  return new HoverSettingsChanged(var0);
-                }
-              ),
-              checked(select_on_hover)
+              input(
+                toList([
+                  class$(
+                    "w-4 h-4 text-[#fabd2f] bg-[#282828] focus:ring-[#fabd2f] cursor-pointer"
+                  ),
+                  id("commit-messages"),
+                  type_("checkbox"),
+                  on_check(
+                    (var0) => {
+                      return new CommitSettingsChanged(var0);
+                    }
+                  ),
+                  checked(model.behaviours.commit_messages)
+                ])
+              )
             ])
           )
         ])
@@ -5325,11 +5403,7 @@ function controls_section(model) {
   let $ = model.config;
   if ($ instanceof Some) {
     let c = $[0];
-    return controls_div_with_config(
-      c,
-      model.fetching,
-      model.behaviours.select_on_hover
-    );
+    return controls_div_with_config(model, c);
   } else {
     return controls_div_when_no_config();
   }

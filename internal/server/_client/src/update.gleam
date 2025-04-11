@@ -20,7 +20,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, effect.Effect(Msg)) {
       }
     types.FetchMessages(num) -> #(
       Model(..model, fetching: True, http_error: option.None),
-      fetch_messages(num),
+      fetch_messages(num, model.behaviours.commit_messages),
     )
     types.ClearMessages -> #(
       Model(
@@ -32,8 +32,18 @@ pub fn update(model: Model, msg: Msg) -> #(Model, effect.Effect(Msg)) {
       ),
       effect.none(),
     )
+    types.CommitSettingsChanged(selected) -> #(
+      Model(
+        ..model,
+        behaviours: Behaviours(..model.behaviours, commit_messages: selected),
+      ),
+      effect.none(),
+    )
     types.HoverSettingsChanged(selected) -> #(
-      Model(..model, behaviours: Behaviours(select_on_hover: selected)),
+      Model(
+        ..model,
+        behaviours: Behaviours(..model.behaviours, select_on_hover: selected),
+      ),
       effect.none(),
     )
     types.GoToEnd -> #(model, effect.none())

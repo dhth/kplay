@@ -615,6 +615,12 @@ video {
   margin-left: calc(0.5rem * calc(1 - var(--tw-space-x-reverse)));
 }
 
+.space-x-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 0;
+  margin-right: calc(1rem * var(--tw-space-x-reverse));
+  margin-left: calc(1rem * calc(1 - var(--tw-space-x-reverse)));
+}
+
 .overflow-auto {
   overflow: auto;
 }
@@ -629,6 +635,10 @@ video {
 
 .border-l-2 {
   border-left-width: 2px;
+}
+
+.border-dashed {
+  border-style: dashed;
 }
 
 .border-\[\#928374\] {
@@ -653,6 +663,10 @@ video {
 
 .border-opacity-20 {
   --tw-border-opacity: 0.2;
+}
+
+.border-opacity-40 {
+  --tw-border-opacity: 0.4;
 }
 
 .border-opacity-50 {

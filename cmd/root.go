@@ -96,9 +96,9 @@ to brokers, message encoding, authentication, etc.
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			behaviours := c.TUIBehaviours{
+				CommitMessages:  commitMessages,
 				PersistMessages: persistMessages,
 				SkipMessages:    skipMessages,
-				CommitMessages:  commitMessages,
 			}
 
 			if debug {
@@ -150,7 +150,8 @@ Behaviours
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			behaviours := c.WebBehaviours{
-				SelectOnHover: selectOnHover,
+				CommitMessages: commitMessages,
+				SelectOnHover:  selectOnHover,
 			}
 			if debug {
 				fmt.Printf(`Config:
@@ -210,12 +211,13 @@ Behaviours
 	tuiCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	tuiCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the setting \"persist messages\" ON")
 	tuiCmd.Flags().BoolVarP(&skipMessages, "skip-messages", "s", false, "whether to start the TUI with the setting \"skip messages\" ON")
-	tuiCmd.Flags().BoolVar(&commitMessages, "commit-messages", true, "whether to start the TUI with the setting \"commit messages\" ON")
+	tuiCmd.Flags().BoolVarP(&commitMessages, "commit-messages", "C", true, "whether to start the TUI with the setting \"commit messages\" ON")
 	tuiCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
 	tuiCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 
 	serveCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	serveCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
+	serveCmd.Flags().BoolVarP(&commitMessages, "commit-messages", "C", true, "whether to start the web interface with the setting \"commit messages\" ON")
 	serveCmd.Flags().BoolVarP(&selectOnHover, "select-on-hover", "S", false, "whether to start the web interface with the setting \"select on hover\" ON")
 	serveCmd.Flags().BoolVarP(&webOpen, "open", "o", false, "whether to open web interface in browser automatically")
 	serveCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
