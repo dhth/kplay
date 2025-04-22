@@ -11,7 +11,7 @@ const (
 	metadataKeyPadding = 20
 )
 
-func GetRecordMetadata(record *kgo.Record) string {
+func GetRecordMetadata(record kgo.Record) string {
 	var lines []string // nolint:prealloc
 	if len(record.Key) > 0 {
 		lines = append(lines, fmt.Sprintf("- %s %s", RightPadTrim("key", metadataKeyPadding), record.Key))
@@ -25,12 +25,4 @@ func GetRecordMetadata(record *kgo.Record) string {
 	}
 
 	return strings.Join(lines, "\n")
-}
-
-func GetUniqueKey(record *kgo.Record) string {
-	return fmt.Sprintf("%s/partition-%d/offset-%d",
-		record.Topic,
-		record.Partition,
-		record.Offset,
-	)
 }

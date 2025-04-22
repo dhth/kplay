@@ -171,18 +171,24 @@ fn message_list_item(
     ],
     [
       html.p([attribute.class("text-base font-semibold")], [
-        html.text(message.key),
+        html.text(case message.error {
+          option.None -> message.key
+          option.Some(_) -> "error"
+        }),
       ]),
-      html.div([attribute.class("flex space-x-2 text-sm")], [
-        html.p([], [html.text("offset: " <> message.offset |> int.to_string)]),
-        html.p([], [
-          html.text("partition: " <> message.partition |> int.to_string),
-        ]),
-        case message.value {
-          option.None -> html.p([], [html.text("🪦")])
-          option.Some(_) -> element.none()
-        },
-      ]),
+      html.div([attribute.class("flex space-x-2 text-sm")], case message.error {
+        option.None -> [
+          html.p([], [html.text("offset: " <> message.offset |> int.to_string)]),
+          html.p([], [
+            html.text("partition: " <> message.partition |> int.to_string),
+          ]),
+          case message.value {
+            option.None -> html.p([], [html.text("🪦")])
+            option.Some(_) -> element.none()
+          },
+        ]
+        option.Some(_) -> []
+      }),
     ],
   )
 }
@@ -200,24 +206,31 @@ fn message_details_pane(model: Model) -> element.Element(Msg) {
         ),
       ])
     option.Some(#(_, msg)) ->
-      html.div([], [
-        html.p([attribute.class("text-[#fabd2f] text-lg mb-4")], [
-          html.text("Metadata"),
-        ]),
-        html.pre([attribute.class("text-[#d5c4a1] text-base mb-8")], [
-          html.text(msg.metadata),
-        ]),
-        html.p([attribute.class("text-[#fabd2f] text-lg mb-4")], [
-          html.text("Value"),
-        ]),
-        case msg.value {
-          option.None -> html.p([], [html.text("tombstone 🪦")])
-          option.Some(v) ->
-            html.pre([attribute.class("text-[#d5c4a1] text-base mb-4")], [
-              html.text(v),
-            ])
-        },
-      ])
+      case msg.error {
+        option.None ->
+          html.div([], [
+            html.p([attribute.class("text-[#fabd2f] text-lg mb-4")], [
+              html.text("Metadata"),
+            ]),
+            html.pre([attribute.class("text-[#d5c4a1] text-base mb-8")], [
+              html.text(msg.metadata),
+            ]),
+            html.p([attribute.class("text-[#fabd2f] text-lg mb-4")], [
+              html.text("Value"),
+            ]),
+            case msg.value {
+              option.None -> html.p([], [html.text("tombstone 🪦")])
+              option.Some(v) ->
+                html.pre([attribute.class("text-[#d5c4a1] text-base mb-4")], [
+                  html.text(v),
+                ])
+            },
+          ])
+        option.Some(e) ->
+          html.pre([attribute.class("text-[#fb4934] text-base mb-4")], [
+            html.text(e),
+          ])
+      }
   }
 
   html.div([attribute.class("w-3/5 p-6 overflow-auto")], [
@@ -289,7 +302,7 @@ fn controls_div_with_config(
     html.button(
       [
         attribute.class(
-          "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]",
+          "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f] disabled:bg-[#bdae93]",
         ),
         attribute.disabled(model.fetching),
         event.on_click(types.FetchMessages(1)),
@@ -299,7 +312,7 @@ fn controls_div_with_config(
     html.button(
       [
         attribute.class(
-          "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]",
+          "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f] disabled:bg-[#bdae93]",
         ),
         attribute.disabled(model.fetching),
         event.on_click(types.FetchMessages(10)),

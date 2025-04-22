@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	c "github.com/dhth/kplay/internal/config"
+	t "github.com/dhth/kplay/internal/types"
 	"github.com/twmb/franz-go/pkg/kgo"
 	kaws "github.com/twmb/franz-go/pkg/sasl/aws"
 )
@@ -19,14 +19,14 @@ var (
 	errCouldntCreateAWSSession       = errors.New("couldn't create AWS session")
 )
 
-func GetClient(auth c.AuthType, brokers []string, group, topic string) (*kgo.Client, error) {
+func GetClient(auth t.AuthType, brokers []string, group, topic string) (*kgo.Client, error) {
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(brokers...),
 		kgo.ConsumerGroup(group),
 		kgo.ConsumeTopics(topic),
 		kgo.DisableAutoCommit(),
 	}
-	if auth == c.AWSMSKIAM {
+	if auth == t.AWSMSKIAM {
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", errCouldntCreateAWSSession, err.Error())

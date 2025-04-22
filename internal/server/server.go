@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	c "github.com/dhth/kplay/internal/config"
+	t "github.com/dhth/kplay/internal/types"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -19,7 +19,7 @@ var (
 	errForcefulShutdownFailed = errors.New("forceful shutdown failed")
 )
 
-func Serve(client *kgo.Client, config c.Config, initialBehaviours c.WebBehaviours, open bool) error {
+func Serve(client *kgo.Client, config t.Config, initialBehaviours t.WebBehaviours, open bool) error {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /", getIndex)

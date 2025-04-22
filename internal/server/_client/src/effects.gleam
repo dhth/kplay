@@ -5,7 +5,7 @@ import lustre_http
 import plinth/browser/window
 import types.{behaviours_decoder, config_decoder, message_details_decoder}
 
-const dev = True
+const dev = False
 
 fn base_url() -> String {
   case dev {

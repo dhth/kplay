@@ -8,7 +8,7 @@ const (
 	listColor                = "#fe8019"
 	activeHeaderColor        = "#fe8019"
 	inactivePaneColor        = "#bdae93"
-	listPaneBorderColor      = "#363230"
+	listPaneBorderColor      = "#3c3836"
 	topicColor               = "#d3869b"
 	consumerGroupColor       = "#fabd2f"
 	helpMsgColor             = "#83a598"
@@ -23,6 +23,7 @@ const (
 	committingMsgsColor      = "#fe8019"
 	msgDetailsHeadingColor   = "#fabd2f"
 	msgDetailsTombstoneColor = "#a89984"
+	errorColor               = "#fb4934"
 )
 
 var (
@@ -37,13 +38,13 @@ var (
 
 	messageListStyle = baseListStyle.
 				Width(listWidth).
-				Border(lipgloss.NormalBorder(), false, true, false, false).
+				Border(lipgloss.ThickBorder(), false, true, false, false).
 				BorderForeground(lipgloss.Color(listPaneBorderColor))
 
 	viewPortStyle = lipgloss.
 			NewStyle().
 			PaddingTop(1).
-			PaddingLeft(2)
+			PaddingLeft(4)
 
 	viewPortFullScreenStyle = baseListStyle.
 				PaddingLeft(2)
@@ -111,4 +112,7 @@ var (
 					PaddingRight(1).
 					Foreground(lipgloss.Color(defaultBackgroundColor)).
 					Background(lipgloss.Color(msgDetailsTombstoneColor))
+
+	errorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(errorColor))
 )

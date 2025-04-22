@@ -1153,16 +1153,6 @@ function pop_codeunit(str) {
 function lowercase(string6) {
   return string6.toLowerCase();
 }
-function join(xs, separator) {
-  const iterator = xs[Symbol.iterator]();
-  let result = iterator.next().value || "";
-  let current = iterator.next();
-  while (!current.done) {
-    result = result + separator + current.value;
-    current = iterator.next();
-  }
-  return result;
-}
 function concat(xs) {
   let result = "";
   for (const x of xs) {
@@ -1492,10 +1482,47 @@ function slice(string6, idx, len) {
     }
   }
 }
+function concat_loop(loop$strings, loop$accumulator) {
+  while (true) {
+    let strings = loop$strings;
+    let accumulator = loop$accumulator;
+    if (strings.atLeastLength(1)) {
+      let string6 = strings.head;
+      let strings$1 = strings.tail;
+      loop$strings = strings$1;
+      loop$accumulator = accumulator + string6;
+    } else {
+      return accumulator;
+    }
+  }
+}
 function concat2(strings) {
-  let _pipe = strings;
-  let _pipe$1 = concat(_pipe);
-  return identity(_pipe$1);
+  return concat_loop(strings, "");
+}
+function join_loop(loop$strings, loop$separator, loop$accumulator) {
+  while (true) {
+    let strings = loop$strings;
+    let separator = loop$separator;
+    let accumulator = loop$accumulator;
+    if (strings.hasLength(0)) {
+      return accumulator;
+    } else {
+      let string6 = strings.head;
+      let strings$1 = strings.tail;
+      loop$strings = strings$1;
+      loop$separator = separator;
+      loop$accumulator = accumulator + separator + string6;
+    }
+  }
+}
+function join(strings, separator) {
+  if (strings.hasLength(0)) {
+    return "";
+  } else {
+    let first$1 = strings.head;
+    let rest = strings.tail;
+    return join_loop(rest, separator, first$1);
+  }
 }
 function drop_start(loop$string, loop$num_graphemes) {
   while (true) {
@@ -1598,17 +1625,17 @@ function push_path(error, name) {
       }
     ])
   );
-  let name$2 = (() => {
-    let $ = decoder(name$1);
-    if ($.isOk()) {
-      let name$22 = $[0];
-      return name$22;
-    } else {
-      let _pipe = toList(["<", classify_dynamic(name$1), ">"]);
-      let _pipe$1 = concat(_pipe);
-      return identity(_pipe$1);
-    }
-  })();
+  let _block;
+  let $ = decoder(name$1);
+  if ($.isOk()) {
+    let name$22 = $[0];
+    _block = name$22;
+  } else {
+    let _pipe = toList(["<", classify_dynamic(name$1), ">"]);
+    let _pipe$1 = concat(_pipe);
+    _block = identity(_pipe$1);
+  }
+  let name$2 = _block;
   let _record = error;
   return new DecodeError(
     _record.expected,
@@ -1683,7 +1710,7 @@ function int(data) {
 }
 function string2(data) {
   if (typeof data === "string") return new Ok(data);
-  return new Error(0);
+  return new Error("");
 }
 function is_null(data) {
   return data === null || data === void 0;
@@ -3003,18 +3030,18 @@ function parse_query_with_question_mark_loop(loop$original, loop$uri_string, loo
     } else if (uri_string.startsWith("#")) {
       let rest = uri_string.slice(1);
       let query = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          _record.host,
-          _record.port,
-          _record.path,
-          new Some(query),
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        _record.host,
+        _record.port,
+        _record.path,
+        new Some(query),
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_fragment(rest, pieces$1);
     } else if (uri_string === "") {
       return new Ok(
@@ -3053,34 +3080,34 @@ function parse_path_loop(loop$original, loop$uri_string, loop$pieces, loop$size)
     if (uri_string.startsWith("?")) {
       let rest = uri_string.slice(1);
       let path = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          _record.host,
-          _record.port,
-          path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        _record.host,
+        _record.port,
+        path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_query_with_question_mark(rest, pieces$1);
     } else if (uri_string.startsWith("#")) {
       let rest = uri_string.slice(1);
       let path = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          _record.host,
-          _record.port,
-          path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        _record.host,
+        _record.port,
+        path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_fragment(rest, pieces$1);
     } else if (uri_string === "") {
       return new Ok(
@@ -3167,47 +3194,47 @@ function parse_port_loop(loop$uri_string, loop$pieces, loop$port) {
       loop$port = port * 10 + 9;
     } else if (uri_string.startsWith("?")) {
       let rest = uri_string.slice(1);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          _record.host,
-          new Some(port),
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        _record.host,
+        new Some(port),
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_query_with_question_mark(rest, pieces$1);
     } else if (uri_string.startsWith("#")) {
       let rest = uri_string.slice(1);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          _record.host,
-          new Some(port),
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        _record.host,
+        new Some(port),
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_fragment(rest, pieces$1);
     } else if (uri_string.startsWith("/")) {
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          _record.host,
-          new Some(port),
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        _record.host,
+        new Some(port),
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_path(uri_string, pieces$1);
     } else if (uri_string === "") {
       return new Ok(
@@ -3299,65 +3326,65 @@ function parse_host_outside_of_brackets_loop(loop$original, loop$uri_string, loo
       );
     } else if (uri_string.startsWith(":")) {
       let host = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          new Some(host),
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        new Some(host),
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_port(uri_string, pieces$1);
     } else if (uri_string.startsWith("/")) {
       let host = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          new Some(host),
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        new Some(host),
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_path(uri_string, pieces$1);
     } else if (uri_string.startsWith("?")) {
       let rest = uri_string.slice(1);
       let host = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          new Some(host),
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        new Some(host),
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_query_with_question_mark(rest, pieces$1);
     } else if (uri_string.startsWith("#")) {
       let rest = uri_string.slice(1);
       let host = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          new Some(host),
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        new Some(host),
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_fragment(rest, pieces$1);
     } else {
       let $ = pop_codeunit(uri_string);
@@ -3396,35 +3423,35 @@ function parse_host_within_brackets_loop(loop$original, loop$uri_string, loop$pi
     } else if (uri_string.startsWith("]")) {
       let rest = uri_string.slice(1);
       let host = string_codeunit_slice(original, 0, size + 1);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          new Some(host),
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        new Some(host),
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_port(rest, pieces$1);
     } else if (uri_string.startsWith("/") && size === 0) {
       return parse_path(uri_string, pieces);
     } else if (uri_string.startsWith("/")) {
       let host = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          new Some(host),
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        new Some(host),
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_path(uri_string, pieces$1);
     } else if (uri_string.startsWith("?") && size === 0) {
       let rest = uri_string.slice(1);
@@ -3432,18 +3459,18 @@ function parse_host_within_brackets_loop(loop$original, loop$uri_string, loop$pi
     } else if (uri_string.startsWith("?")) {
       let rest = uri_string.slice(1);
       let host = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          new Some(host),
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        new Some(host),
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_query_with_question_mark(rest, pieces$1);
     } else if (uri_string.startsWith("#") && size === 0) {
       let rest = uri_string.slice(1);
@@ -3451,18 +3478,18 @@ function parse_host_within_brackets_loop(loop$original, loop$uri_string, loop$pi
     } else if (uri_string.startsWith("#")) {
       let rest = uri_string.slice(1);
       let host = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          new Some(host),
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        _record.userinfo,
+        new Some(host),
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_fragment(rest, pieces$1);
     } else {
       let $ = pop_codeunit(uri_string);
@@ -3495,18 +3522,18 @@ function parse_host(uri_string, pieces) {
   if (uri_string.startsWith("[")) {
     return parse_host_within_brackets(uri_string, pieces);
   } else if (uri_string.startsWith(":")) {
-    let pieces$1 = (() => {
-      let _record = pieces;
-      return new Uri(
-        _record.scheme,
-        _record.userinfo,
-        new Some(""),
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
-      );
-    })();
+    let _block;
+    let _record = pieces;
+    _block = new Uri(
+      _record.scheme,
+      _record.userinfo,
+      new Some(""),
+      _record.port,
+      _record.path,
+      _record.query,
+      _record.fragment
+    );
+    let pieces$1 = _block;
     return parse_port(uri_string, pieces$1);
   } else if (uri_string === "") {
     return new Ok(
@@ -3539,18 +3566,18 @@ function parse_userinfo_loop(loop$original, loop$uri_string, loop$pieces, loop$s
     } else if (uri_string.startsWith("@")) {
       let rest = uri_string.slice(1);
       let userinfo = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          new Some(userinfo),
-          _record.host,
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        _record.scheme,
+        new Some(userinfo),
+        _record.host,
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_host(rest, pieces$1);
     } else if (uri_string === "") {
       return parse_host(original, pieces);
@@ -3606,18 +3633,18 @@ function parse_scheme_loop(loop$original, loop$uri_string, loop$pieces, loop$siz
       return parse_authority_with_slashes(uri_string, pieces);
     } else if (uri_string.startsWith("/")) {
       let scheme = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          new Some(lowercase(scheme)),
-          _record.userinfo,
-          _record.host,
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        new Some(lowercase(scheme)),
+        _record.userinfo,
+        _record.host,
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_authority_with_slashes(uri_string, pieces$1);
     } else if (uri_string.startsWith("?") && size === 0) {
       let rest = uri_string.slice(1);
@@ -3625,18 +3652,18 @@ function parse_scheme_loop(loop$original, loop$uri_string, loop$pieces, loop$siz
     } else if (uri_string.startsWith("?")) {
       let rest = uri_string.slice(1);
       let scheme = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          new Some(lowercase(scheme)),
-          _record.userinfo,
-          _record.host,
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        new Some(lowercase(scheme)),
+        _record.userinfo,
+        _record.host,
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_query_with_question_mark(rest, pieces$1);
     } else if (uri_string.startsWith("#") && size === 0) {
       let rest = uri_string.slice(1);
@@ -3644,36 +3671,36 @@ function parse_scheme_loop(loop$original, loop$uri_string, loop$pieces, loop$siz
     } else if (uri_string.startsWith("#")) {
       let rest = uri_string.slice(1);
       let scheme = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          new Some(lowercase(scheme)),
-          _record.userinfo,
-          _record.host,
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        new Some(lowercase(scheme)),
+        _record.userinfo,
+        _record.host,
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_fragment(rest, pieces$1);
     } else if (uri_string.startsWith(":") && size === 0) {
       return new Error(void 0);
     } else if (uri_string.startsWith(":")) {
       let rest = uri_string.slice(1);
       let scheme = string_codeunit_slice(original, 0, size);
-      let pieces$1 = (() => {
-        let _record = pieces;
-        return new Uri(
-          new Some(lowercase(scheme)),
-          _record.userinfo,
-          _record.host,
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })();
+      let _block;
+      let _record = pieces;
+      _block = new Uri(
+        new Some(lowercase(scheme)),
+        _record.userinfo,
+        _record.host,
+        _record.port,
+        _record.path,
+        _record.query,
+        _record.fragment
+      );
+      let pieces$1 = _block;
       return parse_authority_with_slashes(rest, pieces$1);
     } else if (uri_string === "") {
       return new Ok(
@@ -3701,77 +3728,77 @@ function parse_scheme_loop(loop$original, loop$uri_string, loop$pieces, loop$siz
   }
 }
 function to_string3(uri) {
-  let parts = (() => {
-    let $ = uri.fragment;
-    if ($ instanceof Some) {
-      let fragment = $[0];
-      return toList(["#", fragment]);
-    } else {
-      return toList([]);
-    }
-  })();
-  let parts$1 = (() => {
-    let $ = uri.query;
-    if ($ instanceof Some) {
-      let query = $[0];
-      return prepend("?", prepend(query, parts));
-    } else {
-      return parts;
-    }
-  })();
+  let _block;
+  let $ = uri.fragment;
+  if ($ instanceof Some) {
+    let fragment = $[0];
+    _block = toList(["#", fragment]);
+  } else {
+    _block = toList([]);
+  }
+  let parts = _block;
+  let _block$1;
+  let $1 = uri.query;
+  if ($1 instanceof Some) {
+    let query = $1[0];
+    _block$1 = prepend("?", prepend(query, parts));
+  } else {
+    _block$1 = parts;
+  }
+  let parts$1 = _block$1;
   let parts$2 = prepend(uri.path, parts$1);
-  let parts$3 = (() => {
-    let $ = uri.host;
-    let $1 = starts_with(uri.path, "/");
-    if ($ instanceof Some && !$1 && $[0] !== "") {
-      let host = $[0];
-      return prepend("/", parts$2);
-    } else {
-      return parts$2;
-    }
-  })();
-  let parts$4 = (() => {
-    let $ = uri.host;
-    let $1 = uri.port;
-    if ($ instanceof Some && $1 instanceof Some) {
-      let port = $1[0];
-      return prepend(":", prepend(to_string(port), parts$3));
-    } else {
-      return parts$3;
-    }
-  })();
-  let parts$5 = (() => {
-    let $ = uri.scheme;
-    let $1 = uri.userinfo;
-    let $2 = uri.host;
-    if ($ instanceof Some && $1 instanceof Some && $2 instanceof Some) {
-      let s = $[0];
-      let u = $1[0];
-      let h = $2[0];
-      return prepend(
-        s,
-        prepend(
-          "://",
-          prepend(u, prepend("@", prepend(h, parts$4)))
-        )
-      );
-    } else if ($ instanceof Some && $1 instanceof None && $2 instanceof Some) {
-      let s = $[0];
-      let h = $2[0];
-      return prepend(s, prepend("://", prepend(h, parts$4)));
-    } else if ($ instanceof Some && $1 instanceof Some && $2 instanceof None) {
-      let s = $[0];
-      return prepend(s, prepend(":", parts$4));
-    } else if ($ instanceof Some && $1 instanceof None && $2 instanceof None) {
-      let s = $[0];
-      return prepend(s, prepend(":", parts$4));
-    } else if ($ instanceof None && $1 instanceof None && $2 instanceof Some) {
-      let h = $2[0];
-      return prepend("//", prepend(h, parts$4));
-    } else {
-      return parts$4;
-    }
-  })();
+  let _block$2;
+  let $2 = uri.host;
+  let $3 = starts_with(uri.path, "/");
+  if ($2 instanceof Some && !$3 && $2[0] !== "") {
+    let host = $2[0];
+    _block$2 = prepend("/", parts$2);
+  } else {
+    _block$2 = parts$2;
+  }
+  let parts$3 = _block$2;
+  let _block$3;
+  let $4 = uri.host;
+  let $5 = uri.port;
+  if ($4 instanceof Some && $5 instanceof Some) {
+    let port = $5[0];
+    _block$3 = prepend(":", prepend(to_string(port), parts$3));
+  } else {
+    _block$3 = parts$3;
+  }
+  let parts$4 = _block$3;
+  let _block$4;
+  let $6 = uri.scheme;
+  let $7 = uri.userinfo;
+  let $8 = uri.host;
+  if ($6 instanceof Some && $7 instanceof Some && $8 instanceof Some) {
+    let s = $6[0];
+    let u = $7[0];
+    let h = $8[0];
+    _block$4 = prepend(
+      s,
+      prepend(
+        "://",
+        prepend(u, prepend("@", prepend(h, parts$4)))
+      )
+    );
+  } else if ($6 instanceof Some && $7 instanceof None && $8 instanceof Some) {
+    let s = $6[0];
+    let h = $8[0];
+    _block$4 = prepend(s, prepend("://", prepend(h, parts$4)));
+  } else if ($6 instanceof Some && $7 instanceof Some && $8 instanceof None) {
+    let s = $6[0];
+    _block$4 = prepend(s, prepend(":", parts$4));
+  } else if ($6 instanceof Some && $7 instanceof None && $8 instanceof None) {
+    let s = $6[0];
+    _block$4 = prepend(s, prepend(":", parts$4));
+  } else if ($6 instanceof None && $7 instanceof None && $8 instanceof Some) {
+    let h = $8[0];
+    _block$4 = prepend("//", prepend(h, parts$4));
+  } else {
+    _block$4 = parts$4;
+  }
+  let parts$5 = _block$4;
   return concat2(parts$5);
 }
 var empty = /* @__PURE__ */ new Uri(
@@ -3977,7 +4004,7 @@ function try_await(promise, callback) {
   );
 }
 
-// build/dev/javascript/gleam_fetch/ffi.mjs
+// build/dev/javascript/gleam_fetch/gleam_fetch_ffi.mjs
 async function raw_send(request) {
   try {
     return new Ok(await fetch(request));
@@ -3992,14 +4019,18 @@ function from_fetch_response(response) {
     response
   );
 }
-function to_fetch_request(request) {
+function request_common(request) {
   let url = to_string3(to_uri(request));
   let method = method_to_string(request.method).toUpperCase();
   let options = {
     headers: make_headers(request.headers),
     method
   };
-  if (method !== "GET" && method !== "HEAD") options.body = request.body;
+  return [url, options];
+}
+function to_fetch_request(request) {
+  let [url, options] = request_common(request);
+  if (options.method !== "GET" && options.method !== "HEAD") options.body = request.body;
   return new globalThis.Request(url, options);
 }
 function make_headers(headersList) {
@@ -4308,14 +4339,13 @@ var Behaviours = class extends CustomType {
   }
 };
 var MessageDetails = class extends CustomType {
-  constructor(key2, offset, partition, metadata, value2, tombstone, error) {
+  constructor(key2, offset, partition, metadata, value2, error) {
     super();
     this.key = key2;
     this.offset = offset;
     this.partition = partition;
     this.metadata = metadata;
     this.value = value2;
-    this.tombstone = tombstone;
     this.error = error;
   }
 };
@@ -4444,25 +4474,18 @@ function message_details_decoder() {
                     optional(string3),
                     (value2) => {
                       return field2(
-                        "tombstone",
-                        bool2,
-                        (tombstone) => {
-                          return field2(
-                            "error",
-                            optional(string3),
-                            (error) => {
-                              return success(
-                                new MessageDetails(
-                                  key2,
-                                  offset,
-                                  partition,
-                                  metadata,
-                                  value2,
-                                  tombstone,
-                                  error
-                                )
-                              );
-                            }
+                        "error",
+                        optional(string3),
+                        (error) => {
+                          return success(
+                            new MessageDetails(
+                              key2,
+                              offset,
+                              partition,
+                              metadata,
+                              value2,
+                              error
+                            )
                           );
                         }
                       );
@@ -4479,7 +4502,7 @@ function message_details_decoder() {
 }
 
 // build/dev/javascript/kplay/effects.mjs
-var dev = true;
+var dev = false;
 function base_url() {
   let $ = dev;
   if (!$) {
@@ -4513,13 +4536,13 @@ function fetch_messages(num, commit) {
       return new MessagesFetched(var0);
     }
   );
-  let commit_query_param = (() => {
-    if (!commit) {
-      return "false";
-    } else {
-      return "true";
-    }
-  })();
+  let _block;
+  if (!commit) {
+    _block = "false";
+  } else {
+    _block = "true";
+  }
+  let commit_query_param = _block;
   return get(
     base_url() + "api/fetch?num=" + (() => {
       let _pipe = num;
@@ -4544,30 +4567,30 @@ var Model2 = class extends CustomType {
   }
 };
 function display_model(model) {
-  let config = (() => {
-    let $ = model.config;
-    if ($ instanceof None) {
-      return "empty";
-    } else {
-      let c = $[0];
-      let _pipe = c;
-      return display_config(_pipe);
-    }
-  })();
-  let current_message_index = (() => {
-    let _pipe = model.current_message;
-    let _pipe$1 = map(
-      _pipe,
-      (a2) => {
-        {
-          let i = a2[0];
-          let _pipe$12 = i;
-          return to_string(_pipe$12);
-        }
+  let _block;
+  let $ = model.config;
+  if ($ instanceof None) {
+    _block = "empty";
+  } else {
+    let c = $[0];
+    let _pipe2 = c;
+    _block = display_config(_pipe2);
+  }
+  let config = _block;
+  let _block$1;
+  let _pipe = model.current_message;
+  let _pipe$1 = map(
+    _pipe,
+    (a2) => {
+      {
+        let i = a2[0];
+        let _pipe$12 = i;
+        return to_string(_pipe$12);
       }
-    );
-    return unwrap(_pipe$1, "none");
-  })();
+    }
+  );
+  _block$1 = unwrap(_pipe$1, "none");
+  let current_message_index = _block$1;
   return "- config: \n" + config + "\n- current_index: " + current_message_index + "\n- fetching: " + to_string2(
     model.fetching
   );
@@ -4732,10 +4755,10 @@ function update(model, msg) {
     return [model, none()];
   } else if (msg instanceof MessageChosen) {
     let index5 = msg[0];
-    let maybe_message = (() => {
-      let _pipe = model.messages_cache;
-      return map_get(_pipe, index5);
-    })();
+    let _block;
+    let _pipe = model.messages_cache;
+    _block = map_get(_pipe, index5);
+    let maybe_message = _block;
     if (!maybe_message.isOk()) {
       return [model, none()];
     } else {
@@ -4779,17 +4802,17 @@ function update(model, msg) {
       ];
     } else {
       let messages = result[0];
-      let updated_messages = (() => {
-        let _pipe = model.messages;
-        return append(_pipe, messages);
-      })();
-      let messages_cache = (() => {
-        let _pipe = updated_messages;
-        let _pipe$1 = index_map(_pipe, (m, i) => {
-          return [i, m];
-        });
-        return from_list(_pipe$1);
-      })();
+      let _block;
+      let _pipe = model.messages;
+      _block = append(_pipe, messages);
+      let updated_messages = _block;
+      let _block$1;
+      let _pipe$1 = updated_messages;
+      let _pipe$2 = index_map(_pipe$1, (m, i) => {
+        return [i, m];
+      });
+      _block$1 = from_list(_pipe$2);
+      let messages_cache = _block$1;
       return [
         (() => {
           let _record = model;
@@ -4966,21 +4989,21 @@ function messages_section_empty(height_class) {
   );
 }
 function message_list_item(message, index5, current_index, select_on_hover) {
-  let border_class = (() => {
-    if (current_index instanceof Some && current_index[0] === index5) {
-      let i = current_index[0];
-      return " text-[#fe8019] border-l-[#fe8019]";
-    } else {
-      return " text-[#d5c4a1] border-l-[#282828]";
-    }
-  })();
-  let event_handler = (() => {
-    if (!select_on_hover) {
-      return on_click(new MessageChosen(index5));
-    } else {
-      return on_mouse_over(new MessageChosen(index5));
-    }
-  })();
+  let _block;
+  if (current_index instanceof Some && current_index[0] === index5) {
+    let i = current_index[0];
+    _block = " text-[#fe8019] border-l-[#fe8019]";
+  } else {
+    _block = " text-[#d5c4a1] border-l-[#282828]";
+  }
+  let border_class = _block;
+  let _block$1;
+  if (!select_on_hover) {
+    _block$1 = on_click(new MessageChosen(index5));
+  } else {
+    _block$1 = on_mouse_over(new MessageChosen(index5));
+  }
+  let event_handler = _block$1;
   return div(
     toList([
       class$(
@@ -4991,68 +5014,88 @@ function message_list_item(message, index5, current_index, select_on_hover) {
     toList([
       p(
         toList([class$("text-base font-semibold")]),
-        toList([text2(message.key)])
+        toList([
+          text2(
+            (() => {
+              let $ = message.error;
+              if ($ instanceof None) {
+                return message.key;
+              } else {
+                return "error";
+              }
+            })()
+          )
+        ])
       ),
       div(
         toList([class$("flex space-x-2 text-sm")]),
-        toList([
-          p(
-            toList([]),
-            toList([
-              text2(
-                "offset: " + (() => {
-                  let _pipe = message.offset;
-                  return to_string(_pipe);
-                })()
-              )
-            ])
-          ),
-          p(
-            toList([]),
-            toList([
-              text2(
-                "partition: " + (() => {
-                  let _pipe = message.partition;
-                  return to_string(_pipe);
-                })()
-              )
-            ])
-          ),
-          (() => {
-            let $ = message.value;
-            if ($ instanceof None) {
-              return p(toList([]), toList([text2("\u{1FAA6}")]));
-            } else {
-              return none2();
-            }
-          })()
-        ])
+        (() => {
+          let $ = message.error;
+          if ($ instanceof None) {
+            return toList([
+              p(
+                toList([]),
+                toList([
+                  text2(
+                    "offset: " + (() => {
+                      let _pipe = message.offset;
+                      return to_string(_pipe);
+                    })()
+                  )
+                ])
+              ),
+              p(
+                toList([]),
+                toList([
+                  text2(
+                    "partition: " + (() => {
+                      let _pipe = message.partition;
+                      return to_string(_pipe);
+                    })()
+                  )
+                ])
+              ),
+              (() => {
+                let $1 = message.value;
+                if ($1 instanceof None) {
+                  return p(toList([]), toList([text2("\u{1FAA6}")]));
+                } else {
+                  return none2();
+                }
+              })()
+            ]);
+          } else {
+            return toList([]);
+          }
+        })()
       )
     ])
   );
 }
 function message_details_pane(model) {
-  let message_details = (() => {
-    let $ = model.current_message;
-    if ($ instanceof None) {
-      return p(
-        toList([class$("text-[#928374]")]),
-        toList([
-          text2(
-            (() => {
-              let $1 = model.behaviours.select_on_hover;
-              if ($1) {
-                return "Hover on";
-              } else {
-                return "Select";
-              }
-            })() + " an entry in the left pane to view details here."
-          )
-        ])
-      );
-    } else {
-      let msg = $[0][1];
-      return div(
+  let _block;
+  let $ = model.current_message;
+  if ($ instanceof None) {
+    _block = p(
+      toList([class$("text-[#928374]")]),
+      toList([
+        text2(
+          (() => {
+            let $1 = model.behaviours.select_on_hover;
+            if ($1) {
+              return "Hover on";
+            } else {
+              return "Select";
+            }
+          })() + " an entry in the left pane to view details here."
+        )
+      ])
+    );
+  } else {
+    let msg = $[0][1];
+    let $1 = msg.error;
+    if ($1 instanceof None) {
+      _block = div(
         toList([]),
         toList([
           p(
@@ -5068,11 +5111,11 @@ function message_details_pane(model) {
             toList([text2("Value")])
           ),
           (() => {
-            let $1 = msg.value;
-            if ($1 instanceof None) {
+            let $2 = msg.value;
+            if ($2 instanceof None) {
               return p(toList([]), toList([text2("tombstone \u{1FAA6}")]));
             } else {
-              let v = $1[0];
+              let v = $2[0];
               return pre(
                 toList([class$("text-[#d5c4a1] text-base mb-4")]),
                 toList([text2(v)])
@@ -5081,8 +5124,15 @@ function message_details_pane(model) {
           })()
         ])
       );
+    } else {
+      let e = $1[0];
+      _block = pre(
+        toList([class$("text-[#fb4934] text-base mb-4")]),
+        toList([text2(e)])
+      );
     }
-  })();
+  }
+  let message_details = _block;
   return div(
     toList([class$("w-3/5 p-6 overflow-auto")]),
     toList([
@@ -5095,18 +5145,18 @@ function message_details_pane(model) {
   );
 }
 function messages_section_with_messages(model, height_class) {
-  let current_index = (() => {
-    let _pipe = model.current_message;
-    return map(
-      _pipe,
-      (a2) => {
-        {
-          let i = a2[0];
-          return i;
-        }
+  let _block;
+  let _pipe = model.current_message;
+  _block = map(
+    _pipe,
+    (a2) => {
+      {
+        let i = a2[0];
+        return i;
       }
-    );
-  })();
+    }
+  );
+  let current_index = _block;
   return div(
     toList([
       class$(
@@ -5129,9 +5179,9 @@ function messages_section_with_messages(model, height_class) {
               div(
                 toList([]),
                 (() => {
-                  let _pipe = model.messages;
+                  let _pipe$1 = model.messages;
                   return index_map(
-                    _pipe,
+                    _pipe$1,
                     (m, i) => {
                       return message_list_item(
                         m,
@@ -5152,16 +5202,16 @@ function messages_section_with_messages(model, height_class) {
   );
 }
 function messages_section(model) {
-  let height_class = (() => {
-    let $2 = model.http_error;
-    if ($2 instanceof None) {
-      return "h-[calc(100vh-4.3rem)]";
-    } else {
-      return "h-[calc(100vh-9rem)]";
-    }
-  })();
-  let $ = model.messages;
-  if ($.hasLength(0)) {
+  let _block;
+  let $ = model.http_error;
+  if ($ instanceof None) {
+    _block = "h-[calc(100vh-4.3rem)]";
+  } else {
+    _block = "h-[calc(100vh-9rem)]";
+  }
+  let height_class = _block;
+  let $1 = model.messages;
+  if ($1.hasLength(0)) {
     return messages_section_empty(height_class);
   } else {
     return messages_section_with_messages(model, height_class);
@@ -5235,32 +5285,32 @@ function error_section(model) {
 var topic_name_max_width = 80;
 var consumer_group_max_width = 80;
 function consumer_info(config) {
-  let topic = (() => {
-    let $ = (() => {
-      let _pipe = config.topic;
-      return string_length(_pipe);
-    })();
-    if ($ <= 80) {
-      let n = $;
-      return config.topic;
-    } else {
-      let _pipe = config.topic;
-      return slice(_pipe, 0, topic_name_max_width);
-    }
+  let _block;
+  let $ = (() => {
+    let _pipe = config.topic;
+    return string_length(_pipe);
   })();
-  let consumer_group = (() => {
-    let $ = (() => {
-      let _pipe = config.consumer_group;
-      return string_length(_pipe);
-    })();
-    if ($ <= 80) {
-      let n = $;
-      return config.consumer_group;
-    } else {
-      let _pipe = config.topic;
-      return slice(_pipe, 0, consumer_group_max_width);
-    }
+  if ($ <= 80) {
+    let n = $;
+    _block = config.topic;
+  } else {
+    let _pipe = config.topic;
+    _block = slice(_pipe, 0, topic_name_max_width);
+  }
+  let topic = _block;
+  let _block$1;
+  let $1 = (() => {
+    let _pipe = config.consumer_group;
+    return string_length(_pipe);
   })();
+  if ($1 <= 80) {
+    let n = $1;
+    _block$1 = config.consumer_group;
+  } else {
+    let _pipe = config.topic;
+    _block$1 = slice(_pipe, 0, consumer_group_max_width);
+  }
+  let consumer_group = _block$1;
   return div(
     toList([
       class$("font-bold px-4 py-1 flex items-center space-x-2")
@@ -5306,7 +5356,7 @@ function controls_div_with_config(model, config) {
       button(
         toList([
           class$(
-            "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]"
+            "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f] disabled:bg-[#bdae93]"
           ),
           disabled(model.fetching),
           on_click(new FetchMessages(1))
@@ -5316,7 +5366,7 @@ function controls_div_with_config(model, config) {
       button(
         toList([
           class$(
-            "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f]"
+            "font-semibold px-4 py-1 bg-[#b8bb26] text-[#282828] hover:bg-[#fabd2f] disabled:bg-[#bdae93]"
           ),
           disabled(model.fetching),
           on_click(new FetchMessages(10))

@@ -849,6 +849,11 @@ video {
   --tw-ring-color: rgb(250 189 47 / var(--tw-ring-opacity));
 }
 
+.disabled\:bg-\[\#bdae93\]:disabled {
+  --tw-bg-opacity: 1;
+  background-color: rgb(189 174 147 / var(--tw-bg-opacity));
+}
+
 @media (min-width: 640px) {
   .sm\:inline {
     display: inline;

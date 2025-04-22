@@ -3,17 +3,18 @@ package tui
 import (
 	"fmt"
 
+	t "github.com/dhth/kplay/internal/types"
 	"github.com/tidwall/pretty"
 )
 
-func getMsgDetails(details messageDetails) string {
+func getMsgDetails(m t.Message) string {
 	var msgValue string
-	if details.tombstone {
+	if len(m.Value) == 0 {
 		msgValue = "tombstone"
-	} else if details.err != nil {
-		msgValue = details.err.Error()
+	} else if m.Err != nil {
+		msgValue = m.Err.Error()
 	} else {
-		msgValue = string(details.value)
+		msgValue = string(m.Value)
 	}
 
 	return fmt.Sprintf(`%s
@@ -24,20 +25,20 @@ func getMsgDetails(details messageDetails) string {
 
 %s`,
 		"Metadata",
-		details.metadata,
+		m.Metadata,
 		"Value",
 		msgValue,
 	)
 }
 
-func getMsgDetailsStylized(details messageDetails) string {
+func getMsgDetailsStylized(m t.Message) string {
 	var msgValue string
-	if details.tombstone {
+	if len(m.Value) == 0 {
 		msgValue = msgDetailsTombstoneStyle.Render("tombstone")
-	} else if details.err != nil {
-		msgValue = msgDetailsErrorStyle.Render(details.err.Error())
+	} else if m.Err != nil {
+		msgValue = msgDetailsErrorStyle.Render(m.Err.Error())
 	} else {
-		msgValue = string(pretty.Color(details.value, nil))
+		msgValue = string(pretty.Color(m.Value, nil))
 	}
 
 	return fmt.Sprintf(`%s
@@ -49,7 +50,7 @@ func getMsgDetailsStylized(details messageDetails) string {
 %s
 `,
 		msgDetailsHeadingStyle.Render("Metadata"),
-		details.metadata,
+		m.Metadata,
 		msgDetailsHeadingStyle.Render("Value"),
 		msgValue,
 	)

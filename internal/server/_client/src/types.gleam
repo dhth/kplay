@@ -58,7 +58,6 @@ pub type MessageDetails {
     partition: Int,
     metadata: String,
     value: option.Option(String),
-    tombstone: Bool,
     error: option.Option(String),
   )
 }
@@ -69,7 +68,6 @@ pub fn message_details_decoder() -> decode.Decoder(MessageDetails) {
   use partition <- decode.field("partition", decode.int)
   use metadata <- decode.field("metadata", decode.string)
   use value <- decode.field("value", decode.optional(decode.string))
-  use tombstone <- decode.field("tombstone", decode.bool)
   use error <- decode.field("error", decode.optional(decode.string))
   decode.success(MessageDetails(
     key:,
@@ -77,7 +75,6 @@ pub fn message_details_decoder() -> decode.Decoder(MessageDetails) {
     partition:,
     metadata:,
     value:,
-    tombstone:,
     error:,
   ))
 }
@@ -121,7 +118,6 @@ pub fn dummy_message() -> List(MessageDetails) {
       partition: partition,
       metadata: metadata,
       value: option.Some(value),
-      tombstone: False,
       error: option.None,
     ),
   ]

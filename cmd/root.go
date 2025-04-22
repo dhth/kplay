@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	c "github.com/dhth/kplay/internal/config"
 	k "github.com/dhth/kplay/internal/kafka"
 	"github.com/dhth/kplay/internal/server"
 	"github.com/dhth/kplay/internal/tui"
+	t "github.com/dhth/kplay/internal/types"
 	"github.com/dhth/kplay/internal/utils"
 	"github.com/spf13/cobra"
 )
@@ -50,7 +50,7 @@ func NewRootCommand() (*cobra.Command, error) {
 		commitMessages  bool
 		selectOnHover   bool
 		consumerGroup   string
-		config          c.Config
+		config          t.Config
 		debug           bool
 		webOpen         bool
 	)
@@ -95,7 +95,7 @@ to brokers, message encoding, authentication, etc.
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			behaviours := c.TUIBehaviours{
+			behaviours := t.TUIBehaviours{
 				CommitMessages:  commitMessages,
 				PersistMessages: persistMessages,
 				SkipMessages:    skipMessages,
@@ -149,7 +149,7 @@ Behaviours
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			behaviours := c.WebBehaviours{
+			behaviours := t.WebBehaviours{
 				CommitMessages: commitMessages,
 				SelectOnHover:  selectOnHover,
 			}
