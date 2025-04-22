@@ -31,14 +31,19 @@ func getMsgDetails(m t.Message) string {
 	)
 }
 
-func getMsgDetailsStylized(m t.Message) string {
+func getMsgDetailsStylized(m t.Message, encoding t.EncodingFormat) string {
 	var msgValue string
 	if len(m.Value) == 0 {
 		msgValue = msgDetailsTombstoneStyle.Render("tombstone")
 	} else if m.Err != nil {
 		msgValue = msgDetailsErrorStyle.Render(m.Err.Error())
 	} else {
-		msgValue = string(pretty.Color(m.Value, nil))
+		switch encoding {
+		case t.JSON, t.Protobuf:
+			msgValue = string(pretty.Color(m.Value, nil))
+		case t.Raw:
+			msgValue = string(m.Value)
+		}
 	}
 
 	return fmt.Sprintf(`%s

@@ -297,7 +297,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if message.Err != nil {
 					vpContent = errorStyle.Render(fmt.Sprintf("error: %s", message.Err.Error()))
 				} else {
-					vpContent = getMsgDetailsStylized(message)
+					vpContent = getMsgDetailsStylized(message, m.config.Encoding)
 				}
 				m.msgDetailsVP.SetContent(vpContent)
 			}
