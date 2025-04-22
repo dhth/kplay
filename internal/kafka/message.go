@@ -14,7 +14,7 @@ import (
 var (
 	errCouldntUnmarshallDescriptorSet  = errors.New("couldn't unmarshal descriptor set file contents")
 	errCouldntCreateProtoRegistryFiles = errors.New("couldn't create proto registry files from descriptor set")
-	errCouldntFindDescriptor           = errors.New("couldn't find descriptor by name")
+	errCouldntFindDescriptor           = errors.New("couldn't find descriptor")
 )
 
 func GetDescriptorFromDescriptorSet(descSetBytes []byte, descriptorName protoreflect.FullName) (protoreflect.MessageDescriptor, error) {
@@ -37,7 +37,7 @@ func GetDescriptorFromDescriptorSet(descSetBytes []byte, descriptorName protoref
 
 	descriptor, err := reg.FindDescriptorByName(descriptorName)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", errCouldntFindDescriptor, err.Error())
+		return nil, fmt.Errorf("%w %q: %s", errCouldntFindDescriptor, descriptorName, err.Error())
 	}
 
 	return descriptor.(protoreflect.MessageDescriptor), nil
