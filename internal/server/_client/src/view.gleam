@@ -1,14 +1,13 @@
 import gleam/int
 import gleam/list
 import gleam/option
-import gleam/string
 import lustre/attribute
 import lustre/element
 import lustre/element/html
 import lustre/event
 import model.{type Model, display_model}
 import types.{type Config, type MessageDetails, type Msg}
-import utils.{http_error_to_string}
+import utils.{http_error_to_string, trim_left}
 
 const topic_name_max_width = 80
 
@@ -269,7 +268,7 @@ fn controls_div_when_no_config() -> element.Element(Msg) {
     ),
     html.p([attribute.class("text-[#bdae93]")], [
       element.text(
-        "couldn't load config; make sure \"kplay serve\" is still running. "
+        "couldn't load config; make sure \"kplay serve\" is running. "
         <> "If it still doesn't work let @dhth know about this error via https://github.com/dhth/kplay/issues",
       ),
     ]),
@@ -378,20 +377,21 @@ fn controls_div_with_config(
 }
 
 fn consumer_info(config: Config) -> element.Element(Msg) {
-  let topic = case config.topic |> string.length {
-    n if n <= topic_name_max_width -> config.topic
-    _ -> config.topic |> string.slice(0, topic_name_max_width)
-  }
-  let consumer_group = case config.consumer_group |> string.length {
-    n if n <= consumer_group_max_width -> config.consumer_group
-    _ -> config.topic |> string.slice(0, consumer_group_max_width)
-  }
   html.div(
     [attribute.class("font-bold px-4 py-1 flex items-center space-x-2")],
     [
-      html.p([attribute.class("text-[#fabd2f]")], [element.text(topic)]),
+      html.p([attribute.class("text-[#fabd2f]")], [
+        element.text(
+          config.consumer_group |> trim_left(consumer_group_max_width),
+        ),
+      ]),
       html.p([attribute.class("text-[#d5c4a1]")], [element.text("<-")]),
-      html.p([attribute.class("text-[#d3869b]")], [element.text(consumer_group)]),
+      html.p([attribute.class("text-[#d3869b]")], [
+        element.text(
+          config.topic
+          |> trim_left(topic_name_max_width),
+        ),
+      ]),
     ],
   )
 }

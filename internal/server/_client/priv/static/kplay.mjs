@@ -4943,6 +4943,33 @@ function http_error_to_string(error) {
     return "unauthorized";
   }
 }
+function trim_left(str, length4) {
+  let $ = (() => {
+    let _pipe = str;
+    return string_length(_pipe);
+  })() > length4;
+  if (!$) {
+    return str;
+  } else {
+    let $1 = length4 > 3;
+    if (!$1) {
+      let _pipe = str;
+      return slice(_pipe, 0, length4);
+    } else {
+      return "..." + (() => {
+        let _pipe = str;
+        return slice(
+          _pipe,
+          (() => {
+            let _pipe$1 = str;
+            return string_length(_pipe$1);
+          })() - length4 + 3,
+          length4
+        );
+      })();
+    }
+  }
+}
 
 // build/dev/javascript/kplay/view.mjs
 function model_debug_section(model) {
@@ -5242,7 +5269,7 @@ function controls_div_when_no_config() {
         toList([class$("text-[#bdae93]")]),
         toList([
           text(
-            `couldn't load config; make sure "kplay serve" is still running. If it still doesn't work let @dhth know about this error via https://github.com/dhth/kplay/issues`
+            `couldn't load config; make sure "kplay serve" is running. If it still doesn't work let @dhth know about this error via https://github.com/dhth/kplay/issues`
           )
         ])
       )
@@ -5285,32 +5312,6 @@ function error_section(model) {
 var topic_name_max_width = 80;
 var consumer_group_max_width = 80;
 function consumer_info(config) {
-  let _block;
-  let $ = (() => {
-    let _pipe = config.topic;
-    return string_length(_pipe);
-  })();
-  if ($ <= 80) {
-    let n = $;
-    _block = config.topic;
-  } else {
-    let _pipe = config.topic;
-    _block = slice(_pipe, 0, topic_name_max_width);
-  }
-  let topic = _block;
-  let _block$1;
-  let $1 = (() => {
-    let _pipe = config.consumer_group;
-    return string_length(_pipe);
-  })();
-  if ($1 <= 80) {
-    let n = $1;
-    _block$1 = config.consumer_group;
-  } else {
-    let _pipe = config.topic;
-    _block$1 = slice(_pipe, 0, consumer_group_max_width);
-  }
-  let consumer_group = _block$1;
   return div(
     toList([
       class$("font-bold px-4 py-1 flex items-center space-x-2")
@@ -5318,7 +5319,14 @@ function consumer_info(config) {
     toList([
       p(
         toList([class$("text-[#fabd2f]")]),
-        toList([text(topic)])
+        toList([
+          text(
+            (() => {
+              let _pipe = config.consumer_group;
+              return trim_left(_pipe, consumer_group_max_width);
+            })()
+          )
+        ])
       ),
       p(
         toList([class$("text-[#d5c4a1]")]),
@@ -5326,7 +5334,14 @@ function consumer_info(config) {
       ),
       p(
         toList([class$("text-[#d3869b]")]),
-        toList([text(consumer_group)])
+        toList([
+          text(
+            (() => {
+              let _pipe = config.topic;
+              return trim_left(_pipe, topic_name_max_width);
+            })()
+          )
+        ])
       )
     ])
   );
