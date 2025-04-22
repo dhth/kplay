@@ -25,6 +25,7 @@ func Serve(client *kgo.Client, config t.Config, initialBehaviours t.WebBehaviour
 	mux.HandleFunc("GET /", getIndex)
 	mux.HandleFunc("GET /priv/static/favicon.png", getFavicon)
 	mux.HandleFunc("GET /priv/static/kplay.css", getCSS)
+	mux.HandleFunc("GET /priv/static/custom.css", getCustomCSS)
 	mux.HandleFunc("GET /priv/static/kplay.mjs", getJS)
 	mux.HandleFunc("GET /api/config", getConfig(config))
 	mux.HandleFunc("GET /api/behaviours", getBehaviours(initialBehaviours))
