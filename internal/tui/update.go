@@ -148,12 +148,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.msgDetailsVP.AtBottom() {
 					break
 				}
-				m.msgDetailsVP.LineDown(viewPortMoveLineCount)
+				m.msgDetailsVP.ScrollDown(viewPortMoveLineCount)
 			case helpView:
 				if m.helpVP.AtBottom() {
 					break
 				}
-				m.helpVP.LineDown(viewPortMoveLineCount)
+				m.helpVP.ScrollDown(viewPortMoveLineCount)
 			}
 		case "k", "up":
 			switch m.activeView {
@@ -161,12 +161,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.msgDetailsVP.AtTop() {
 					break
 				}
-				m.msgDetailsVP.LineUp(viewPortMoveLineCount)
+				m.msgDetailsVP.ScrollUp(viewPortMoveLineCount)
 			case helpView:
 				if m.helpVP.AtTop() {
 					break
 				}
-				m.helpVP.LineUp(viewPortMoveLineCount)
+				m.helpVP.ScrollUp(viewPortMoveLineCount)
 			}
 		case "tab", "shift+tab":
 			if len(m.msgsList.Items()) == 0 {
@@ -210,7 +210,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if !m.msgDetailsVPReady {
 			m.msgDetailsVP = viewport.New(msgDetailsVPWidth, msgDetailsVPHeight)
-			m.msgDetailsVP.HighPerformanceRendering = useHighPerformanceRenderer
 			m.msgDetailsVP.KeyMap.HalfPageDown.SetKeys("ctrl+d")
 			m.msgDetailsVP.KeyMap.Up.SetEnabled(false)
 			m.msgDetailsVP.KeyMap.Down.SetEnabled(false)
@@ -223,7 +222,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		helpVPWidth := msg.Width - w2 - 4
 		if !m.helpVPReady {
 			m.helpVP = viewport.New(helpVPWidth, fullScreenVPHeight)
-			m.helpVP.HighPerformanceRendering = useHighPerformanceRenderer
 			m.helpVP.SetContent(helpText)
 			m.helpVP.KeyMap.HalfPageDown.SetKeys("ctrl+d")
 			m.helpVP.KeyMap.Up.SetEnabled(false)
