@@ -38,16 +38,3 @@ pub fn http_error_to_string(error: lustre_http.HttpError) -> String {
     lustre_http.Unauthorized -> "unauthorized"
   }
 }
-
-pub fn trim_left(str: String, length: Int) -> String {
-  case str |> string.length > length {
-    False -> str
-    True ->
-      case length > 3 {
-        False -> str |> string.slice(0, length)
-        True ->
-          "..."
-          <> str |> string.slice({ str |> string.length } - length + 3, length)
-      }
-  }
-}

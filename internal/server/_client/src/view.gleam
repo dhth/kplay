@@ -7,16 +7,12 @@ import lustre/element/html
 import lustre/event
 import model.{type Model, display_model}
 import types.{type Config, type MessageDetails, type Msg}
-import utils.{http_error_to_string, trim_left}
-
-const topic_name_max_width = 80
-
-const consumer_group_max_width = 80
+import utils.{http_error_to_string}
 
 pub fn view(model: Model) -> element.Element(Msg) {
-  html.div([attribute.class("bg-[#282828] text-[#ebdbb2] mt-4 mx-4")], [
+  html.div([attribute.class("bg-[#282828] text-[#ebdbb2] mx-4")], [
     html.div([], [
-      html.div([], [
+      html.div([attribute.class("flex flex-col h-screen")], [
         model_debug_section(model),
         messages_section(model),
         controls_section(model),
@@ -42,22 +38,17 @@ fn model_debug_section(model: Model) -> element.Element(Msg) {
 }
 
 fn messages_section(model: Model) -> element.Element(Msg) {
-  let height_class = case model.http_error {
-    option.None -> "h-[calc(100vh-4.3rem)]"
-    option.Some(_) -> "h-[calc(100vh-9rem)]"
-  }
   case model.messages {
-    [] -> messages_section_empty(height_class)
-    [_, ..] -> messages_section_with_messages(model, height_class)
+    [] -> landing_section()
+    [_, ..] -> messages_section_with_messages(model)
   }
 }
 
-fn messages_section_empty(height_class: String) -> element.Element(Msg) {
+fn landing_section() -> element.Element(Msg) {
   html.div(
     [
       attribute.class(
-        "mt-4 "
-        <> height_class
+        "mt-4 flex-1 "
         <> " flex border-2 border-[#928374] border-opacity-20 items-center flex justify-center",
       ),
     ],
@@ -98,10 +89,7 @@ kplay lets you inspect messages in a Kafka topic in a simple and deliberate mann
   )
 }
 
-fn messages_section_with_messages(
-  model: Model,
-  height_class: String,
-) -> element.Element(Msg) {
+fn messages_section_with_messages(model: Model) -> element.Element(Msg) {
   let current_index =
     model.current_message
     |> option.map(fn(a) {
@@ -113,9 +101,7 @@ fn messages_section_with_messages(
   html.div(
     [
       attribute.class(
-        "mt-4 "
-        <> height_class
-        <> " flex border-2 border-[#928374] border-opacity-20",
+        "mt-4 flex-1 flex border-2 border-[#928374] border-opacity-20 overflow-y-auto",
       ),
     ],
     [
@@ -267,9 +253,27 @@ fn controls_div_when_no_config() -> element.Element(Msg) {
       ],
     ),
     html.p([attribute.class("text-[#bdae93]")], [
-      element.text(
-        "couldn't load config; make sure \"kplay serve\" is running. "
-        <> "If it still doesn't work let @dhth know about this error via https://github.com/dhth/kplay/issues",
+      element.text("couldn't load config; make sure "),
+      html.code([attribute.class("text-[#fe8019]")], [
+        element.text("kplay serve"),
+      ]),
+      element.text(" is running. If it still doesn't work let "),
+      html.a(
+        [
+          attribute.class("text-[#fabd2f]"),
+          attribute.href("https://github.com/dhth"),
+          attribute.target("_blank"),
+        ],
+        [element.text("@dhth")],
+      ),
+      element.text(" know about this error via "),
+      html.a(
+        [
+          attribute.class("text-[#fabd2f]"),
+          attribute.href("https://github.com/dhth/kplay/issues"),
+          attribute.target("_blank"),
+        ],
+        [element.text("https://github.com/dhth/kplay/issues")],
       ),
     ]),
   ])
@@ -380,16 +384,33 @@ fn consumer_info(config: Config) -> element.Element(Msg) {
   html.div(
     [attribute.class("font-bold px-4 py-1 flex items-center space-x-2")],
     [
-      html.p([attribute.class("text-[#fabd2f]")], [
-        element.text(
-          config.consumer_group |> trim_left(consumer_group_max_width),
+      html.div([attribute.class("relative group")], [
+        html.p(
+          [attribute.class("text-nowrap w-24 text-[#fabd2f] overflow-clip")],
+          [element.text(config.consumer_group)],
+        ),
+        html.div(
+          [
+            attribute.class(
+              "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-[#a89984] text-[#282828] text-xs px-2 py-1 text-center",
+            ),
+          ],
+          [html.text(config.consumer_group)],
         ),
       ]),
       html.p([attribute.class("text-[#d5c4a1]")], [element.text("<-")]),
-      html.p([attribute.class("text-[#d3869b]")], [
-        element.text(
-          config.topic
-          |> trim_left(topic_name_max_width),
+      html.div([attribute.class("relative group")], [
+        html.p(
+          [attribute.class("text-nowrap w-24 text-[#fabd2f] overflow-clip")],
+          [element.text(config.topic)],
+        ),
+        html.div(
+          [
+            attribute.class(
+              "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-[#a89984] text-[#282828] text-xs px-2 py-1 text-center",
+            ),
+          ],
+          [html.text(config.topic)],
         ),
       ]),
     ],
@@ -404,7 +425,7 @@ fn error_section(model: Model) -> element.Element(Msg) {
         [
           attribute.role("alert"),
           attribute.class(
-            "text-[#fb4934] border-2 border-[#fb4934] border-opacity-50 px-4 py-4 mt-4",
+            "text-[#fb4934] border-2 border-[#fb4934] border-opacity-50 px-4 py-4 my-4",
           ),
         ],
         [

@@ -440,9 +440,9 @@ function hashObject(o) {
   const proto = Object.getPrototypeOf(o);
   if (proto !== null && typeof proto.hashCode === "function") {
     try {
-      const code2 = o.hashCode(o);
-      if (typeof code2 === "number") {
-        return code2;
+      const code3 = o.hashCode(o);
+      if (typeof code3 === "number") {
+        return code3;
       }
     } catch {
     }
@@ -1111,21 +1111,6 @@ function identity(x) {
 function to_string(term) {
   return term.toString();
 }
-function string_length(string6) {
-  if (string6 === "") {
-    return 0;
-  }
-  const iterator = graphemes_iterator(string6);
-  if (iterator) {
-    let i = 0;
-    for (const _ of iterator) {
-      i++;
-    }
-    return i;
-  } else {
-    return string6.match(/./gsu).length;
-  }
-}
 var segmenter = void 0;
 function graphemes_iterator(string6) {
   if (globalThis.Intl && Intl.Segmenter) {
@@ -1159,28 +1144,6 @@ function concat(xs) {
     result = result + x;
   }
   return result;
-}
-function string_slice(string6, idx, len) {
-  if (len <= 0 || idx >= string6.length) {
-    return "";
-  }
-  const iterator = graphemes_iterator(string6);
-  if (iterator) {
-    while (idx-- > 0) {
-      iterator.next();
-    }
-    let result = "";
-    while (len-- > 0) {
-      const v = iterator.next().value;
-      if (v === void 0) {
-        break;
-      }
-      result += v.segment;
-    }
-    return result;
-  } else {
-    return string6.match(/./gsu).slice(idx, idx + len).join("");
-  }
 }
 function string_codeunit_slice(str, from2, length4) {
   return str.slice(from2, from2 + length4);
@@ -1463,25 +1426,6 @@ function index_fold(list3, initial, fun) {
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/string.mjs
-function slice(string6, idx, len) {
-  let $ = len < 0;
-  if ($) {
-    return "";
-  } else {
-    let $1 = idx < 0;
-    if ($1) {
-      let translated_idx = string_length(string6) + idx;
-      let $2 = translated_idx < 0;
-      if ($2) {
-        return "";
-      } else {
-        return string_slice(string6, translated_idx, len);
-      }
-    } else {
-      return string_slice(string6, idx, len);
-    }
-  }
-}
 function concat_loop(loop$strings, loop$accumulator) {
   while (true) {
     let strings = loop$strings;
@@ -4156,9 +4100,9 @@ function response_to_result(response) {
     let body2 = response.body;
     return new Error(new InternalServerError(body2));
   } else {
-    let code2 = response.status;
+    let code3 = response.status;
     let body2 = response.body;
-    return new Error(new OtherError(code2, body2));
+    return new Error(new OtherError(code3, body2));
   }
 }
 function expect_json(decoder, to_msg) {
@@ -4852,6 +4796,9 @@ function pre(attrs, children2) {
 function a(attrs, children2) {
   return element("a", attrs, children2);
 }
+function code2(attrs, children2) {
+  return element("code", attrs, children2);
+}
 function span(attrs, children2) {
   return element("span", attrs, children2);
 }
@@ -4936,38 +4883,11 @@ function http_error_to_string(error) {
   } else if (error instanceof NotFound) {
     return "not found";
   } else if (error instanceof OtherError) {
-    let code2 = error[0];
+    let code3 = error[0];
     let body2 = error[1];
-    return "non success HTTP response; status: " + to_string(code2) + ", body: " + body2;
+    return "non success HTTP response; status: " + to_string(code3) + ", body: " + body2;
   } else {
     return "unauthorized";
-  }
-}
-function trim_left(str, length4) {
-  let $ = (() => {
-    let _pipe = str;
-    return string_length(_pipe);
-  })() > length4;
-  if (!$) {
-    return str;
-  } else {
-    let $1 = length4 > 3;
-    if (!$1) {
-      let _pipe = str;
-      return slice(_pipe, 0, length4);
-    } else {
-      return "..." + (() => {
-        let _pipe = str;
-        return slice(
-          _pipe,
-          (() => {
-            let _pipe$1 = str;
-            return string_length(_pipe$1);
-          })() - length4 + 3,
-          length4
-        );
-      })();
-    }
   }
 }
 
@@ -4996,11 +4916,11 @@ function model_debug_section(model) {
     return none2();
   }
 }
-function messages_section_empty(height_class) {
+function landing_section() {
   return div(
     toList([
       class$(
-        "mt-4 " + height_class + " flex border-2 border-[#928374] border-opacity-20 items-center flex justify-center"
+        "mt-4 flex-1  flex border-2 border-[#928374] border-opacity-20 items-center flex justify-center"
       )
     ]),
     toList([
@@ -5171,7 +5091,7 @@ function message_details_pane(model) {
     ])
   );
 }
-function messages_section_with_messages(model, height_class) {
+function messages_section_with_messages(model) {
   let _block;
   let _pipe = model.current_message;
   _block = map(
@@ -5187,7 +5107,7 @@ function messages_section_with_messages(model, height_class) {
   return div(
     toList([
       class$(
-        "mt-4 " + height_class + " flex border-2 border-[#928374] border-opacity-20"
+        "mt-4 flex-1 flex border-2 border-[#928374] border-opacity-20 overflow-y-auto"
       )
     ]),
     toList([
@@ -5229,19 +5149,11 @@ function messages_section_with_messages(model, height_class) {
   );
 }
 function messages_section(model) {
-  let _block;
-  let $ = model.http_error;
-  if ($ instanceof None) {
-    _block = "h-[calc(100vh-4.3rem)]";
+  let $ = model.messages;
+  if ($.hasLength(0)) {
+    return landing_section();
   } else {
-    _block = "h-[calc(100vh-9rem)]";
-  }
-  let height_class = _block;
-  let $1 = model.messages;
-  if ($1.hasLength(0)) {
-    return messages_section_empty(height_class);
-  } else {
-    return messages_section_with_messages(model, height_class);
+    return messages_section_with_messages(model);
   }
 }
 function controls_div_when_no_config() {
@@ -5268,63 +5180,56 @@ function controls_div_when_no_config() {
       p(
         toList([class$("text-[#bdae93]")]),
         toList([
-          text(
-            `couldn't load config; make sure "kplay serve" is running. If it still doesn't work let @dhth know about this error via https://github.com/dhth/kplay/issues`
+          text("couldn't load config; make sure "),
+          code2(
+            toList([class$("text-[#fe8019]")]),
+            toList([text("kplay serve")])
+          ),
+          text(" is running. If it still doesn't work let "),
+          a(
+            toList([
+              class$("text-[#fabd2f]"),
+              href("https://github.com/dhth"),
+              target("_blank")
+            ]),
+            toList([text("@dhth")])
+          ),
+          text(" know about this error via "),
+          a(
+            toList([
+              class$("text-[#fabd2f]"),
+              href("https://github.com/dhth/kplay/issues"),
+              target("_blank")
+            ]),
+            toList([text("https://github.com/dhth/kplay/issues")])
           )
         ])
       )
     ])
   );
 }
-function error_section(model) {
-  let $ = model.http_error;
-  if ($ instanceof None) {
-    return none2();
-  } else {
-    let err = $[0];
-    return div(
-      toList([
-        role("alert"),
-        class$(
-          "text-[#fb4934] border-2 border-[#fb4934] border-opacity-50 px-4 py-4 mt-4"
-        )
-      ]),
-      toList([
-        strong(
-          toList([class$("font-bold")]),
-          toList([text2("Error: ")])
-        ),
-        span(
-          toList([class$("block sm:inline")]),
-          toList([
-            text2(
-              (() => {
-                let _pipe = err;
-                return http_error_to_string(_pipe);
-              })()
-            )
-          ])
-        )
-      ])
-    );
-  }
-}
-var topic_name_max_width = 80;
-var consumer_group_max_width = 80;
 function consumer_info(config) {
   return div(
     toList([
       class$("font-bold px-4 py-1 flex items-center space-x-2")
     ]),
     toList([
-      p(
-        toList([class$("text-[#fabd2f]")]),
+      div(
+        toList([class$("relative group")]),
         toList([
-          text(
-            (() => {
-              let _pipe = config.consumer_group;
-              return trim_left(_pipe, consumer_group_max_width);
-            })()
+          p(
+            toList([
+              class$("text-nowrap w-24 text-[#fabd2f] overflow-clip")
+            ]),
+            toList([text(config.consumer_group)])
+          ),
+          div(
+            toList([
+              class$(
+                "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-[#a89984] text-[#282828] text-xs px-2 py-1 text-center"
+              )
+            ]),
+            toList([text2(config.consumer_group)])
           )
         ])
       ),
@@ -5332,14 +5237,22 @@ function consumer_info(config) {
         toList([class$("text-[#d5c4a1]")]),
         toList([text("<-")])
       ),
-      p(
-        toList([class$("text-[#d3869b]")]),
+      div(
+        toList([class$("relative group")]),
         toList([
-          text(
-            (() => {
-              let _pipe = config.topic;
-              return trim_left(_pipe, topic_name_max_width);
-            })()
+          p(
+            toList([
+              class$("text-nowrap w-24 text-[#fabd2f] overflow-clip")
+            ]),
+            toList([text(config.topic)])
+          ),
+          div(
+            toList([
+              class$(
+                "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-[#a89984] text-[#282828] text-xs px-2 py-1 text-center"
+              )
+            ]),
+            toList([text2(config.topic)])
           )
         ])
       )
@@ -5473,15 +5386,48 @@ function controls_section(model) {
     return controls_div_when_no_config();
   }
 }
+function error_section(model) {
+  let $ = model.http_error;
+  if ($ instanceof None) {
+    return none2();
+  } else {
+    let err = $[0];
+    return div(
+      toList([
+        role("alert"),
+        class$(
+          "text-[#fb4934] border-2 border-[#fb4934] border-opacity-50 px-4 py-4 my-4"
+        )
+      ]),
+      toList([
+        strong(
+          toList([class$("font-bold")]),
+          toList([text2("Error: ")])
+        ),
+        span(
+          toList([class$("block sm:inline")]),
+          toList([
+            text2(
+              (() => {
+                let _pipe = err;
+                return http_error_to_string(_pipe);
+              })()
+            )
+          ])
+        )
+      ])
+    );
+  }
+}
 function view(model) {
   return div(
-    toList([class$("bg-[#282828] text-[#ebdbb2] mt-4 mx-4")]),
+    toList([class$("bg-[#282828] text-[#ebdbb2] mx-4")]),
     toList([
       div(
         toList([]),
         toList([
           div(
-            toList([]),
+            toList([class$("flex flex-col h-screen")]),
             toList([
               model_debug_section(model),
               messages_section(model),
