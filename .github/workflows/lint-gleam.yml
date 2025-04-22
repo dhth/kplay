@@ -1,0 +1,28 @@
+name: lint-gleam
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    paths:
+      - "internal/server/_client/*"
+      - ".github/workflows/lint-gleam.yml"
+
+env:
+  GLEAM_VERSION: '1.10.0'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.1"
+          gleam-version: ${{ env.GLEAM_VERSION }}
+          rebar3-version: "3"
+      - name: Compile gleam to js
+        run: |
+          cd internal/server/_client
+          gleam deps download
+          gleam format src --check

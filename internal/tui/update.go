@@ -1,11 +1,11 @@
 package tui
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	t "github.com/dhth/kplay/internal/types"
 )
 
 const (
@@ -15,8 +15,6 @@ const (
 	genericErrMsg              = "something went wrong"
 	alreadyFetchingMsg         = "already fetching"
 )
-
-var errSomethingUnexpectedHappened = errors.New("something unexpected happened; let @dhth know via https://github.com/dhth/kplay/issues")
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -48,7 +46,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			cmds = append(cmds, FetchRecords(m.client, m.behaviours.CommitMessages, 1))
+			cmds = append(cmds, FetchMessages(m.client, m.config, m.behaviours.CommitMessages, 1))
 			m.fetchingInProgress = true
 		case "N":
 			if m.activeView == helpView {
@@ -60,7 +58,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			cmds = append(cmds, FetchRecords(m.client, m.behaviours.CommitMessages, 10))
+			cmds = append(cmds, FetchMessages(m.client, m.config, m.behaviours.CommitMessages, 10))
 			m.fetchingInProgress = true
 		case "}":
 			if m.activeView == helpView {
@@ -72,7 +70,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			cmds = append(cmds, FetchRecords(m.client, m.behaviours.CommitMessages, 100))
+			cmds = append(cmds, FetchMessages(m.client, m.config, m.behaviours.CommitMessages, 100))
 			m.fetchingInProgress = true
 		case "?":
 			m.lastView = m.activeView
@@ -104,18 +102,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			item := m.msgsList.SelectedItem()
-			if item == nil {
-				break
-			}
-
-			details, ok := m.msgDetailsStore[item.FilterValue()]
+			message, ok := m.msgsList.SelectedItem().(t.Message)
 			if !ok {
 				m.errorMsg = genericErrMsg
 				break
 			}
 
-			detailsStr := getMsgDetails(details)
+			if !ok {
+				break
+			}
+
+			detailsStr := getMsgDetails(message)
 			cmds = append(cmds, copyToClipboard(detailsStr))
 		case "[":
 			if m.activeView == helpView {
@@ -131,15 +128,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			m.msgsList.CursorUp()
-
-			item := m.msgsList.SelectedItem()
-			if item == nil {
-				break
-			}
-
-			details := m.msgDetailsStore[item.FilterValue()]
-			detailsStr := getMsgDetailsStylized(details)
-			m.msgDetailsVP.SetContent(detailsStr)
 		case "]":
 			if m.activeView == helpView {
 				break
@@ -154,26 +142,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			m.msgsList.CursorDown()
-			item := m.msgsList.SelectedItem()
-			if item == nil {
-				break
-			}
-
-			details := m.msgDetailsStore[item.FilterValue()]
-			detailsStr := getMsgDetailsStylized(details)
-			m.msgDetailsVP.SetContent(detailsStr)
 		case "j", "down":
 			switch m.activeView {
 			case msgDetailsView:
 				if m.msgDetailsVP.AtBottom() {
 					break
 				}
-				m.msgDetailsVP.LineDown(viewPortMoveLineCount)
+				m.msgDetailsVP.ScrollDown(viewPortMoveLineCount)
 			case helpView:
 				if m.helpVP.AtBottom() {
 					break
 				}
-				m.helpVP.LineDown(viewPortMoveLineCount)
+				m.helpVP.ScrollDown(viewPortMoveLineCount)
 			}
 		case "k", "up":
 			switch m.activeView {
@@ -181,12 +161,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.msgDetailsVP.AtTop() {
 					break
 				}
-				m.msgDetailsVP.LineUp(viewPortMoveLineCount)
+				m.msgDetailsVP.ScrollUp(viewPortMoveLineCount)
 			case helpView:
 				if m.helpVP.AtTop() {
 					break
 				}
-				m.helpVP.LineUp(viewPortMoveLineCount)
+				m.helpVP.ScrollUp(viewPortMoveLineCount)
 			}
 		case "tab", "shift+tab":
 			if len(m.msgsList.Items()) == 0 {
@@ -209,20 +189,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			item, ok := m.msgsList.SelectedItem().(KMsgItem)
+			message, ok := m.msgsList.SelectedItem().(t.Message)
 			if !ok {
 				m.errorMsg = genericErrMsg
 				break
 			}
 
-			msgDetails, ok := m.msgDetailsStore[item.FilterValue()]
-			if !ok {
-				m.errorMsg = genericErrMsg
-				break
-			}
-
-			details := getMsgDetails(msgDetails)
-			cmds = append(cmds, saveRecordDetailsToDisk(&item.record, details, true))
+			cmds = append(cmds, saveRecordDetailsToDisk(message, m.config.Topic, true))
 		}
 	case tea.WindowSizeMsg:
 		w1, h1 := messageListStyle.GetFrameSize()
@@ -237,7 +210,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if !m.msgDetailsVPReady {
 			m.msgDetailsVP = viewport.New(msgDetailsVPWidth, msgDetailsVPHeight)
-			m.msgDetailsVP.HighPerformanceRendering = useHighPerformanceRenderer
 			m.msgDetailsVP.KeyMap.HalfPageDown.SetKeys("ctrl+d")
 			m.msgDetailsVP.KeyMap.Up.SetEnabled(false)
 			m.msgDetailsVP.KeyMap.Down.SetEnabled(false)
@@ -250,7 +222,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		helpVPWidth := msg.Width - w2 - 4
 		if !m.helpVPReady {
 			m.helpVP = viewport.New(helpVPWidth, fullScreenVPHeight)
-			m.helpVP.HighPerformanceRendering = useHighPerformanceRenderer
 			m.helpVP.SetContent(helpText)
 			m.helpVP.KeyMap.HalfPageDown.SetKeys("ctrl+d")
 			m.helpVP.KeyMap.Up.SetEnabled(false)
@@ -261,27 +232,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpVP.Height = fullScreenVPHeight
 		}
 
-	case msgDataReadyMsg:
-		m.msgDetailsStore[msg.uniqueKey] = msg.details
-
-		if !m.firstMsgValueSet {
-			firstItem := m.msgsList.SelectedItem()
-			if firstItem != nil {
-				msgDetails, ok := m.msgDetailsStore[firstItem.FilterValue()]
-				if ok {
-					detailsStylized := getMsgDetailsStylized(msgDetails)
-					m.msgDetailsVP.SetContent(detailsStylized)
-					m.currentMsgIndex = m.msgsList.Index()
-					m.firstMsgValueSet = true
-				}
-			}
-		}
-
-		if m.behaviours.PersistMessages {
-			details := getMsgDetails(msg.details)
-			cmds = append(cmds, saveRecordDetailsToDisk(msg.record, details, false))
-		}
-
 	case msgsFetchedMsg:
 		m.fetchingInProgress = false
 		if msg.err != nil {
@@ -289,20 +239,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 
-		if len(msg.records) == 0 {
+		if len(msg.messages) == 0 {
 			m.msg = "No new messages found"
 			break
 		}
 
 		switch m.behaviours.SkipMessages {
 		case false:
-			for _, rec := range msg.records {
-				m.msgsList.InsertItem(len(m.msgsList.Items()), KMsgItem{record: *rec})
-				cmds = append(cmds, generateRecordDetails(rec, m.config.Encoding, m.config.Proto))
+			for _, message := range msg.messages {
+				m.msgsList.InsertItem(len(m.msgsList.Items()), message)
+				if m.behaviours.PersistMessages {
+					cmds = append(cmds, saveRecordDetailsToDisk(message, m.config.Topic, false))
+				}
 			}
-			m.msg = fmt.Sprintf("%d message(s) fetched", len(msg.records))
+			m.msg = fmt.Sprintf("%d message(s) fetched", len(msg.messages))
 		case true:
-			m.msg = fmt.Sprintf("skipped over %d message(s)", len(msg.records))
+			m.msg = fmt.Sprintf("skipped over %d message(s)", len(msg.messages))
 		}
 
 	case msgSavedToDiskMsg:
@@ -333,18 +285,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
-	numItems := len(m.msgsList.Items())
-	msgIndex := m.msgsList.Index()
+	if m.activeView == msgListView || m.activeView == msgDetailsView {
+		if len(m.msgsList.Items()) > 0 && m.msgsList.Index() != m.currentMsgIndex {
+			m.currentMsgIndex = m.msgsList.Index()
+			message, ok := m.msgsList.SelectedItem().(t.Message)
 
-	if numItems > 0 && msgIndex != m.currentMsgIndex {
-		msgID := m.msgsList.SelectedItem().FilterValue()
-		msgDetails, ok := m.msgDetailsStore[msgID]
-		if ok {
-			detailsStylized := getMsgDetailsStylized(msgDetails)
-			m.msgDetailsVP.SetContent(detailsStylized)
-			m.currentMsgIndex = msgIndex
-		} else {
-			m.msgDetailsVP.SetContent(msgAttributeNotFoundMsg)
+			if ok {
+				var vpContent string
+				if message.Err != nil {
+					vpContent = errorStyle.Render(fmt.Sprintf("error: %s", message.Err.Error()))
+				} else {
+					vpContent = getMsgDetailsStylized(message, m.config.Encoding)
+				}
+				m.msgDetailsVP.SetContent(vpContent)
+			}
+
 		}
 	}
 

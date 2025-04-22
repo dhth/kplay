@@ -9,9 +9,10 @@ import (
 	"strings"
 	"time"
 
-	c "github.com/dhth/kplay/internal/config"
 	k "github.com/dhth/kplay/internal/kafka"
+	"github.com/dhth/kplay/internal/server"
 	"github.com/dhth/kplay/internal/tui"
+	t "github.com/dhth/kplay/internal/types"
 	"github.com/dhth/kplay/internal/utils"
 	"github.com/spf13/cobra"
 )
@@ -41,27 +42,27 @@ func Execute() error {
 
 func NewRootCommand() (*cobra.Command, error) {
 	var (
-		configPath        string
-		configPathFull    string
-		homeDir           string
-		persistMessages   bool
-		skipMessages      bool
-		commitMessages    bool
-		consumerGroup     string
-		config            c.Config
-		displayConfigOnly bool
+		configPath      string
+		configPathFull  string
+		homeDir         string
+		persistMessages bool
+		skipMessages    bool
+		commitMessages  bool
+		selectOnHover   bool
+		consumerGroup   string
+		config          t.Config
+		debug           bool
+		webOpen         bool
 	)
 
 	rootCmd := &cobra.Command{
-		Use:   "kplay <PROFILE>",
+		Use:   "kplay",
 		Short: "kplay lets you inspect messages in a Kafka topic in a simple and deliberate manner.",
 		Long: `kplay ("kafka playground") lets you inspect messages in a Kafka topic in a simple and deliberate manner.
 
 kplay relies on a configuration file that contains profiles for various Kafka topics, each with its own details related
 to brokers, message encoding, authentication, etc.
 `,
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			configPathFull = utils.ExpandTilde(configPath, homeDir)
 			configBytes, err := os.ReadFile(configPathFull)
@@ -86,14 +87,21 @@ to brokers, message encoding, authentication, etc.
 
 			return nil
 		},
+	}
+
+	tuiCmd := &cobra.Command{
+		Use:          "tui <PROFILE>",
+		Short:        "open kplay's TUI",
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			behaviours := c.Behaviours{
+			behaviours := t.TUIBehaviours{
+				CommitMessages:  commitMessages,
 				PersistMessages: persistMessages,
 				SkipMessages:    skipMessages,
-				CommitMessages:  commitMessages,
 			}
 
-			if displayConfigOnly {
+			if debug {
 				fmt.Printf(`Config:
 ---
 
@@ -103,21 +111,16 @@ to brokers, message encoding, authentication, etc.
 - encoding                %s
 - brokers                 %v
 
-Behaviours 
+Behaviours
 ---
-
-- persist messages        %v
-- skip messages           %v
-- commit messages         %v
+%s
 `,
 					config.Topic,
 					config.ConsumerGroup,
 					config.AuthenticationDisplay(),
 					config.EncodingDisplay(),
 					config.Brokers,
-					behaviours.PersistMessages,
-					behaviours.SkipMessages,
-					behaviours.CommitMessages,
+					behaviours.Display(),
 				)
 				return nil
 			}
@@ -140,6 +143,58 @@ Behaviours
 		},
 	}
 
+	serveCmd := &cobra.Command{
+		Use:          "serve <PROFILE>",
+		Short:        "open kplay's web interface",
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			behaviours := t.WebBehaviours{
+				CommitMessages: commitMessages,
+				SelectOnHover:  selectOnHover,
+			}
+			if debug {
+				fmt.Printf(`Config:
+---
+
+- topic                   %s
+- consumer group          %s
+- authentication          %s
+- encoding                %s
+- brokers                 %v
+
+Behaviours
+---
+%s
+`,
+					config.Topic,
+					config.ConsumerGroup,
+					config.AuthenticationDisplay(),
+					config.EncodingDisplay(),
+					config.Brokers,
+					behaviours.Display(),
+				)
+				return nil
+			}
+
+			cl, err := k.GetClient(config.Authentication, config.Brokers, config.ConsumerGroup, config.Topic)
+			if err != nil {
+				return fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
+			}
+
+			defer cl.Close()
+
+			ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+			defer cancel()
+
+			if err := cl.Ping(ctx); err != nil {
+				return fmt.Errorf("%w: %s", errCouldntPingBrokers, err.Error())
+			}
+
+			return server.Serve(cl, config, behaviours, webOpen)
+		},
+	}
+
 	var err error
 	homeDir, err = os.UserHomeDir()
 	if err != nil {
@@ -153,12 +208,22 @@ Behaviours
 
 	defaultConfigPath := filepath.Join(configDir, configFileName)
 
-	rootCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
-	rootCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the setting \"persist messages\" ON")
-	rootCmd.Flags().BoolVarP(&skipMessages, "skip-messages", "s", false, "whether to start the TUI with the setting \"skip messages\" ON")
-	rootCmd.Flags().BoolVar(&commitMessages, "commit-messages", true, "whether to start the TUI with the setting \"commit messages\" ON")
-	rootCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
-	rootCmd.Flags().BoolVar(&displayConfigOnly, "display-config-only", false, "whether to only display config picked up by kplay")
+	tuiCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
+	tuiCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the setting \"persist messages\" ON")
+	tuiCmd.Flags().BoolVarP(&skipMessages, "skip-messages", "s", false, "whether to start the TUI with the setting \"skip messages\" ON")
+	tuiCmd.Flags().BoolVarP(&commitMessages, "commit-messages", "C", true, "whether to start the TUI with the setting \"commit messages\" ON")
+	tuiCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
+	tuiCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
+
+	serveCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
+	serveCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
+	serveCmd.Flags().BoolVarP(&commitMessages, "commit-messages", "C", true, "whether to start the web interface with the setting \"commit messages\" ON")
+	serveCmd.Flags().BoolVarP(&selectOnHover, "select-on-hover", "S", false, "whether to start the web interface with the setting \"select on hover\" ON")
+	serveCmd.Flags().BoolVarP(&webOpen, "open", "o", false, "whether to open web interface in browser automatically")
+	serveCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
+
+	rootCmd.AddCommand(tuiCmd)
+	rootCmd.AddCommand(serveCmd)
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 

@@ -3,11 +3,11 @@ package tui
 import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/lipgloss"
-	c "github.com/dhth/kplay/internal/config"
+	t "github.com/dhth/kplay/internal/types"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func InitialModel(kCl *kgo.Client, config c.Config, behaviours c.Behaviours) Model {
+func InitialModel(kCl *kgo.Client, config t.Config, behaviours t.TUIBehaviours) Model {
 	appDelegateKeys := newAppDelegateKeyMap()
 	appDelegate := newAppItemDelegate(appDelegateKeys)
 	jobItems := make([]list.Item, 0)
@@ -18,7 +18,6 @@ func InitialModel(kCl *kgo.Client, config c.Config, behaviours c.Behaviours) Mod
 		msgsList:          list.New(jobItems, appDelegate, listWidth, 0),
 		currentMsgIndex:   -1,
 		behaviours:        behaviours,
-		msgDetailsStore:   make(map[string]messageDetails),
 		showHelpIndicator: true,
 	}
 	m.msgsList.Title = "Messages"

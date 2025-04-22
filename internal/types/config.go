@@ -1,17 +1,17 @@
-package config
+package types
 
 import (
 	"fmt"
 )
 
 type Config struct {
-	Name           string
-	Authentication AuthType
-	Encoding       EncodingFormat
-	Brokers        []string
-	Topic          string
-	ConsumerGroup  string
-	Proto          *ProtoConfig
+	Name           string         `json:"profile_name"`
+	Authentication AuthType       `json:"-"`
+	Encoding       EncodingFormat `json:"-"`
+	Brokers        []string       `json:"brokers"`
+	Topic          string         `json:"topic"`
+	ConsumerGroup  string         `json:"consumer_group"`
+	Proto          *ProtoConfig   `json:"-"`
 }
 
 func (c Config) AuthenticationDisplay() string {

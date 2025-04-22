@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	c "github.com/dhth/kplay/internal/config"
 	k "github.com/dhth/kplay/internal/kafka"
+	t "github.com/dhth/kplay/internal/types"
 	"github.com/dhth/kplay/internal/utils"
 	yaml "github.com/goccy/go-yaml"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -45,9 +45,9 @@ type protoConfig struct {
 	DescriptorName    string `yaml:"descriptorName"`
 }
 
-func GetProfileConfig(bytes []byte, profileName string, homeDir string) (c.Config, error) {
+func GetProfileConfig(bytes []byte, profileName string, homeDir string) (t.Config, error) {
 	var kConfig kplayConfig
-	var config c.Config
+	var config t.Config
 
 	err := yaml.Unmarshal(bytes, &kConfig)
 	if err != nil {
@@ -65,12 +65,12 @@ func GetProfileConfig(bytes []byte, profileName string, homeDir string) (c.Confi
 			continue
 		}
 
-		auth, err := c.ValidateAuthValue(pr.Authentication)
+		auth, err := t.ValidateAuthValue(pr.Authentication)
 		if err != nil {
 			return config, err
 		}
 
-		encodingFmt, err := c.ValidateEncodingFmtValue(pr.EncodingFormat)
+		encodingFmt, err := t.ValidateEncodingFmtValue(pr.EncodingFormat)
 		if err != nil {
 			return config, err
 		}
@@ -87,7 +87,7 @@ func GetProfileConfig(bytes []byte, profileName string, homeDir string) (c.Confi
 			return config, errConsumerGroupEmpty
 		}
 
-		if encodingFmt == c.Protobuf {
+		if encodingFmt == t.Protobuf {
 			if pr.ProtoConfig == nil {
 				return config, errProtoConfigMissing
 			}
@@ -117,12 +117,12 @@ func GetProfileConfig(bytes []byte, profileName string, homeDir string) (c.Confi
 				return config, fmt.Errorf("%w: %s", ErrIssueWithProtobufFileDescriptorSet, err.Error())
 			}
 
-			protoCfg := c.ProtoConfig{
+			protoCfg := t.ProtoConfig{
 				DescriptorSetFile: pr.ProtoConfig.DescriptorSetFile,
 				DescriptorName:    pr.ProtoConfig.DescriptorName,
 				MsgDescriptor:     msgDescriptor,
 			}
-			return c.Config{
+			return t.Config{
 				Name:           profileName,
 				Authentication: auth,
 				Encoding:       encodingFmt,
@@ -133,7 +133,7 @@ func GetProfileConfig(bytes []byte, profileName string, homeDir string) (c.Confi
 			}, nil
 		}
 
-		return c.Config{
+		return t.Config{
 			Name:           profileName,
 			Authentication: auth,
 			Encoding:       encodingFmt,
