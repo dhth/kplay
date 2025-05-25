@@ -12,7 +12,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/pretty v1.2.1
-	github.com/twmb/franz-go v1.19.3
+	github.com/twmb/franz-go v1.19.4
 	google.golang.org/protobuf v1.36.6
 )
 
