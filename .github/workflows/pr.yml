@@ -14,7 +14,7 @@ jobs:
       pull-requests: read
     outputs:
       gleam: ${{ steps.filter.outputs.gleam }}
-      go: ${{ steps.filter.outputs.code }}
+      go: ${{ steps.filter.outputs.go }}
       release: ${{ steps.filter.outputs.release }}
       workflows: ${{ steps.filter.outputs.workflows }}
       yml: ${{ steps.filter.outputs.yml }}
@@ -61,6 +61,8 @@ jobs:
           version: v2.1
 
   lint-gleam:
+    needs: changes
+    if: ${{ needs.changes.outputs.gleam == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,6 +96,8 @@ jobs:
         run: go test -v ./...
 
   build-gleam:
+    needs: changes
+    if: ${{ needs.changes.outputs.gleam == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -116,6 +120,8 @@ jobs:
           fi
 
   test-go:
+    needs: changes
+    if: ${{ needs.changes.outputs.go == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
