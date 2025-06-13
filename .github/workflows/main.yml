@@ -29,6 +29,7 @@ jobs:
           filters: |
             gleam:
               - "internal/server/_client/**"
+              - ".github/workflows/pr.yml"
             go:
               - "cmd/**"
               - "internal/**"
@@ -37,7 +38,6 @@ jobs:
               - "go.*"
               - ".golangci.yml"
               - "main.go"
-              - ".github/actions/**"
               - ".github/workflows/main.yml"
             release:
               - ".goreleaser.yaml"
