@@ -1,6 +1,6 @@
 # kplay
 
-[![Build Workflow Status](https://img.shields.io/github/actions/workflow/status/dhth/kplay/build.yml?style=flat-square)](https://github.com/dhth/kplay/actions/workflows/build.yml)
+[![Build Workflow Status](https://img.shields.io/github/actions/workflow/status/dhth/kplay/main.yml?style=flat-square)](https://github.com/dhth/kplay/actions/workflows/main.yml)
 [![Vulncheck Workflow Status](https://img.shields.io/github/actions/workflow/status/dhth/kplay/vulncheck.yml?style=flat-square&label=vulncheck)](https://github.com/dhth/kplay/actions/workflows/vulncheck.yml)
 [![Latest Release](https://img.shields.io/github/release/dhth/kplay.svg?style=flat-square)](https://github.com/dhth/kplay/releases/latest)
 [![Commits Since Latest Release](https://img.shields.io/github/commits-since/dhth/kplay/latest?style=flat-square)](https://github.com/dhth/kplay/releases)
