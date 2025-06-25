@@ -1,4 +1,4 @@
 formatter:
   retain_line_breaks_single: true
 exclude:
-  - ./tests/cli/assets/config-incorrect-yml.yml
+  - tests/cli/assets/config-incorrect-yml.yml
