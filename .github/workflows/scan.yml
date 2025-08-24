@@ -3,7 +3,7 @@ name: scan
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 7 10 * *'
+    - cron: '0 9 10 * *'
 
 jobs:
   virus-total:
