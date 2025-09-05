@@ -7,7 +7,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -29,13 +28,7 @@ func GetDescriptorFromDescriptorSet(descSetBytes []byte, descriptorName protoref
 		return nil, fmt.Errorf("%w: %s", errCouldntCreateProtoRegistryFiles, err.Error())
 	}
 
-	reg := protoregistry.GlobalFiles
-	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
-		err := reg.RegisterFile(fd)
-		return err == nil
-	})
-
-	descriptor, err := reg.FindDescriptorByName(descriptorName)
+	descriptor, err := files.FindDescriptorByName(descriptorName)
 	if err != nil {
 		return nil, fmt.Errorf("%w %q: %s", errCouldntFindDescriptor, descriptorName, err.Error())
 	}
