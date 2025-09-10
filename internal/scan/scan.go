@@ -93,8 +93,7 @@ func (s *Scanner) Execute() error {
 
 	for numConsumed < s.behaviours.NumRecords {
 
-		ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
-		defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 		var toFetch uint
 		batchSize := s.behaviours.BatchSize
@@ -107,6 +106,7 @@ func (s *Scanner) Execute() error {
 		}
 
 		records := k.FetchRecords(ctx, s.client, toFetch)
+		cancel()
 
 		if len(records) == 0 {
 			continue
@@ -142,7 +142,7 @@ func (s *Scanner) Execute() error {
 
 	if numConsumed > 0 {
 		if s.behaviours.KeyFilterRegex != nil {
-			if numConsumed > 0 {
+			if numMatched > 0 {
 				fmt.Printf("%d records matching key filter written to %s\n", numMatched, s.behaviours.OutPathFull)
 			} else {
 				fmt.Println("no records matched key filter")

@@ -62,7 +62,6 @@ func NewRootCommand() (*cobra.Command, error) {
 		scanFromTimestamp     string
 		scanKeyFilterRegexStr string
 		scanNumRecords        uint
-		scanNoReport          bool
 		scanOutPathFull       string
 		scanBatchSize         uint
 	)
@@ -353,7 +352,6 @@ Behaviours
 	scanCmd.Flags().StringVarP(&scanFromTimestamp, "from-timestamp", "t", "", "consume records from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	scanCmd.Flags().StringVarP(&scanKeyFilterRegexStr, "key-regex", "k", "", "regex to filter record keys by")
 	scanCmd.Flags().UintVarP(&scanNumRecords, "num-records", "n", scan.ScanNumRecordsDefault, fmt.Sprintf("max messages to consume (upper bound: %d)", scan.ScanNumRecordsUpperBound))
-	scanCmd.Flags().BoolVar(&scanNoReport, "no-report", false, "emit an aggregated report in addition to list output")
 	scanCmd.Flags().StringVarP(&scanOutPathFull, "output-path", "p", "", "file to write records to (format inferred from extension; allowed extensions: csv, jsonl, txt), default: records-timestamp.csv")
 	scanCmd.Flags().UintVar(&scanBatchSize, "batch-size", 100, "number of messages to fetch per batch (must be greater than 0)")
 
