@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	k "github.com/dhth/kplay/internal/kafka"
+	"github.com/dhth/kplay/internal/scan"
 	"github.com/dhth/kplay/internal/server"
 	"github.com/dhth/kplay/internal/tui"
 	t "github.com/dhth/kplay/internal/types"
@@ -29,6 +31,8 @@ var (
 	errCouldntGetUserConfigDir  = errors.New("couldn't get your config directory")
 	ErrCouldntReadConfigFile    = errors.New("couldn't read config file")
 	ErrConfigInvalid            = errors.New("config is invalid")
+	errInvalidTimestampProvided = errors.New("invalid timestamp provided")
+	errInvalidRegexProvided     = errors.New("invalid regex provided")
 )
 
 func Execute() error {
@@ -53,6 +57,14 @@ func NewRootCommand() (*cobra.Command, error) {
 		config          t.Config
 		debug           bool
 		webOpen         bool
+
+		scanFromOffset        int64
+		scanFromTimestamp     string
+		scanKeyFilterRegexStr string
+		scanNumRecords        uint
+		scanNoReport          bool
+		scanOutPathFull       string
+		scanBatchSize         uint
 	)
 
 	rootCmd := &cobra.Command{
@@ -125,7 +137,7 @@ Behaviours
 				return nil
 			}
 
-			cl, err := k.GetClient(config.Authentication, config.Brokers, config.ConsumerGroup, config.Topic)
+			cl, err := k.GetKafkaClient(config.Authentication, config.Brokers, config.ConsumerGroup, config.Topic)
 			if err != nil {
 				return fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
 			}
@@ -177,7 +189,7 @@ Behaviours
 				return nil
 			}
 
-			cl, err := k.GetClient(config.Authentication, config.Brokers, config.ConsumerGroup, config.Topic)
+			cl, err := k.GetKafkaClient(config.Authentication, config.Brokers, config.ConsumerGroup, config.Topic)
 			if err != nil {
 				return fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
 			}
@@ -192,6 +204,119 @@ Behaviours
 			}
 
 			return server.Serve(cl, config, behaviours, webOpen)
+		},
+	}
+
+	scanCmd := &cobra.Command{
+		Use:          "scan <PROFILE>",
+		Short:        "scan records in a kafka topic and write them to a local file",
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if scanBatchSize == 0 {
+				return fmt.Errorf("batch size must be greater than 0")
+			}
+
+			if scanNumRecords == 0 {
+				return fmt.Errorf("count must be greater than 0")
+			}
+
+			fromOffsetChanged := cmd.Flags().Changed("from-offset")
+			fromTimestampChanged := cmd.Flags().Changed("from-timestamp")
+			if fromOffsetChanged && fromTimestampChanged {
+				return fmt.Errorf("cannot use both --from-offset and --from-timestamp flags simultaneously")
+			}
+
+			var parsedTimestamp *time.Time
+			if fromTimestampChanged && strings.TrimSpace(scanFromTimestamp) != "" {
+				t, err := time.Parse(time.RFC3339, scanFromTimestamp)
+				if err != nil {
+					return fmt.Errorf("%w; expected RFC3339 format (e.g., 2006-01-02T15:04:05Z07:00)", errInvalidTimestampProvided)
+				}
+				parsedTimestamp = &t
+			}
+
+			var scanOutPathToUse string
+			if strings.TrimSpace(scanOutPathFull) != "" {
+				scanOutPathToUse = utils.ExpandTilde(scanOutPathFull, homeDir)
+			} else {
+				scanOutPathToUse = fmt.Sprintf("records-%d.csv", time.Now().UnixMilli())
+			}
+
+			var keyFilterRegex *regexp.Regexp
+			if strings.TrimSpace(scanKeyFilterRegexStr) != "" {
+				var regexErr error
+				keyFilterRegex, regexErr = regexp.Compile(scanKeyFilterRegexStr)
+				if regexErr != nil {
+					return fmt.Errorf("%w: %q", errInvalidRegexProvided, scanKeyFilterRegexStr)
+				}
+			}
+
+			scanBehaviours := scan.Behaviours{
+				NumRecords:     scanNumRecords,
+				OutPathFull:    scanOutPathToUse,
+				KeyFilterRegex: keyFilterRegex,
+				BatchSize:      scanBatchSize,
+			}
+
+			if debug {
+				fmt.Printf(`Config:
+---
+
+- topic                   %s
+- consumer group          %s
+- authentication          %s
+- encoding                %s
+- brokers                 %v
+- number of records       %d
+- output path             %s
+- batch size              %d
+`,
+					config.Topic,
+					config.ConsumerGroup,
+					config.AuthenticationDisplay(),
+					config.EncodingDisplay(),
+					config.Brokers,
+					scanBehaviours.NumRecords,
+					scanBehaviours.OutPathFull,
+					scanBehaviours.BatchSize,
+				)
+
+				if keyFilterRegex != nil {
+					fmt.Printf(`- key filter regex        %s
+`, scanKeyFilterRegexStr)
+				}
+
+				if fromOffsetChanged {
+					fmt.Printf(`- from offset             %d
+`, scanFromOffset)
+				}
+
+				if fromTimestampChanged {
+					fmt.Printf(`- from timestamp          %s
+`, scanFromTimestamp)
+				}
+
+				return nil
+			}
+
+			consumeBehaviours := t.ConsumeBehaviours{}
+			if scanFromOffset != -1 {
+				consumeBehaviours.StartOffset = &scanFromOffset
+			} else if parsedTimestamp != nil {
+				consumeBehaviours.StartTimeStamp = parsedTimestamp
+			}
+
+			client, err := k.GetScanKafkaClient(config.Authentication, config.Brokers, config.Topic, consumeBehaviours)
+			if err != nil {
+				return err
+			}
+
+			defer client.Close()
+
+			scanner := scan.New(client, config, scanBehaviours)
+
+			return scanner.Execute()
 		},
 	}
 
@@ -222,8 +347,19 @@ Behaviours
 	serveCmd.Flags().BoolVarP(&webOpen, "open", "o", false, "whether to open web interface in browser automatically")
 	serveCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 
+	scanCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
+	scanCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
+	scanCmd.Flags().Int64VarP(&scanFromOffset, "from-offset", "o", -1, "consume records from this offset (inclusive)")
+	scanCmd.Flags().StringVarP(&scanFromTimestamp, "from-timestamp", "t", "", "consume records from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
+	scanCmd.Flags().StringVarP(&scanKeyFilterRegexStr, "key-regex", "k", "", "regex to filter record keys by")
+	scanCmd.Flags().UintVarP(&scanNumRecords, "num-records", "n", scan.ScanNumRecordsDefault, fmt.Sprintf("max messages to consume (upper bound: %d)", scan.ScanNumRecordsUpperBound))
+	scanCmd.Flags().BoolVar(&scanNoReport, "no-report", false, "emit an aggregated report in addition to list output")
+	scanCmd.Flags().StringVarP(&scanOutPathFull, "output-path", "p", "", "file to write records to (format inferred from extension; allowed extensions: csv, jsonl, txt), default: records-timestamp.csv")
+	scanCmd.Flags().UintVar(&scanBatchSize, "batch-size", 100, "number of messages to fetch per batch (must be greater than 0)")
+
 	rootCmd.AddCommand(tuiCmd)
 	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(scanCmd)
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 

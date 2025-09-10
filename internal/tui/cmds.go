@@ -15,7 +15,7 @@ import (
 
 func FetchMessages(cl *kgo.Client, config t.Config, commit bool, numRecords int) tea.Cmd {
 	return func() tea.Msg {
-		records, err := k.FetchMessages(cl, commit, numRecords)
+		records, err := k.FetchAndCommitRecords(cl, commit, uint(numRecords))
 		if err != nil {
 			return msgsFetchedMsg{
 				err: err,
