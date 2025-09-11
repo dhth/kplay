@@ -17,6 +17,7 @@ import (
 	"github.com/dhth/kplay/internal/fs"
 	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
+	"github.com/dhth/kplay/internal/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -49,6 +50,7 @@ type RecordData struct {
 type scanProgress struct {
 	numRecordsConsumed uint
 	numRecordsMatched  uint
+	numBytesConsumed   uint64
 	lastOffsetSeen     int64
 }
 
@@ -123,6 +125,7 @@ func (s *Scanner) scan(ctx context.Context) error {
 	go showSpinner(ctx, progressChan)
 
 	var numMatched uint
+	var numBytesConsumed uint64
 
 	for numConsumed < s.behaviours.NumMessages {
 		select {
@@ -175,12 +178,16 @@ func (s *Scanner) scan(ctx context.Context) error {
 					fsErrors = append(fsErrors, fsError{offset: msg.Offset, key: msg.Key, err: err})
 				}
 			}
+
+			numBytesConsumed += uint64(len(record.Value))
 		}
+
 		numConsumed += uint(len(records))
 
 		progressChan <- scanProgress{
 			numRecordsConsumed: numConsumed,
 			numRecordsMatched:  numMatched,
+			numBytesConsumed:   numBytesConsumed,
 			lastOffsetSeen:     lastRecord.Offset,
 		}
 
@@ -323,18 +330,21 @@ func showSpinner(ctx context.Context, progressChan chan scanProgress) {
 			if progress.numRecordsConsumed == 0 {
 				fmt.Fprintf(os.Stderr, "\r\033[K%c scanning...", spinnerRune)
 			} else {
+				bytesConsumed := utils.HumanReadableBytes(progress.numBytesConsumed)
 				if progress.numRecordsMatched > 0 {
-					fmt.Fprintf(os.Stderr, "\r\033[K%c %d messages scanned; %d match filter (last offset: %d)",
+					fmt.Fprintf(os.Stderr, "\r\033[K%c %d messages scanned; %d match filter (last offset: %d, value bytes consumed: %s)",
 						spinnerRune,
 						progress.numRecordsConsumed,
 						progress.numRecordsMatched,
 						progress.lastOffsetSeen,
+						bytesConsumed,
 					)
 				} else {
-					fmt.Fprintf(os.Stderr, "\r\033[K%c %d messages scanned (last offset: %d)",
+					fmt.Fprintf(os.Stderr, "\r\033[K%c %d messages scanned (last offset: %d, value bytes consumed: %s)",
 						spinnerRune,
 						progress.numRecordsConsumed,
 						progress.lastOffsetSeen,
+						bytesConsumed,
 					)
 				}
 			}
