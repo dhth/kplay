@@ -140,15 +140,7 @@ func (s *Scanner) scan(ctx context.Context) error {
 		default:
 		}
 
-		var toFetch uint
-		batchSize := s.behaviours.BatchSize
-		if s.behaviours.NumMessages < batchSize {
-			toFetch = s.behaviours.NumMessages
-		} else if s.progress.numRecordsConsumed <= s.behaviours.NumMessages-batchSize {
-			toFetch = batchSize
-		} else {
-			toFetch = s.behaviours.NumMessages - s.progress.numRecordsConsumed
-		}
+		toFetch := min(s.behaviours.NumMessages-s.progress.numRecordsConsumed, s.behaviours.BatchSize)
 
 		fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		records := k.FetchRecords(fetchCtx, s.client, toFetch)

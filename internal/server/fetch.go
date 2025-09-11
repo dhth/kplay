@@ -47,7 +47,7 @@ func getMessages(client *kgo.Client, config t.Config) func(w http.ResponseWriter
 			commitMessages = parsed
 		}
 
-		records, err := k.FetchAndCommitRecords(client, commitMessages, uint(numMessages))
+		records, err := k.FetchAndCommitRecords(client, commitMessages, numMessages)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to fetch messages: %s", err.Error()), http.StatusInternalServerError)
 			return

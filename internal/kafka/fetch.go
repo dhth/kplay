@@ -11,11 +11,11 @@ import (
 
 var errCouldntCommitMessagesToKafka = errors.New("couldn't commit messages to kafka")
 
-func FetchAndCommitRecords(cl *kgo.Client, commit bool, numRecords uint) ([]*kgo.Record, error) {
+func FetchAndCommitRecords(cl *kgo.Client, commit bool, numRecords int) ([]*kgo.Record, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	fetches := cl.PollRecords(ctx, int(numRecords))
+	fetches := cl.PollRecords(ctx, numRecords)
 	records := fetches.Records()
 	if len(records) == 0 {
 		return records, nil
