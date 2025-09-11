@@ -30,6 +30,8 @@ type Scanner struct {
 	client     *kgo.Client
 	config     t.Config
 	behaviours Behaviours
+	homeDir    string
+	progress   scanProgress
 }
 
 type messageWriter struct {
@@ -52,13 +54,15 @@ type scanProgress struct {
 	numRecordsMatched  uint
 	numBytesConsumed   uint64
 	lastOffsetSeen     int64
+	fsErrors           []fsError
 }
 
-func New(client *kgo.Client, config t.Config, behaviours Behaviours) Scanner {
+func New(client *kgo.Client, config t.Config, behaviours Behaviours, homeDir string) Scanner {
 	scanner := Scanner{
 		client:     client,
 		config:     config,
 		behaviours: behaviours,
+		homeDir:    homeDir,
 	}
 
 	return scanner
@@ -98,16 +102,16 @@ func (s *Scanner) scan(ctx context.Context) error {
 	var recordWriter *messageWriter
 
 	now := time.Now().Unix()
-	scanOutputDir := filepath.Join(".kplay", "messages", s.config.Topic)
+	scanOutputDir := filepath.Join(s.homeDir, ".kplay", "messages", s.config.Topic)
 
 	err := os.MkdirAll(scanOutputDir, 0o755)
 	if err != nil {
 		return fmt.Errorf("%w: %s", t.ErrCouldntCreateDir, err.Error())
 	}
 
-	scanFilePath := filepath.Join(scanOutputDir, fmt.Sprintf("scan-%d.%s", now, s.behaviours.OutputFormat.Extension()))
+	scanOutputFilePath := filepath.Join(scanOutputDir, fmt.Sprintf("scan-%d.%s", now, s.behaviours.OutputFormat.Extension()))
 
-	rw, err := newMessageWriter(scanFilePath, s.behaviours.OutputFormat)
+	rw, err := newMessageWriter(scanOutputFilePath, s.behaviours.OutputFormat)
 	if err != nil {
 		return err
 	}
@@ -119,18 +123,13 @@ func (s *Scanner) scan(ctx context.Context) error {
 	recordWriter = rw
 
 	progressChan := make(chan scanProgress)
-	var numConsumed uint
-	var fsErrors []fsError
 
 	go showSpinner(ctx, progressChan)
 
-	var numMatched uint
-	var numBytesConsumed uint64
-
-	for numConsumed < s.behaviours.NumMessages {
+	for s.progress.numRecordsConsumed < s.behaviours.NumMessages {
 		select {
 		case <-ctx.Done():
-			return s.reportResults(numConsumed, numMatched, scanFilePath, fsErrors)
+			return s.reportResults(scanOutputDir, scanOutputFilePath)
 		default:
 		}
 
@@ -138,10 +137,10 @@ func (s *Scanner) scan(ctx context.Context) error {
 		batchSize := s.behaviours.BatchSize
 		if s.behaviours.NumMessages < batchSize {
 			toFetch = s.behaviours.NumMessages
-		} else if numConsumed <= s.behaviours.NumMessages-batchSize {
+		} else if s.progress.numRecordsConsumed <= s.behaviours.NumMessages-batchSize {
 			toFetch = batchSize
 		} else {
-			toFetch = s.behaviours.NumMessages - numConsumed
+			toFetch = s.behaviours.NumMessages - s.progress.numRecordsConsumed
 		}
 
 		fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -162,7 +161,7 @@ func (s *Scanner) scan(ctx context.Context) error {
 
 			keyMatches := s.behaviours.KeyFilterRegex != nil && s.behaviours.KeyFilterRegex.MatchString(msg.Key)
 			if keyMatches {
-				numMatched++
+				s.progress.numRecordsMatched++
 			}
 
 			if recordWriter != nil && (s.behaviours.KeyFilterRegex == nil || keyMatches) {
@@ -173,46 +172,56 @@ func (s *Scanner) scan(ctx context.Context) error {
 			}
 
 			if s.behaviours.SaveMessages {
-				err := fs.SaveMessageToFileSystem(msg, s.config.Topic)
+				filePath := filepath.Join(
+					scanOutputDir,
+					fmt.Sprintf("partition-%d", msg.Partition),
+					fmt.Sprintf("offset-%d.txt", msg.Offset),
+				)
+
+				err := fs.SaveMessageToFileSystem(msg, filePath)
 				if err != nil {
-					fsErrors = append(fsErrors, fsError{offset: msg.Offset, key: msg.Key, err: err})
+					s.progress.fsErrors = append(s.progress.fsErrors, fsError{offset: msg.Offset, key: msg.Key, err: err})
 				}
 			}
 
-			numBytesConsumed += uint64(len(record.Value))
+			s.progress.numBytesConsumed += uint64(len(record.Value))
+			s.progress.lastOffsetSeen = lastRecord.Offset
 		}
 
-		numConsumed += uint(len(records))
+		s.progress.numRecordsConsumed += uint(len(records))
 
-		progressChan <- scanProgress{
-			numRecordsConsumed: numConsumed,
-			numRecordsMatched:  numMatched,
-			numBytesConsumed:   numBytesConsumed,
-			lastOffsetSeen:     lastRecord.Offset,
-		}
+		progressChan <- s.progress
 
 	}
 
-	return s.reportResults(numConsumed, numMatched, scanFilePath, fsErrors)
+	return s.reportResults(scanOutputDir, scanOutputFilePath)
 }
 
-func (s *Scanner) reportResults(numConsumed, numMatched uint, scanFilePath string, fsErrors []fsError) error {
+func (s *Scanner) reportResults(scanOutputDir, scanOutputFilePath string) error {
 	fmt.Fprint(os.Stderr, "\r\033[K")
-	if numConsumed > 0 {
-		if s.behaviours.KeyFilterRegex != nil {
-			if numMatched > 0 {
-				fmt.Printf("%d messages matching key filter written to %s\n", numMatched, scanFilePath)
-			} else {
-				fmt.Println("no messages matched key filter")
-			}
-		} else {
-			fmt.Printf("%d messages written to %s\n", numConsumed, scanFilePath)
-		}
+
+	if s.progress.numRecordsConsumed == 0 {
+		return nil
 	}
 
-	if len(fsErrors) > 0 {
-		errStrs := make([]string, len(fsErrors))
-		for i, err := range fsErrors {
+	fmt.Printf(`Summary:
+
+Scan Results File:             %s
+Number of messages scanned:    %d
+Value bytes consumed:          %s
+`, scanOutputFilePath, s.progress.numRecordsConsumed, utils.HumanReadableBytes(s.progress.numBytesConsumed))
+
+	if s.behaviours.KeyFilterRegex != nil {
+		fmt.Printf("Number of matches:             %d\n", s.progress.numRecordsMatched)
+	}
+
+	if s.behaviours.SaveMessages && len(s.progress.fsErrors) < int(s.progress.numRecordsConsumed) {
+		fmt.Printf("Messages saved in:             %s\n", scanOutputDir)
+	}
+
+	if len(s.progress.fsErrors) > 0 {
+		errStrs := make([]string, len(s.progress.fsErrors))
+		for i, err := range s.progress.fsErrors {
 			errStrs[i] = fmt.Sprintf("- offset: %d, key: %s, error: %s", err.offset, err.key, err.err.Error())
 		}
 

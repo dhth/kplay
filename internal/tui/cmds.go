@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/atotto/clipboard"
@@ -29,9 +31,17 @@ func FetchMessages(cl *kgo.Client, config t.Config, commit bool, numRecords int)
 	}
 }
 
-func saveRecordDetailsToDisk(message t.Message, topic string, notifyUserOnSuccess bool) tea.Cmd {
+func saveRecordDetailsToDisk(msg t.Message, homeDir, topic string, notifyUserOnSuccess bool) tea.Cmd {
 	return func() tea.Msg {
-		err := fs.SaveMessageToFileSystem(message, topic)
+		filePath := filepath.Join(
+			homeDir,
+			".kplay",
+			"messages",
+			topic,
+			fmt.Sprintf("partition-%d", msg.Partition),
+			fmt.Sprintf("offset-%d.txt", msg.Offset),
+		)
+		err := fs.SaveMessageToFileSystem(msg, filePath)
 		if err != nil {
 			return msgSavedToDiskMsg{err: err}
 		}

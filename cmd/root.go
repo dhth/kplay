@@ -153,7 +153,7 @@ Behaviours
 				return fmt.Errorf("%w: %s", errCouldntPingBrokers, err.Error())
 			}
 
-			return tui.Render(cl, config, behaviours)
+			return tui.Render(cl, config, behaviours, homeDir)
 		},
 	}
 
@@ -320,7 +320,7 @@ Behaviours
 
 			defer client.Close()
 
-			scanner := scan.New(client, config, scanBehaviours)
+			scanner := scan.New(client, config, scanBehaviours, homeDir)
 
 			return scanner.Execute()
 		},

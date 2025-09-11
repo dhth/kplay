@@ -193,7 +193,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			cmds = append(cmds, saveRecordDetailsToDisk(message, m.config.Topic, true))
+			cmds = append(cmds, saveRecordDetailsToDisk(message, m.homeDir, m.config.Topic, true))
 		}
 	case tea.WindowSizeMsg:
 		w1, h1 := messageListStyle.GetFrameSize()
@@ -247,7 +247,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for _, message := range msg.messages {
 				m.msgsList.InsertItem(len(m.msgsList.Items()), message)
 				if m.behaviours.PersistMessages {
-					cmds = append(cmds, saveRecordDetailsToDisk(message, m.config.Topic, false))
+					cmds = append(cmds, saveRecordDetailsToDisk(message, m.homeDir, m.config.Topic, false))
 				}
 			}
 			m.msg = fmt.Sprintf("%d message(s) fetched", len(msg.messages))
