@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -38,7 +37,6 @@ type messageWriter struct {
 	file      *os.File
 	writer    *bufio.Writer
 	csvWriter *csv.Writer
-	format    Format
 }
 
 type RecordData struct {
@@ -109,9 +107,9 @@ func (s *Scanner) scan(ctx context.Context) error {
 		return fmt.Errorf("%w: %s", t.ErrCouldntCreateDir, err.Error())
 	}
 
-	scanOutputFilePath := filepath.Join(scanOutputDir, fmt.Sprintf("scan-%d.%s", now, s.behaviours.OutputFormat.Extension()))
+	scanOutputFilePath := filepath.Join(scanOutputDir, fmt.Sprintf("scan-%d.csv", now))
 
-	rw, err := newMessageWriter(scanOutputFilePath, s.behaviours.OutputFormat)
+	rw, err := newMessageWriter(scanOutputFilePath)
 	if err != nil {
 		return err
 	}
@@ -231,7 +229,7 @@ Value bytes consumed:          %s
 	return nil
 }
 
-func newMessageWriter(filePath string, format Format) (*messageWriter, error) {
+func newMessageWriter(filePath string) (*messageWriter, error) {
 	file, err := os.Create(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create output file: %w", err)
@@ -240,32 +238,20 @@ func newMessageWriter(filePath string, format Format) (*messageWriter, error) {
 	rw := &messageWriter{
 		file:   file,
 		writer: bufio.NewWriter(file),
-		format: format,
 	}
 
-	if format == ScanFormatCSV {
-		rw.csvWriter = csv.NewWriter(rw.writer)
-		err := rw.csvWriter.Write([]string{"partition", "offset", "timestamp", "key", "tombstone"})
-		if err != nil {
-			file.Close()
-			return nil, fmt.Errorf("failed to write CSV header: %w", err)
-		}
+	rw.csvWriter = csv.NewWriter(rw.writer)
+	err = rw.csvWriter.Write([]string{"partition", "offset", "timestamp", "key", "tombstone"})
+	if err != nil {
+		file.Close()
+		return nil, fmt.Errorf("failed to write CSV header: %w", err)
 	}
 
 	return rw, nil
 }
 
 func (rw *messageWriter) writeMsg(msg t.Message) error {
-	switch rw.format {
-	case ScanFormatCSV:
-		return rw.writeCSV(msg)
-	case ScanFormatJSONL:
-		return rw.writeJSONL(msg)
-	case ScanFormatTxt:
-		return rw.writeTXT(msg)
-	default:
-		return rw.writeTXT(msg)
-	}
+	return rw.writeCSV(msg)
 }
 
 func (rw *messageWriter) writeCSV(msg t.Message) error {
@@ -281,29 +267,6 @@ func (rw *messageWriter) writeCSV(msg t.Message) error {
 		msg.Key,
 		tombstone,
 	})
-}
-
-func (rw *messageWriter) writeJSONL(msg t.Message) error {
-	encoder := json.NewEncoder(rw.writer)
-	return encoder.Encode(msg)
-}
-
-func (rw *messageWriter) writeTXT(msg t.Message) error {
-	tombstone := "false"
-	if msg.Value == nil {
-		tombstone = "true"
-	}
-
-	line := fmt.Sprintf("partition=%d offset=%d timestamp=%s key=%s tombstone=%s",
-		msg.Partition,
-		msg.Offset,
-		msg.Timestamp,
-		msg.Key,
-		tombstone,
-	)
-
-	_, err := fmt.Fprintln(rw.writer, line)
-	return err
 }
 
 func (rw *messageWriter) close() error {

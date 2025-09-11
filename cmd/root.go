@@ -25,15 +25,14 @@ const (
 )
 
 var (
-	errCouldntCreateKafkaClient  = errors.New("couldn't create kafka client")
-	errCouldntPingBrokers        = errors.New("couldn't ping brokers")
-	errCouldntGetUserHomeDir     = errors.New("couldn't get your home directory")
-	errCouldntGetUserConfigDir   = errors.New("couldn't get your config directory")
-	ErrCouldntReadConfigFile     = errors.New("couldn't read config file")
-	ErrConfigInvalid             = errors.New("config is invalid")
-	errInvalidTimestampProvided  = errors.New("invalid timestamp provided")
-	errInvalidRegexProvided      = errors.New("invalid regex provided")
-	errInvalidScanFormatProvided = errors.New("invalid output format provided")
+	errCouldntCreateKafkaClient = errors.New("couldn't create kafka client")
+	errCouldntPingBrokers       = errors.New("couldn't ping brokers")
+	errCouldntGetUserHomeDir    = errors.New("couldn't get your home directory")
+	errCouldntGetUserConfigDir  = errors.New("couldn't get your config directory")
+	ErrCouldntReadConfigFile    = errors.New("couldn't read config file")
+	ErrConfigInvalid            = errors.New("config is invalid")
+	errInvalidTimestampProvided = errors.New("invalid timestamp provided")
+	errInvalidRegexProvided     = errors.New("invalid regex provided")
 )
 
 func Execute() error {
@@ -63,7 +62,6 @@ func NewRootCommand() (*cobra.Command, error) {
 		scanFromTimestamp     string
 		scanKeyFilterRegexStr string
 		scanNumMessages       uint
-		scanOutputFormatStr   string
 		scanSaveMessages      bool
 		scanDecode            bool
 		scanBatchSize         uint
@@ -247,14 +245,8 @@ Behaviours
 				}
 			}
 
-			outputFormat, ok := scan.ParseScanFormat(scanOutputFormatStr)
-			if !ok {
-				return fmt.Errorf("%w: %q (allowed values: %v)", errInvalidScanFormatProvided, scanOutputFormatStr, scan.ValidScanFormats())
-			}
-
 			scanBehaviours := scan.Behaviours{
 				NumMessages:    scanNumMessages,
-				OutputFormat:   outputFormat,
 				KeyFilterRegex: keyFilterRegex,
 				SaveMessages:   scanSaveMessages,
 				Decode:         scanDecode,
@@ -271,7 +263,6 @@ Behaviours
 - encoding                %s
 - brokers                 %v
 - number of messages      %d
-- output format           %s
 - save values             %v
 - decode values           %v
 - batch size              %d
@@ -282,7 +273,6 @@ Behaviours
 					config.EncodingDisplay(),
 					config.Brokers,
 					scanBehaviours.NumMessages,
-					scanBehaviours.OutputFormat.Extension(),
 					scanBehaviours.SaveMessages,
 					scanBehaviours.Decode,
 					scanBehaviours.BatchSize,
@@ -359,7 +349,6 @@ Behaviours
 	scanCmd.Flags().StringVarP(&scanFromTimestamp, "from-timestamp", "t", "", "scan messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	scanCmd.Flags().StringVarP(&scanKeyFilterRegexStr, "key-regex", "k", "", "regex to filter message keys by")
 	scanCmd.Flags().UintVarP(&scanNumMessages, "num-records", "n", scan.ScanNumRecordsDefault, "maximum number of messages to scan")
-	scanCmd.Flags().StringVarP(&scanOutputFormatStr, "format", "f", "csv", fmt.Sprintf("format for the scan output file (allowed values: %v)", scan.ValidScanFormats()))
 	scanCmd.Flags().BoolVarP(&scanSaveMessages, "save-messages", "s", false, "whether to save kafka messages to the local filesystem")
 	scanCmd.Flags().BoolVarP(&scanDecode, "decode", "d", true, "whether to decode message values (false is equivalent to 'encodingFormat: raw' in kplay's config)")
 	scanCmd.Flags().UintVarP(&scanBatchSize, "batch-size", "b", 100, "number of messages to fetch per batch (must be greater than 0)")
