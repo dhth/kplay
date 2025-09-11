@@ -5,6 +5,7 @@ import (
 )
 
 var (
-	ErrCouldntCreateDir   = errors.New("couldn't create directory")
-	ErrCouldntWriteToFile = errors.New("couldn't write to file")
+	ErrCouldntCreateDir          = errors.New("couldn't create directory")
+	ErrCouldntWriteToFile        = errors.New("couldn't write to file")
+	ErrCouldntShutDownGracefully = errors.New("couldn't shut down gracefully")
 )

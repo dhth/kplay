@@ -76,8 +76,9 @@ func (s *Scanner) Execute() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	sigChan := make(chan os.Signal, 2)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
 
 	scanErrChan := make(chan error)
 
@@ -89,8 +90,16 @@ func (s *Scanner) Execute() error {
 	select {
 	case <-sigChan:
 		cancel()
-		<-scanErrChan
-		return nil
+		select {
+		case err := <-scanErrChan:
+			return err
+			// on a second signal
+		case <-sigChan:
+			return nil
+			// timeout after first signal
+		case <-time.After(8 * time.Second):
+			return t.ErrCouldntShutDownGracefully
+		}
 	case err := <-scanErrChan:
 		return err
 	}
@@ -120,7 +129,7 @@ func (s *Scanner) scan(ctx context.Context) error {
 
 	recordWriter = rw
 
-	progressChan := make(chan scanProgress)
+	progressChan := make(chan scanProgress, 1)
 
 	go showSpinner(ctx, progressChan)
 
@@ -151,8 +160,9 @@ func (s *Scanner) scan(ctx context.Context) error {
 
 		lastRecord := records[len(records)-1]
 
+		decode := s.behaviours.SaveMessages && s.behaviours.Decode
 		for _, record := range records {
-			msg := t.GetMessageFromRecord(record, s.config, s.behaviours.Decode)
+			msg := t.GetMessageFromRecord(record, s.config, decode)
 			if msg.Err != nil {
 				return fmt.Errorf("%w: %s", errCouldntInterpretRecord, msg.Err.Error())
 			}
