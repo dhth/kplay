@@ -7,3 +7,5 @@ cosign.pub
 screenshots
 demo.gif
 internal/server/_client/build
+.env
+records-*.*

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -32,4 +33,15 @@ func TrimRight(s string, length int) string {
 		return s[:length]
 	}
 	return s
+}
+
+func HumanReadableBytes(bytes uint64) string {
+	switch {
+	case bytes < 1024:
+		return fmt.Sprintf("%d bytes", bytes)
+	case bytes < 1024*1024:
+		return fmt.Sprintf("%.1fKB", float64(bytes)/1024)
+	default:
+		return fmt.Sprintf("%.1fMB", float64(bytes)/(1024*1024))
+	}
 }

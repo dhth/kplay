@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -16,44 +17,129 @@ import (
 
 var (
 	errCouldntRetrieveAWSCredentials = errors.New("couldn't retrieve AWS credentials")
-	errCouldntCreateAWSSession       = errors.New("couldn't create AWS session")
+	errCouldntLoadAwsConfig          = errors.New("couldn't load AWS config")
+	errCouldntCreateKafkaClient      = errors.New("couldn't create kafka client")
 )
 
-func GetClient(auth t.AuthType, brokers []string, group, topic string) (*kgo.Client, error) {
+type Builder struct {
+	opts []kgo.Opt
+}
+
+func NewBuilder(brokers []string, topic string) Builder {
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(brokers...),
-		kgo.ConsumerGroup(group),
 		kgo.ConsumeTopics(topic),
-		kgo.DisableAutoCommit(),
 	}
-	if auth == t.AWSMSKIAM {
-		cfg, err := config.LoadDefaultConfig(context.TODO())
+
+	return Builder{opts}
+}
+
+func (b Builder) WithConsumerGroup(group string) Builder {
+	b.opts = append(b.opts, kgo.ConsumerGroup(group))
+	b.opts = append(b.opts, kgo.DisableAutoCommit())
+
+	return b
+}
+
+func (b Builder) WithMskIAMAuth(awsCfg aws.Config) Builder {
+	authFn := func(c context.Context) (kaws.Auth, error) {
+		creds, err := awsCfg.Credentials.Retrieve(c)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s", errCouldntCreateAWSSession, err.Error())
+			return kaws.Auth{}, fmt.Errorf("%w: %w", errCouldntRetrieveAWSCredentials, err)
 		}
 
-		opts = append(opts, kgo.SASL(kaws.ManagedStreamingIAM(func(c context.Context) (kaws.Auth, error) {
-			zero := kaws.Auth{}
-			creds, err := cfg.Credentials.Retrieve(c)
-			if err != nil {
-				return zero, fmt.Errorf("%w: %w", errCouldntRetrieveAWSCredentials, err)
-			}
-			return kaws.Auth{
-				AccessKey:    creds.AccessKeyID,
-				SecretKey:    creds.SecretAccessKey,
-				SessionToken: creds.SessionToken,
-				UserAgent:    "kplay",
-			}, nil
-		})),
-		)
-		dialer := tls.Dialer{
-			NetDialer: &net.Dialer{
-				Timeout: 10 * time.Second,
-			},
-		}
-		opts = append(opts, kgo.Dialer(
-			(&dialer).DialContext))
+		return kaws.Auth{
+			AccessKey:    creds.AccessKeyID,
+			SecretKey:    creds.SecretAccessKey,
+			SessionToken: creds.SessionToken,
+			UserAgent:    "kplay",
+		}, nil
 	}
 
-	return kgo.NewClient(opts...)
+	b.opts = append(b.opts, kgo.SASL(kaws.ManagedStreamingIAM(authFn)))
+
+	dialer := tls.Dialer{
+		NetDialer: &net.Dialer{
+			Timeout: 10 * time.Second,
+		},
+	}
+	b.opts = append(b.opts, kgo.Dialer(
+		(&dialer).DialContext))
+
+	return b
+}
+
+func (b Builder) WithStartOffset(offset int64) Builder {
+	b.opts = append(b.opts, kgo.ConsumeStartOffset(kgo.NewOffset().At(offset)))
+
+	return b
+}
+
+func (b Builder) WithStartTimestamp(timestamp time.Time) Builder {
+	millis := timestamp.UnixMilli()
+	b.opts = append(b.opts, kgo.ConsumeStartOffset(kgo.NewOffset().AfterMilli(millis)))
+
+	return b
+}
+
+func GetKafkaClient(
+	auth t.AuthType,
+	brokers []string,
+	group, topic string,
+) (*kgo.Client, error) {
+	builder := NewBuilder(brokers, topic).WithConsumerGroup(group)
+
+	if auth == t.AWSMSKIAM {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		cfg, err := config.LoadDefaultConfig(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", errCouldntLoadAwsConfig, err.Error())
+		}
+		builder = builder.WithMskIAMAuth(cfg)
+	}
+
+	client, err := builder.Build()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
+	}
+
+	return client, nil
+}
+
+func GetScanKafkaClient(
+	auth t.AuthType,
+	brokers []string,
+	topic string,
+	consumeBehaviours t.ConsumeBehaviours,
+) (*kgo.Client, error) {
+	builder := NewBuilder(brokers, topic)
+	if auth == t.AWSMSKIAM {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		cfg, err := config.LoadDefaultConfig(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", errCouldntLoadAwsConfig, err.Error())
+		}
+		builder = builder.WithMskIAMAuth(cfg)
+	}
+
+	if consumeBehaviours.StartOffset != nil {
+		builder = builder.WithStartOffset(*consumeBehaviours.StartOffset)
+	} else if consumeBehaviours.StartTimeStamp != nil {
+		builder = builder.WithStartTimestamp(*consumeBehaviours.StartTimeStamp)
+	}
+
+	client, err := builder.Build()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
+	}
+
+	return client, nil
+}
+
+func (b Builder) Build() (*kgo.Client, error) {
+	return kgo.NewClient(b.opts...)
 }

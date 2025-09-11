@@ -1,6 +1,9 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type TUIBehaviours struct {
 	CommitMessages  bool
@@ -33,4 +36,9 @@ func (b WebBehaviours) Display() string {
 		b.CommitMessages,
 		b.SelectOnHover,
 	)
+}
+
+type ConsumeBehaviours struct {
+	StartOffset    *int64
+	StartTimeStamp *time.Time
 }

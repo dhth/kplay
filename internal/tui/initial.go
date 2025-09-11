@@ -7,7 +7,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func InitialModel(kCl *kgo.Client, config t.Config, behaviours t.TUIBehaviours) Model {
+func InitialModel(kCl *kgo.Client, config t.Config, behaviours t.TUIBehaviours, homeDir string) Model {
 	appDelegateKeys := newAppDelegateKeyMap()
 	appDelegate := newAppItemDelegate(appDelegateKeys)
 	jobItems := make([]list.Item, 0)
@@ -17,6 +17,7 @@ func InitialModel(kCl *kgo.Client, config t.Config, behaviours t.TUIBehaviours) 
 		client:            kCl,
 		msgsList:          list.New(jobItems, appDelegate, listWidth, 0),
 		currentMsgIndex:   -1,
+		homeDir:           homeDir,
 		behaviours:        behaviours,
 		showHelpIndicator: true,
 	}
