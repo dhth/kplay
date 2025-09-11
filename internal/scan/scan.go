@@ -131,7 +131,7 @@ func (s *Scanner) scan(ctx context.Context) error {
 
 	progressChan := make(chan scanProgress, 1)
 
-	go showSpinner(ctx, progressChan)
+	go showSpinner(ctx, s.behaviours, progressChan)
 
 	for s.progress.numRecordsConsumed < s.behaviours.NumMessages {
 		select {
@@ -284,7 +284,7 @@ func (rw *messageWriter) close() error {
 	return nil
 }
 
-func showSpinner(ctx context.Context, progressChan chan scanProgress) {
+func showSpinner(ctx context.Context, behaviours Behaviours, progressChan chan scanProgress) {
 	var progress scanProgress
 	spinnerRunes := []rune{'⣷', '⣯', '⣟', '⡿', '⢿', '⣻', '⣽', '⣾'}
 	spinnerIndex := 0
@@ -305,22 +305,18 @@ func showSpinner(ctx context.Context, progressChan chan scanProgress) {
 				fmt.Fprintf(os.Stderr, "\r\033[K%c scanning...", spinnerRune)
 			} else {
 				bytesConsumed := utils.HumanReadableBytes(progress.numBytesConsumed)
-				if progress.numRecordsMatched > 0 {
-					fmt.Fprintf(os.Stderr, "\r\033[K%c %d messages scanned; %d match filter (last offset: %d, value bytes consumed: %s)",
-						spinnerRune,
-						progress.numRecordsConsumed,
-						progress.numRecordsMatched,
-						progress.lastOffsetSeen,
-						bytesConsumed,
-					)
-				} else {
-					fmt.Fprintf(os.Stderr, "\r\033[K%c %d messages scanned (last offset: %d, value bytes consumed: %s)",
-						spinnerRune,
-						progress.numRecordsConsumed,
-						progress.lastOffsetSeen,
-						bytesConsumed,
-					)
+				var matchInfo string
+				if behaviours.KeyFilterRegex != nil {
+					matchInfo = fmt.Sprintf("; %d matches", progress.numRecordsMatched)
 				}
+
+				fmt.Fprintf(os.Stderr, "\r\033[K%c %d messages scanned%s (last offset: %d, value bytes consumed: %s)",
+					spinnerRune,
+					progress.numRecordsConsumed,
+					matchInfo,
+					progress.lastOffsetSeen,
+					bytesConsumed,
+				)
 			}
 
 			spinnerIndex++
