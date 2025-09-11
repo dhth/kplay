@@ -209,7 +209,7 @@ Behaviours
 
 	scanCmd := &cobra.Command{
 		Use:          "scan <PROFILE>",
-		Short:        "scan records in a kafka topic and write them to a local file",
+		Short:        "scan messages in a kafka topic and optionally write them to the local filesystem",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -263,7 +263,7 @@ Behaviours
 - encoding                %s
 - brokers                 %v
 - number of messages      %d
-- save values             %v
+- save messages           %v
 - decode values           %v
 - batch size              %d
 `,
