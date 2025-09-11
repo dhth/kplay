@@ -39,14 +39,6 @@ type messageWriter struct {
 	csvWriter *csv.Writer
 }
 
-type RecordData struct {
-	Partition int32  `json:"partition"`
-	Offset    int64  `json:"offset"`
-	Timestamp int64  `json:"timestamp"`
-	Key       string `json:"key"`
-	Tombstone bool   `json:"tombstone"`
-}
-
 type scanProgress struct {
 	numRecordsConsumed uint
 	numRecordsMatched  uint
