@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/dhth/kplay/internal/fs"
@@ -67,6 +69,30 @@ type fsError struct {
 }
 
 func (s *Scanner) Execute() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	scanErrChan := make(chan error)
+
+	go func(errChan chan<- error) {
+		err := s.scan(ctx)
+		errChan <- err
+	}(scanErrChan)
+
+	select {
+	case <-sigChan:
+		cancel()
+		<-scanErrChan
+		return nil
+	case err := <-scanErrChan:
+		return err
+	}
+}
+
+func (s *Scanner) scan(ctx context.Context) error {
 	var recordWriter *messageWriter
 
 	now := time.Now().Unix()
@@ -84,22 +110,26 @@ func (s *Scanner) Execute() error {
 		return err
 	}
 
-	defer rw.close()
+	defer func() {
+		_ = rw.close()
+	}()
 
 	recordWriter = rw
 
-	spinnerDone := make(chan struct{})
 	progressChan := make(chan scanProgress)
 	var numConsumed uint
 	var fsErrors []fsError
 
-	go showSpinner(spinnerDone, progressChan)
+	go showSpinner(ctx, progressChan)
 
 	var numMatched uint
 
 	for numConsumed < s.behaviours.NumMessages {
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		select {
+		case <-ctx.Done():
+			return s.reportResults(numConsumed, numMatched, scanFilePath, fsErrors)
+		default:
+		}
 
 		var toFetch uint
 		batchSize := s.behaviours.BatchSize
@@ -111,7 +141,8 @@ func (s *Scanner) Execute() error {
 			toFetch = s.behaviours.NumMessages - numConsumed
 		}
 
-		records := k.FetchRecords(ctx, s.client, toFetch)
+		fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		records := k.FetchRecords(fetchCtx, s.client, toFetch)
 		cancel()
 
 		if len(records) == 0 {
@@ -123,7 +154,6 @@ func (s *Scanner) Execute() error {
 		for _, record := range records {
 			msg := t.GetMessageFromRecord(record, s.config, s.behaviours.Decode)
 			if msg.Err != nil {
-				spinnerDone <- struct{}{}
 				return fmt.Errorf("%w: %s", errCouldntInterpretRecord, msg.Err.Error())
 			}
 
@@ -135,7 +165,6 @@ func (s *Scanner) Execute() error {
 			if recordWriter != nil && (s.behaviours.KeyFilterRegex == nil || keyMatches) {
 				err := recordWriter.writeMsg(msg)
 				if err != nil {
-					spinnerDone <- struct{}{}
 					return fmt.Errorf("%w: %s", errCouldntWriteRecordToFile, err.Error())
 				}
 			}
@@ -157,8 +186,11 @@ func (s *Scanner) Execute() error {
 
 	}
 
-	spinnerDone <- struct{}{}
+	return s.reportResults(numConsumed, numMatched, scanFilePath, fsErrors)
+}
 
+func (s *Scanner) reportResults(numConsumed, numMatched uint, scanFilePath string, fsErrors []fsError) error {
+	fmt.Fprint(os.Stderr, "\r\033[K")
 	if numConsumed > 0 {
 		if s.behaviours.KeyFilterRegex != nil {
 			if numMatched > 0 {
@@ -271,14 +303,14 @@ func (rw *messageWriter) close() error {
 	return nil
 }
 
-func showSpinner(done chan struct{}, progressChan chan scanProgress) {
+func showSpinner(ctx context.Context, progressChan chan scanProgress) {
 	var progress scanProgress
 	spinnerRunes := []rune{'⣷', '⣯', '⣟', '⡿', '⢿', '⣻', '⣽', '⣾'}
 	spinnerIndex := 0
+
 	for {
 		select {
-		case <-done:
-			fmt.Fprint(os.Stderr, "\r\033[K")
+		case <-ctx.Done():
 			return
 		case p := <-progressChan:
 			progress = p
@@ -306,8 +338,14 @@ func showSpinner(done chan struct{}, progressChan chan scanProgress) {
 					)
 				}
 			}
+
 			spinnerIndex++
-			time.Sleep(100 * time.Millisecond)
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
 		}
 	}
 }
