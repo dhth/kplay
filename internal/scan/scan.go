@@ -12,26 +12,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dhth/kplay/internal/fs"
 	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-var errCouldntWriteRecordToFile = errors.New("couldn't write record to file")
-
-const (
-	ScanFormatTXT            = "txt"
-	ScanReportFmtTable       = "table"
-	ScanNumRecordsDefault    = 100
-	ScanNumRecordsUpperBound = 10000
-)
-
-type scanFormat uint8
-
-const (
-	ScanFormatCSV scanFormat = iota
-	ScanFormatJSONL
-	ScanFormatTxt
+var (
+	errCouldntWriteRecordToFile = errors.New("couldn't write record to file")
+	errCouldntInterpretRecord   = errors.New("couldn't interpret kafka record")
 )
 
 type Scanner struct {
@@ -40,11 +29,11 @@ type Scanner struct {
 	behaviours Behaviours
 }
 
-type RecordWriter struct {
+type messageWriter struct {
 	file      *os.File
 	writer    *bufio.Writer
 	csvWriter *csv.Writer
-	format    scanFormat
+	format    Format
 }
 
 type RecordData struct {
@@ -71,10 +60,26 @@ func New(client *kgo.Client, config t.Config, behaviours Behaviours) Scanner {
 	return scanner
 }
 
-func (s *Scanner) Execute() error {
-	var recordWriter *RecordWriter
+type fsError struct {
+	offset int64
+	key    string
+	err    error
+}
 
-	rw, err := newRecordWriter(s.behaviours.OutPathFull)
+func (s *Scanner) Execute() error {
+	var recordWriter *messageWriter
+
+	now := time.Now().Unix()
+	scanOutputDir := filepath.Join(".kplay", "messages", s.config.Topic)
+
+	err := os.MkdirAll(scanOutputDir, 0o755)
+	if err != nil {
+		return fmt.Errorf("%w: %s", t.ErrCouldntCreateDir, err.Error())
+	}
+
+	scanFilePath := filepath.Join(scanOutputDir, fmt.Sprintf("scan-%d.%s", now, s.behaviours.OutputFormat.Extension()))
+
+	rw, err := newMessageWriter(scanFilePath, s.behaviours.OutputFormat)
 	if err != nil {
 		return err
 	}
@@ -86,23 +91,24 @@ func (s *Scanner) Execute() error {
 	spinnerDone := make(chan struct{})
 	progressChan := make(chan scanProgress)
 	var numConsumed uint
+	var fsErrors []fsError
 
 	go showSpinner(spinnerDone, progressChan)
 
 	var numMatched uint
 
-	for numConsumed < s.behaviours.NumRecords {
+	for numConsumed < s.behaviours.NumMessages {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 		var toFetch uint
 		batchSize := s.behaviours.BatchSize
-		if s.behaviours.NumRecords < batchSize {
-			toFetch = s.behaviours.NumRecords
-		} else if numConsumed <= s.behaviours.NumRecords-batchSize {
+		if s.behaviours.NumMessages < batchSize {
+			toFetch = s.behaviours.NumMessages
+		} else if numConsumed <= s.behaviours.NumMessages-batchSize {
 			toFetch = batchSize
 		} else {
-			toFetch = s.behaviours.NumRecords - numConsumed
+			toFetch = s.behaviours.NumMessages - numConsumed
 		}
 
 		records := k.FetchRecords(ctx, s.client, toFetch)
@@ -115,16 +121,29 @@ func (s *Scanner) Execute() error {
 		lastRecord := records[len(records)-1]
 
 		for _, record := range records {
-			keyMatches := s.behaviours.KeyFilterRegex != nil && s.behaviours.KeyFilterRegex.Match(record.Key)
+			msg := t.GetMessageFromRecord(record, s.config, s.behaviours.Decode)
+			if msg.Err != nil {
+				spinnerDone <- struct{}{}
+				return fmt.Errorf("%w: %s", errCouldntInterpretRecord, msg.Err.Error())
+			}
+
+			keyMatches := s.behaviours.KeyFilterRegex != nil && s.behaviours.KeyFilterRegex.MatchString(msg.Key)
 			if keyMatches {
 				numMatched++
 			}
 
 			if recordWriter != nil && (s.behaviours.KeyFilterRegex == nil || keyMatches) {
-				err := recordWriter.writeRecord(record)
+				err := recordWriter.writeMsg(msg)
 				if err != nil {
 					spinnerDone <- struct{}{}
 					return fmt.Errorf("%w: %s", errCouldntWriteRecordToFile, err.Error())
+				}
+			}
+
+			if s.behaviours.SaveMessages {
+				err := fs.SaveMessageToFileSystem(msg, s.config.Topic)
+				if err != nil {
+					fsErrors = append(fsErrors, fsError{offset: msg.Offset, key: msg.Key, err: err})
 				}
 			}
 		}
@@ -143,44 +162,34 @@ func (s *Scanner) Execute() error {
 	if numConsumed > 0 {
 		if s.behaviours.KeyFilterRegex != nil {
 			if numMatched > 0 {
-				fmt.Printf("%d records matching key filter written to %s\n", numMatched, s.behaviours.OutPathFull)
+				fmt.Printf("%d messages matching key filter written to %s\n", numMatched, scanFilePath)
 			} else {
-				fmt.Println("no records matched key filter")
+				fmt.Println("no messages matched key filter")
 			}
 		} else {
-			fmt.Printf("%d records written to %s\n", numConsumed, s.behaviours.OutPathFull)
+			fmt.Printf("%d messages written to %s\n", numConsumed, scanFilePath)
 		}
+	}
+
+	if len(fsErrors) > 0 {
+		errStrs := make([]string, len(fsErrors))
+		for i, err := range fsErrors {
+			errStrs[i] = fmt.Sprintf("- offset: %d, key: %s, error: %s", err.offset, err.key, err.err.Error())
+		}
+
+		return fmt.Errorf("encountered the following errors while saving values to the local filesystem:\n%s", strings.Join(errStrs, "\n"))
 	}
 
 	return nil
 }
 
-func inferFormatFromPath(filePath string) (scanFormat, error) {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	switch ext {
-	case ".csv":
-		return ScanFormatCSV, nil
-	case ".jsonl":
-		return ScanFormatJSONL, nil
-	case ".txt":
-		return ScanFormatTxt, nil
-	default:
-		return ScanFormatCSV, fmt.Errorf("unsupported file extension: %q (supported: csv, jsonl, txt)", ext)
-	}
-}
-
-func newRecordWriter(filePath string) (*RecordWriter, error) {
-	format, err := inferFormatFromPath(filePath)
-	if err != nil {
-		return nil, err
-	}
-
+func newMessageWriter(filePath string, format Format) (*messageWriter, error) {
 	file, err := os.Create(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create output file: %w", err)
 	}
 
-	rw := &RecordWriter{
+	rw := &messageWriter{
 		file:   file,
 		writer: bufio.NewWriter(file),
 		format: format,
@@ -198,58 +207,50 @@ func newRecordWriter(filePath string) (*RecordWriter, error) {
 	return rw, nil
 }
 
-func (rw *RecordWriter) writeRecord(record *kgo.Record) error {
+func (rw *messageWriter) writeMsg(msg t.Message) error {
 	switch rw.format {
 	case ScanFormatCSV:
-		return rw.writeCSVRecord(record)
+		return rw.writeCSV(msg)
 	case ScanFormatJSONL:
-		return rw.writeJSONLRecord(record)
+		return rw.writeJSONL(msg)
 	case ScanFormatTxt:
-		return rw.writeTXTRecord(record)
+		return rw.writeTXT(msg)
 	default:
-		return rw.writeTXTRecord(record)
+		return rw.writeTXT(msg)
 	}
 }
 
-func (rw *RecordWriter) writeCSVRecord(record *kgo.Record) error {
+func (rw *messageWriter) writeCSV(msg t.Message) error {
 	tombstone := "false"
-	if record.Value == nil {
+	if msg.Value == nil {
 		tombstone = "true"
 	}
 
 	return rw.csvWriter.Write([]string{
-		fmt.Sprintf("%d", record.Partition),
-		fmt.Sprintf("%d", record.Offset),
-		record.Timestamp.Format(time.RFC3339),
-		string(record.Key),
+		fmt.Sprintf("%d", msg.Partition),
+		fmt.Sprintf("%d", msg.Offset),
+		msg.Timestamp,
+		msg.Key,
 		tombstone,
 	})
 }
 
-func (rw *RecordWriter) writeJSONLRecord(record *kgo.Record) error {
-	recordData := RecordData{
-		Partition: record.Partition,
-		Offset:    record.Offset,
-		Timestamp: record.Timestamp.UnixMilli(),
-		Key:       string(record.Key),
-		Tombstone: record.Value == nil,
-	}
-
+func (rw *messageWriter) writeJSONL(msg t.Message) error {
 	encoder := json.NewEncoder(rw.writer)
-	return encoder.Encode(recordData)
+	return encoder.Encode(msg)
 }
 
-func (rw *RecordWriter) writeTXTRecord(record *kgo.Record) error {
+func (rw *messageWriter) writeTXT(msg t.Message) error {
 	tombstone := "false"
-	if record.Value == nil {
+	if msg.Value == nil {
 		tombstone = "true"
 	}
 
 	line := fmt.Sprintf("partition=%d offset=%d timestamp=%s key=%s tombstone=%s",
-		record.Partition,
-		record.Offset,
-		record.Timestamp.Format(time.RFC3339),
-		string(record.Key),
+		msg.Partition,
+		msg.Offset,
+		msg.Timestamp,
+		msg.Key,
 		tombstone,
 	)
 
@@ -257,7 +258,7 @@ func (rw *RecordWriter) writeTXTRecord(record *kgo.Record) error {
 	return err
 }
 
-func (rw *RecordWriter) close() error {
+func (rw *messageWriter) close() error {
 	if rw.csvWriter != nil {
 		rw.csvWriter.Flush()
 	}
@@ -288,17 +289,17 @@ func showSpinner(done chan struct{}, progressChan chan scanProgress) {
 
 			spinnerRune := spinnerRunes[spinnerIndex]
 			if progress.numRecordsConsumed == 0 {
-				fmt.Fprintf(os.Stderr, "\r\033[K%c fetching records...", spinnerRune)
+				fmt.Fprintf(os.Stderr, "\r\033[K%c scanning...", spinnerRune)
 			} else {
 				if progress.numRecordsMatched > 0 {
-					fmt.Fprintf(os.Stderr, "\r\033[K%c %d records fetched; %d match filter (last offset: %d)",
+					fmt.Fprintf(os.Stderr, "\r\033[K%c %d messages scanned; %d match filter (last offset: %d)",
 						spinnerRune,
 						progress.numRecordsConsumed,
 						progress.numRecordsMatched,
 						progress.lastOffsetSeen,
 					)
 				} else {
-					fmt.Fprintf(os.Stderr, "\r\033[K%c %d records fetched (last offset: %d)",
+					fmt.Fprintf(os.Stderr, "\r\033[K%c %d messages scanned (last offset: %d)",
 						spinnerRune,
 						progress.numRecordsConsumed,
 						progress.lastOffsetSeen,

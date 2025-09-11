@@ -25,14 +25,15 @@ const (
 )
 
 var (
-	errCouldntCreateKafkaClient = errors.New("couldn't create kafka client")
-	errCouldntPingBrokers       = errors.New("couldn't ping brokers")
-	errCouldntGetUserHomeDir    = errors.New("couldn't get your home directory")
-	errCouldntGetUserConfigDir  = errors.New("couldn't get your config directory")
-	ErrCouldntReadConfigFile    = errors.New("couldn't read config file")
-	ErrConfigInvalid            = errors.New("config is invalid")
-	errInvalidTimestampProvided = errors.New("invalid timestamp provided")
-	errInvalidRegexProvided     = errors.New("invalid regex provided")
+	errCouldntCreateKafkaClient  = errors.New("couldn't create kafka client")
+	errCouldntPingBrokers        = errors.New("couldn't ping brokers")
+	errCouldntGetUserHomeDir     = errors.New("couldn't get your home directory")
+	errCouldntGetUserConfigDir   = errors.New("couldn't get your config directory")
+	ErrCouldntReadConfigFile     = errors.New("couldn't read config file")
+	ErrConfigInvalid             = errors.New("config is invalid")
+	errInvalidTimestampProvided  = errors.New("invalid timestamp provided")
+	errInvalidRegexProvided      = errors.New("invalid regex provided")
+	errInvalidScanFormatProvided = errors.New("invalid output format provided")
 )
 
 func Execute() error {
@@ -61,8 +62,10 @@ func NewRootCommand() (*cobra.Command, error) {
 		scanFromOffset        int64
 		scanFromTimestamp     string
 		scanKeyFilterRegexStr string
-		scanNumRecords        uint
-		scanOutPathFull       string
+		scanNumMessages       uint
+		scanOutputFormatStr   string
+		scanSaveMessages      bool
+		scanDecode            bool
 		scanBatchSize         uint
 	)
 
@@ -216,7 +219,7 @@ Behaviours
 				return fmt.Errorf("batch size must be greater than 0")
 			}
 
-			if scanNumRecords == 0 {
+			if scanNumMessages == 0 {
 				return fmt.Errorf("count must be greater than 0")
 			}
 
@@ -227,19 +230,12 @@ Behaviours
 			}
 
 			var parsedTimestamp *time.Time
-			if fromTimestampChanged && strings.TrimSpace(scanFromTimestamp) != "" {
+			if fromTimestampChanged {
 				t, err := time.Parse(time.RFC3339, scanFromTimestamp)
 				if err != nil {
 					return fmt.Errorf("%w; expected RFC3339 format (e.g., 2006-01-02T15:04:05Z07:00)", errInvalidTimestampProvided)
 				}
 				parsedTimestamp = &t
-			}
-
-			var scanOutPathToUse string
-			if strings.TrimSpace(scanOutPathFull) != "" {
-				scanOutPathToUse = utils.ExpandTilde(scanOutPathFull, homeDir)
-			} else {
-				scanOutPathToUse = fmt.Sprintf("records-%d.csv", time.Now().UnixMilli())
 			}
 
 			var keyFilterRegex *regexp.Regexp
@@ -251,10 +247,17 @@ Behaviours
 				}
 			}
 
+			outputFormat, ok := scan.ParseScanFormat(scanOutputFormatStr)
+			if !ok {
+				return fmt.Errorf("%w: %q (allowed values: %v)", errInvalidScanFormatProvided, scanOutputFormatStr, scan.ValidScanFormats())
+			}
+
 			scanBehaviours := scan.Behaviours{
-				NumRecords:     scanNumRecords,
-				OutPathFull:    scanOutPathToUse,
+				NumMessages:    scanNumMessages,
+				OutputFormat:   outputFormat,
 				KeyFilterRegex: keyFilterRegex,
+				SaveMessages:   scanSaveMessages,
+				Decode:         scanDecode,
 				BatchSize:      scanBatchSize,
 			}
 
@@ -267,8 +270,10 @@ Behaviours
 - authentication          %s
 - encoding                %s
 - brokers                 %v
-- number of records       %d
-- output path             %s
+- number of messages      %d
+- output format           %s
+- save values             %v
+- decode values           %v
 - batch size              %d
 `,
 					config.Topic,
@@ -276,8 +281,10 @@ Behaviours
 					config.AuthenticationDisplay(),
 					config.EncodingDisplay(),
 					config.Brokers,
-					scanBehaviours.NumRecords,
-					scanBehaviours.OutPathFull,
+					scanBehaviours.NumMessages,
+					scanBehaviours.OutputFormat.Extension(),
+					scanBehaviours.SaveMessages,
+					scanBehaviours.Decode,
 					scanBehaviours.BatchSize,
 				)
 
@@ -300,9 +307,9 @@ Behaviours
 			}
 
 			consumeBehaviours := t.ConsumeBehaviours{}
-			if scanFromOffset != -1 {
+			if fromOffsetChanged {
 				consumeBehaviours.StartOffset = &scanFromOffset
-			} else if parsedTimestamp != nil {
+			} else if fromTimestampChanged {
 				consumeBehaviours.StartTimeStamp = parsedTimestamp
 			}
 
@@ -348,12 +355,14 @@ Behaviours
 
 	scanCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	scanCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
-	scanCmd.Flags().Int64VarP(&scanFromOffset, "from-offset", "o", -1, "consume records from this offset (inclusive)")
-	scanCmd.Flags().StringVarP(&scanFromTimestamp, "from-timestamp", "t", "", "consume records from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
-	scanCmd.Flags().StringVarP(&scanKeyFilterRegexStr, "key-regex", "k", "", "regex to filter record keys by")
-	scanCmd.Flags().UintVarP(&scanNumRecords, "num-records", "n", scan.ScanNumRecordsDefault, fmt.Sprintf("max messages to consume (upper bound: %d)", scan.ScanNumRecordsUpperBound))
-	scanCmd.Flags().StringVarP(&scanOutPathFull, "output-path", "p", "", "file to write records to (format inferred from extension; allowed extensions: csv, jsonl, txt), default: records-timestamp.csv")
-	scanCmd.Flags().UintVar(&scanBatchSize, "batch-size", 100, "number of messages to fetch per batch (must be greater than 0)")
+	scanCmd.Flags().Int64VarP(&scanFromOffset, "from-offset", "o", 0, "scan messages from this offset (inclusive)")
+	scanCmd.Flags().StringVarP(&scanFromTimestamp, "from-timestamp", "t", "", "scan messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
+	scanCmd.Flags().StringVarP(&scanKeyFilterRegexStr, "key-regex", "k", "", "regex to filter message keys by")
+	scanCmd.Flags().UintVarP(&scanNumMessages, "num-records", "n", scan.ScanNumRecordsDefault, "maximum number of messages to scan")
+	scanCmd.Flags().StringVarP(&scanOutputFormatStr, "format", "f", "csv", fmt.Sprintf("format for the scan output file (allowed values: %v)", scan.ValidScanFormats()))
+	scanCmd.Flags().BoolVarP(&scanSaveMessages, "save-messages", "s", false, "whether to save kafka messages to the local filesystem")
+	scanCmd.Flags().BoolVarP(&scanDecode, "decode", "d", true, "whether to decode message values (false is equivalent to 'encodingFormat: raw' in kplay's config)")
+	scanCmd.Flags().UintVarP(&scanBatchSize, "batch-size", "b", 100, "number of messages to fetch per batch (must be greater than 0)")
 
 	rootCmd.AddCommand(tuiCmd)
 	rootCmd.AddCommand(serveCmd)

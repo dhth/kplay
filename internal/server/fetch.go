@@ -60,7 +60,7 @@ func getMessages(client *kgo.Client, config t.Config) func(w http.ResponseWriter
 
 		messages := make([]t.SerializableMessage, 0)
 		for _, record := range records {
-			messages = append(messages, t.GetMessageFromRecord(record, config).ToSerializable())
+			messages = append(messages, t.GetMessageFromRecord(record, config, true).ToSerializable())
 		}
 
 		jsonBytes, err := json.Marshal(messages)

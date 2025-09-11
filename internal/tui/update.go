@@ -9,11 +9,9 @@ import (
 )
 
 const (
-	useHighPerformanceRenderer = false
-	viewPortMoveLineCount      = 3
-	msgAttributeNotFoundMsg    = "something went wrong (with kplay)"
-	genericErrMsg              = "something went wrong"
-	alreadyFetchingMsg         = "already fetching"
+	viewPortMoveLineCount = 3
+	genericErrMsg         = "something went wrong"
+	alreadyFetchingMsg    = "already fetching"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -112,7 +110,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			detailsStr := getMsgDetails(message)
+			detailsStr := message.GetDetails()
 			cmds = append(cmds, copyToClipboard(detailsStr))
 		case "[":
 			if m.activeView == helpView {

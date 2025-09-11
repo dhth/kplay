@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	s "github.com/dhth/kplay/internal/serde"
 	"github.com/dhth/kplay/internal/utils"
@@ -22,9 +23,11 @@ type Message struct {
 	Metadata  string `json:"metadata"`
 	Offset    int64  `json:"offset"`
 	Partition int32  `json:"partition"`
+	Timestamp string `json:"timestamp"`
 	Value     []byte `json:"-"`
 	Key       string `json:"key"`
 	Err       error  `json:"-"`
+	Decoded   bool   `json:"-"`
 }
 
 type SerializableMessage struct {
@@ -53,7 +56,31 @@ func (m Message) ToSerializable() SerializableMessage {
 	}
 }
 
-func GetMessageFromRecord(rec *kgo.Record, config Config) Message {
+func (m Message) GetDetails() string {
+	var msgValue string
+	if len(m.Value) == 0 {
+		msgValue = "tombstone"
+	} else if m.Err != nil {
+		msgValue = m.Err.Error()
+	} else {
+		msgValue = string(m.Value)
+	}
+
+	return fmt.Sprintf(`%s
+
+%s
+
+%s
+
+%s`,
+		"Metadata",
+		m.Metadata,
+		"Value",
+		msgValue,
+	)
+}
+
+func GetMessageFromRecord(rec *kgo.Record, config Config, decode bool) Message {
 	if rec == nil {
 		return Message{
 			Err: fmt.Errorf("%w: %s", errKafkaRecordIsNil, unexpectedErrorMessage),
@@ -61,13 +88,28 @@ func GetMessageFromRecord(rec *kgo.Record, config Config) Message {
 	}
 
 	record := *rec
+	ts := record.Timestamp.Format(time.RFC3339)
 
 	if len(record.Value) == 0 {
 		return Message{
 			Metadata:  utils.GetRecordMetadata(record),
 			Offset:    record.Offset,
 			Partition: record.Partition,
+			Timestamp: ts,
 			Key:       string(record.Key),
+			Decoded:   decode,
+		}
+	}
+
+	if !decode {
+		return Message{
+			Metadata:  utils.GetRecordMetadata(record),
+			Offset:    record.Offset,
+			Partition: record.Partition,
+			Timestamp: ts,
+			Value:     record.Value,
+			Key:       string(record.Key),
+			Decoded:   decode,
 		}
 	}
 
@@ -97,8 +139,10 @@ func GetMessageFromRecord(rec *kgo.Record, config Config) Message {
 		Metadata:  utils.GetRecordMetadata(record),
 		Offset:    record.Offset,
 		Partition: record.Partition,
+		Timestamp: ts,
 		Value:     bodyBytes,
 		Key:       string(record.Key),
+		Decoded:   decode,
 	}
 }
 

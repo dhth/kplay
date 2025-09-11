@@ -12,7 +12,6 @@ type msgsFetchedMsg struct {
 }
 
 type msgSavedToDiskMsg struct {
-	path                string
 	notifyUserOnSuccess bool
 	err                 error
 }
