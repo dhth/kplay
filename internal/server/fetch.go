@@ -91,7 +91,7 @@ func getConfig(config t.Config) func(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-func getBehaviours(behaviours t.WebBehaviours) func(w http.ResponseWriter, _ *http.Request) {
+func getBehaviours(behaviours Behaviours) func(w http.ResponseWriter, _ *http.Request) {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		jsonBytes, err := json.Marshal(behaviours)
 		if err != nil {

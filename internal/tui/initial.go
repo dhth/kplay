@@ -7,7 +7,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func InitialModel(kCl *kgo.Client, config t.Config, behaviours t.TUIBehaviours, outputDir string) Model {
+func InitialModel(kCl *kgo.Client, config t.Config, behaviours Behaviours, outputDir string) Model {
 	appDelegateKeys := newAppDelegateKeyMap()
 	appDelegate := newAppItemDelegate(appDelegateKeys)
 	jobItems := make([]list.Item, 0)

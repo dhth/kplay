@@ -19,7 +19,7 @@ var (
 	errForcefulShutdownFailed = errors.New("forceful shutdown failed")
 )
 
-func Serve(client *kgo.Client, config t.Config, initialBehaviours t.WebBehaviours, open bool) error {
+func Serve(client *kgo.Client, config t.Config, initialBehaviours Behaviours, open bool) error {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /", getIndex)

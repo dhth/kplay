@@ -5,40 +5,26 @@ import (
 	"time"
 )
 
-type TUIBehaviours struct {
-	CommitMessages  bool
-	PersistMessages bool
-	SkipMessages    bool
-}
-
-func (b TUIBehaviours) Display() string {
-	return fmt.Sprintf(`
-- commit messages         %v
-- persist messages        %v
-- skip messages           %v
-`,
-		b.CommitMessages,
-		b.PersistMessages,
-		b.SkipMessages,
-	)
-}
-
-type WebBehaviours struct {
-	CommitMessages bool `json:"commit_messages"`
-	SelectOnHover  bool `json:"select_on_hover"`
-}
-
-func (b WebBehaviours) Display() string {
-	return fmt.Sprintf(`
-- commit messages         %v
-- select on hover         %v
-`,
-		b.CommitMessages,
-		b.SelectOnHover,
-	)
-}
-
 type ConsumeBehaviours struct {
 	StartOffset    *int64
 	StartTimeStamp *time.Time
+}
+
+func (b ConsumeBehaviours) Display() string {
+	startOffset := NotProvided
+	if b.StartOffset != nil {
+		startOffset = fmt.Sprintf("%d", *b.StartOffset)
+	}
+
+	startTimeStamp := NotProvided
+	if b.StartTimeStamp != nil {
+		startTimeStamp = b.StartTimeStamp.Format(time.RFC3339)
+	}
+
+	return fmt.Sprintf(`Consume Behaviours:
+  start offset            %s
+  start timestamp         %s`,
+		startOffset,
+		startTimeStamp,
+	)
 }

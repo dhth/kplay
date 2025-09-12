@@ -12,7 +12,7 @@ import (
 
 var errCouldntSetupDebugLogging = errors.New("couldn't set up debug logging")
 
-func Render(kCl *kgo.Client, config t.Config, behaviours t.TUIBehaviours, outputDir string) error {
+func Render(kCl *kgo.Client, config t.Config, behaviours Behaviours, outputDir string) error {
 	if len(os.Getenv("DEBUG")) > 0 {
 		f, err := tea.LogToFile("debug.log", "debug")
 		if err != nil {
