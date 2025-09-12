@@ -17,7 +17,7 @@ func InitialModel(kCl *kgo.Client, config t.Config, behaviours t.TUIBehaviours, 
 		client:            kCl,
 		msgsList:          list.New(jobItems, appDelegate, listWidth, 0),
 		currentMsgIndex:   -1,
-		outputDir:        outputDir,
+		outputDir:         outputDir,
 		behaviours:        behaviours,
 		showHelpIndicator: true,
 	}
