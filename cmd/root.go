@@ -109,33 +109,23 @@ to brokers, message encoding, authentication, etc.
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			behaviours := t.TUIBehaviours{
+			behaviours := tui.Behaviours{
 				CommitMessages:  commitMessages,
 				PersistMessages: persistMessages,
 				SkipMessages:    skipMessages,
 			}
 
 			if debug {
-				fmt.Printf(`Config:
----
+				fmt.Printf(`%s
+  output directory        %s
 
-- topic                   %s
-- consumer group          %s
-- authentication          %s
-- encoding                %s
-- brokers                 %v
-
-Behaviours
----
 %s
 `,
-					config.Topic,
-					config.ConsumerGroup,
-					config.AuthenticationDisplay(),
-					config.EncodingDisplay(),
-					config.Brokers,
+					config.Display(),
+					outputDir,
 					behaviours.Display(),
 				)
+
 				return nil
 			}
 
@@ -163,29 +153,16 @@ Behaviours
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			behaviours := t.WebBehaviours{
+			behaviours := server.Behaviours{
 				CommitMessages: commitMessages,
 				SelectOnHover:  selectOnHover,
 			}
 			if debug {
-				fmt.Printf(`Config:
----
+				fmt.Printf(`%s
 
-- topic                   %s
-- consumer group          %s
-- authentication          %s
-- encoding                %s
-- brokers                 %v
-
-Behaviours
----
 %s
 `,
-					config.Topic,
-					config.ConsumerGroup,
-					config.AuthenticationDisplay(),
-					config.EncodingDisplay(),
-					config.Brokers,
+					config.Display(),
 					behaviours.Display(),
 				)
 				return nil
@@ -255,56 +232,28 @@ Behaviours
 				BatchSize:      scanBatchSize,
 			}
 
-			if debug {
-				fmt.Printf(`Config:
----
-
-- topic                   %s
-- consumer group          %s
-- authentication          %s
-- encoding                %s
-- brokers                 %s
-- number of messages      %d
-- save messages           %v
-- decode values           %v
-- output directory        %s
-- batch size              %d
-`,
-					config.Topic,
-					config.ConsumerGroup,
-					config.AuthenticationDisplay(),
-					config.EncodingDisplay(),
-					strings.Join(config.Brokers, "\n                          "),
-					scanBehaviours.NumMessages,
-					scanBehaviours.SaveMessages,
-					scanBehaviours.Decode,
-					outputDir,
-					scanBehaviours.BatchSize,
-				)
-
-				if keyFilterRegex != nil {
-					fmt.Printf(`- key filter regex        %s
-`, scanKeyFilterRegexStr)
-				}
-
-				if fromOffsetChanged {
-					fmt.Printf(`- from offset             %d
-`, scanFromOffset)
-				}
-
-				if fromTimestampChanged {
-					fmt.Printf(`- from timestamp          %s
-`, scanFromTimestamp)
-				}
-
-				return nil
-			}
-
 			consumeBehaviours := t.ConsumeBehaviours{}
 			if fromOffsetChanged {
 				consumeBehaviours.StartOffset = &scanFromOffset
 			} else if fromTimestampChanged {
 				consumeBehaviours.StartTimeStamp = parsedTimestamp
+			}
+
+			if debug {
+				fmt.Printf(`%s
+  output directory        %s
+
+%s
+
+%s
+`,
+					config.Display(),
+					outputDir,
+					scanBehaviours.Display(),
+					consumeBehaviours.Display(),
+				)
+
+				return nil
 			}
 
 			client, err := k.GetScanKafkaClient(config.Authentication, config.Brokers, config.Topic, consumeBehaviours)

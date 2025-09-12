@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 )
 
 type Config struct {
@@ -36,4 +37,18 @@ func (c Config) EncodingDisplay() string {
 	default:
 		return "unknown"
 	}
+}
+
+func (c Config) Display() string {
+	return fmt.Sprintf(`Config:
+  topic                   %s
+  consumer group          %s
+  authentication          %s
+  encoding                %s
+  brokers                 %s`,
+		c.Topic,
+		c.ConsumerGroup,
+		c.AuthenticationDisplay(),
+		c.EncodingDisplay(),
+		strings.Join(c.Brokers, "\n                          "))
 }

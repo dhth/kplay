@@ -31,7 +31,7 @@ type Model struct {
 	msgDetailsVPReady  bool
 	showHelpIndicator  bool
 	outputDir          string
-	behaviours         t.TUIBehaviours
+	behaviours         Behaviours
 	helpVPReady        bool
 	terminalWidth      int
 	terminalHeight     int
