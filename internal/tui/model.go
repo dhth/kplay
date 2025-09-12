@@ -30,7 +30,7 @@ type Model struct {
 	msgDetailsVP       viewport.Model
 	msgDetailsVPReady  bool
 	showHelpIndicator  bool
-	homeDir            string
+	outputDir          string
 	behaviours         t.TUIBehaviours
 	helpVPReady        bool
 	terminalWidth      int

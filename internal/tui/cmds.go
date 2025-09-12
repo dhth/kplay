@@ -31,11 +31,10 @@ func FetchMessages(cl *kgo.Client, config t.Config, commit bool, numRecords int)
 	}
 }
 
-func saveRecordDetailsToDisk(msg t.Message, homeDir, topic string, notifyUserOnSuccess bool) tea.Cmd {
+func saveRecordDetailsToDisk(msg t.Message, outputDir, topic string, notifyUserOnSuccess bool) tea.Cmd {
 	return func() tea.Msg {
 		filePath := filepath.Join(
-			homeDir,
-			".kplay",
+			outputDir,
 			"messages",
 			topic,
 			fmt.Sprintf("partition-%d", msg.Partition),
