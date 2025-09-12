@@ -12,7 +12,7 @@ import (
 
 var errCouldntSetupDebugLogging = errors.New("couldn't set up debug logging")
 
-func Render(kCl *kgo.Client, config t.Config, behaviours t.TUIBehaviours, homeDir string) error {
+func Render(kCl *kgo.Client, config t.Config, behaviours t.TUIBehaviours, outputDir string) error {
 	if len(os.Getenv("DEBUG")) > 0 {
 		f, err := tea.LogToFile("debug.log", "debug")
 		if err != nil {
@@ -21,7 +21,7 @@ func Render(kCl *kgo.Client, config t.Config, behaviours t.TUIBehaviours, homeDi
 		defer f.Close()
 	}
 
-	p := tea.NewProgram(InitialModel(kCl, config, behaviours, homeDir), tea.WithAltScreen())
+	p := tea.NewProgram(InitialModel(kCl, config, behaviours, outputDir), tea.WithAltScreen())
 	_, err := p.Run()
 
 	return err

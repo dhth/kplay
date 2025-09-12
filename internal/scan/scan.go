@@ -29,7 +29,7 @@ type Scanner struct {
 	client     *kgo.Client
 	config     t.Config
 	behaviours Behaviours
-	homeDir    string
+	outputDir  string
 	progress   scanProgress
 }
 
@@ -47,12 +47,12 @@ type scanProgress struct {
 	fsErrors           []fsError
 }
 
-func New(client *kgo.Client, config t.Config, behaviours Behaviours, homeDir string) Scanner {
+func New(client *kgo.Client, config t.Config, behaviours Behaviours, outputDir string) Scanner {
 	scanner := Scanner{
 		client:     client,
 		config:     config,
 		behaviours: behaviours,
-		homeDir:    homeDir,
+		outputDir:  outputDir,
 	}
 
 	return scanner
@@ -101,7 +101,7 @@ func (s *Scanner) scan(ctx context.Context) error {
 	var recordWriter *messageWriter
 
 	now := time.Now().Unix()
-	scanOutputDir := filepath.Join(s.homeDir, ".kplay", "messages", s.config.Topic)
+	scanOutputDir := filepath.Join(s.outputDir, "messages", s.config.Topic)
 
 	err := os.MkdirAll(scanOutputDir, 0o755)
 	if err != nil {

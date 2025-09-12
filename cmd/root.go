@@ -46,9 +46,11 @@ func Execute() error {
 
 func NewRootCommand() (*cobra.Command, error) {
 	var (
-		configPath      string
-		configPathFull  string
-		homeDir         string
+		configPath     string
+		configPathFull string
+		homeDir        string
+		outputDir      string
+
 		persistMessages bool
 		skipMessages    bool
 		commitMessages  bool
@@ -151,7 +153,7 @@ Behaviours
 				return fmt.Errorf("%w: %s", errCouldntPingBrokers, err.Error())
 			}
 
-			return tui.Render(cl, config, behaviours, homeDir)
+			return tui.Render(cl, config, behaviours, outputDir)
 		},
 	}
 
@@ -265,16 +267,18 @@ Behaviours
 - number of messages      %d
 - save messages           %v
 - decode values           %v
+- output directory        %s
 - batch size              %d
 `,
 					config.Topic,
 					config.ConsumerGroup,
 					config.AuthenticationDisplay(),
 					config.EncodingDisplay(),
-					config.Brokers,
+					strings.Join(config.Brokers, "\n                          "),
 					scanBehaviours.NumMessages,
 					scanBehaviours.SaveMessages,
 					scanBehaviours.Decode,
+					outputDir,
 					scanBehaviours.BatchSize,
 				)
 
@@ -310,7 +314,7 @@ Behaviours
 
 			defer client.Close()
 
-			scanner := scan.New(client, config, scanBehaviours, homeDir)
+			scanner := scan.New(client, config, scanBehaviours, outputDir)
 
 			return scanner.Execute()
 		},
@@ -328,6 +332,7 @@ Behaviours
 	}
 
 	defaultConfigPath := filepath.Join(configDir, configFileName)
+	defaultOutputDir := filepath.Join(homeDir, ".kplay")
 
 	tuiCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	tuiCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the setting \"persist messages\" ON")
@@ -335,6 +340,7 @@ Behaviours
 	tuiCmd.Flags().BoolVarP(&commitMessages, "commit-messages", "C", true, "whether to start the TUI with the setting \"commit messages\" ON")
 	tuiCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
 	tuiCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
+	tuiCmd.Flags().StringVarP(&outputDir, "output-dir", "O", defaultOutputDir, "directory to persist messages in")
 
 	serveCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	serveCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
@@ -352,6 +358,7 @@ Behaviours
 	scanCmd.Flags().BoolVarP(&scanSaveMessages, "save-messages", "s", false, "whether to save kafka messages to the local filesystem")
 	scanCmd.Flags().BoolVarP(&scanDecode, "decode", "d", true, "whether to decode message values (false is equivalent to 'encodingFormat: raw' in kplay's config)")
 	scanCmd.Flags().UintVarP(&scanBatchSize, "batch-size", "b", 100, "number of messages to fetch per batch (must be greater than 0)")
+	scanCmd.Flags().StringVarP(&outputDir, "output-dir", "O", defaultOutputDir, "directory to save scan results in")
 
 	rootCmd.AddCommand(tuiCmd)
 	rootCmd.AddCommand(serveCmd)
