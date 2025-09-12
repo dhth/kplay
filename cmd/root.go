@@ -263,7 +263,7 @@ Behaviours
 - consumer group          %s
 - authentication          %s
 - encoding                %s
-- brokers                 %v
+- brokers                 %s
 - number of messages      %d
 - save messages           %v
 - decode values           %v
