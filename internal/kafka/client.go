@@ -34,13 +34,6 @@ func NewBuilder(brokers []string, topic string) Builder {
 	return Builder{opts}
 }
 
-func (b Builder) WithConsumerGroup(group string) Builder {
-	b.opts = append(b.opts, kgo.ConsumerGroup(group))
-	b.opts = append(b.opts, kgo.DisableAutoCommit())
-
-	return b
-}
-
 func (b Builder) WithMskIAMAuth(awsCfg aws.Config) Builder {
 	authFn := func(c context.Context) (kaws.Auth, error) {
 		creds, err := awsCfg.Credentials.Retrieve(c)
@@ -85,36 +78,11 @@ func (b Builder) WithStartTimestamp(timestamp time.Time) Builder {
 func GetKafkaClient(
 	auth t.AuthType,
 	brokers []string,
-	group, topic string,
-) (*kgo.Client, error) {
-	builder := NewBuilder(brokers, topic).WithConsumerGroup(group)
-
-	if auth == t.AWSMSKIAM {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		cfg, err := config.LoadDefaultConfig(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s", errCouldntLoadAwsConfig, err.Error())
-		}
-		builder = builder.WithMskIAMAuth(cfg)
-	}
-
-	client, err := builder.Build()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
-	}
-
-	return client, nil
-}
-
-func GetScanKafkaClient(
-	auth t.AuthType,
-	brokers []string,
 	topic string,
 	consumeBehaviours t.ConsumeBehaviours,
 ) (*kgo.Client, error) {
 	builder := NewBuilder(brokers, topic)
+
 	if auth == t.AWSMSKIAM {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

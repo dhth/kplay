@@ -1,13 +1,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
-	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -15,7 +16,6 @@ import (
 const (
 	contentType     = "Content-Type"
 	applicationJSON = "application/json; charset=utf-8"
-	unexpected      = "something unexpected happened (let @dhth know about this via https://github.com/dhth/kplay/issues)"
 )
 
 func getMessages(client *kgo.Client, config t.Config) func(w http.ResponseWriter, r *http.Request) {
@@ -36,27 +36,10 @@ func getMessages(client *kgo.Client, config t.Config) func(w http.ResponseWriter
 			numMessages = 10
 		}
 
-		commitStr := queryParams.Get("commit")
-		var commitMessages bool
-		if commitStr != "" {
-			parsed, err := strconv.ParseBool(commitStr)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("incorrect value provided for query param \"commit\": %s", err.Error()), http.StatusBadRequest)
-				return
-			}
-			commitMessages = parsed
-		}
+		ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+		defer cancel()
 
-		records, err := k.FetchAndCommitRecords(client, commitMessages, numMessages)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to fetch messages: %s", err.Error()), http.StatusInternalServerError)
-			return
-		}
-
-		if records == nil {
-			http.Error(w, fmt.Sprintf("%s: kafka client sent a nil response", unexpected), http.StatusInternalServerError)
-			return
-		}
+		records := client.PollRecords(ctx, numMessages).Records()
 
 		messages := make([]t.SerializableMessage, 0)
 		for _, record := range records {

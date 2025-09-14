@@ -15,7 +15,6 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dhth/kplay/internal/fs"
-	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/dhth/kplay/internal/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -137,7 +136,7 @@ func (s *Scanner) scan(ctx context.Context) error {
 		toFetch := min(s.behaviours.NumMessages-s.progress.numRecordsConsumed, s.behaviours.BatchSize)
 
 		fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		records := k.FetchRecords(fetchCtx, s.client, toFetch)
+		records := s.client.PollRecords(fetchCtx, int(toFetch)).Records()
 		cancel()
 
 		if len(records) == 0 {
@@ -295,6 +294,7 @@ func showSpinner(ctx context.Context, behaviours Behaviours, progressChan chan s
 	for {
 		select {
 		case <-ctx.Done():
+			fmt.Fprint(os.Stderr, "\r\033[K")
 			return
 		case p := <-progressChan:
 			progress = p
@@ -324,6 +324,7 @@ func showSpinner(ctx context.Context, behaviours Behaviours, progressChan chan s
 
 			select {
 			case <-ctx.Done():
+				fmt.Fprint(os.Stderr, "\r\033[K")
 				return
 			case <-time.After(100 * time.Millisecond):
 			}

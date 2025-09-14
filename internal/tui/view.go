@@ -38,10 +38,6 @@ func (m Model) View() string {
 		behavioursMsg += skippingStyle.Render("skipping messages!")
 	}
 
-	if !m.behaviours.CommitMessages {
-		behavioursMsg += committingStyle.Render("not committing messages!")
-	}
-
 	var statusBar string
 	if m.msg != "" && m.errorMsg != "" {
 		statusBar = fmt.Sprintf("%s %s", successMsgStyle.Render(m.msg), errorMsgStyle.Render(m.errorMsg))
@@ -80,11 +76,11 @@ func (m Model) View() string {
 		helpMsg = helpMsgStyle.Render("Press ? for help")
 	}
 
-	configMsg := fmt.Sprintf("%s<-- %s", consumerGroupStyle.Render(utils.TrimLeft(m.config.ConsumerGroup, configKeyMaxLength)), topicStyle.Render(utils.TrimLeft(m.config.Topic, configKeyMaxLength)))
+	topic := topicStyle.Render(utils.TrimLeft(m.config.Topic, configKeyMaxLength))
 
 	footer := fmt.Sprintf("%s  %s%s%s",
 		toolNameStyle.Render("kplay"),
-		configMsg,
+		topic,
 		behavioursMsg,
 		helpMsg,
 	)

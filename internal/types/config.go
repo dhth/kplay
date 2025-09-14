@@ -11,7 +11,6 @@ type Config struct {
 	Encoding       EncodingFormat `json:"-"`
 	Brokers        []string       `json:"brokers"`
 	Topic          string         `json:"topic"`
-	ConsumerGroup  string         `json:"consumer_group"`
 	Proto          *ProtoConfig   `json:"-"`
 }
 
@@ -42,12 +41,10 @@ func (c Config) EncodingDisplay() string {
 func (c Config) Display() string {
 	return fmt.Sprintf(`Config:
   topic                   %s
-  consumer group          %s
   authentication          %s
   encoding                %s
   brokers                 %s`,
 		c.Topic,
-		c.ConsumerGroup,
 		c.AuthenticationDisplay(),
 		c.EncodingDisplay(),
 		strings.Join(c.Brokers, "\n                          "))

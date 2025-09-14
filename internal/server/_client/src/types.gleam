@@ -4,48 +4,36 @@ import gleam/string
 import lustre_http
 
 pub type Config {
-  Config(
-    profile_name: String,
-    brokers: List(String),
-    topic: String,
-    consumer_group: String,
-  )
+  Config(profile_name: String, brokers: List(String), topic: String)
 }
 
 pub fn config_decoder() -> decode.Decoder(Config) {
   use profile_name <- decode.field("profile_name", decode.string)
   use brokers <- decode.field("brokers", decode.list(decode.string))
   use topic <- decode.field("topic", decode.string)
-  use consumer_group <- decode.field("consumer_group", decode.string)
-  decode.success(Config(profile_name:, brokers:, topic:, consumer_group:))
+  decode.success(Config(profile_name:, brokers:, topic:))
 }
 
 pub fn display_config(config: Config) -> String {
-  " -> profile_name: "
-  <> config.profile_name
-  <> "\n"
-  <> " -> brokers: "
-  <> config.brokers |> string.join(", ")
-  <> "\n"
-  <> " -> topic: "
-  <> config.topic
-  <> "\n"
-  <> " -> consumer_group: "
-  <> config.consumer_group
+  [
+    " -> profile_name: " <> config.profile_name,
+    " -> brokers: " <> config.brokers |> string.join(", "),
+    " -> topic: " <> config.topic,
+  ]
+  |> string.join("\n")
 }
 
 pub type Behaviours {
-  Behaviours(commit_messages: Bool, select_on_hover: Bool)
+  Behaviours(select_on_hover: Bool)
 }
 
 pub fn default_behaviours() -> Behaviours {
-  Behaviours(commit_messages: True, select_on_hover: False)
+  Behaviours(select_on_hover: False)
 }
 
 pub fn behaviours_decoder() -> decode.Decoder(Behaviours) {
-  use commit_messages <- decode.field("commit_messages", decode.bool)
   use select_on_hover <- decode.field("select_on_hover", decode.bool)
-  decode.success(Behaviours(commit_messages:, select_on_hover:))
+  decode.success(Behaviours(select_on_hover:))
 }
 
 pub type MessageOffset =
@@ -84,7 +72,6 @@ pub type Msg {
   BehavioursFetched(Result(Behaviours, lustre_http.HttpError))
   FetchMessages(Int)
   ClearMessages
-  CommitSettingsChanged(Bool)
   HoverSettingsChanged(Bool)
   MessageChosen(Int)
   MessagesFetched(Result(List(MessageDetails), lustre_http.HttpError))

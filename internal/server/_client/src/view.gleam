@@ -357,24 +357,6 @@ fn controls_div_with_config(
             attribute.checked(model.behaviours.select_on_hover),
           ]),
         ]),
-        html.div([attribute.class("flex items-center space-x-2")], [
-          html.label(
-            [
-              attribute.class("cursor-pointer"),
-              attribute.for("commit-messages"),
-            ],
-            [element.text("commit messages")],
-          ),
-          html.input([
-            attribute.class(
-              "w-4 h-4 text-[#fabd2f] bg-[#282828] focus:ring-[#fabd2f] cursor-pointer",
-            ),
-            attribute.id("commit-messages"),
-            attribute.type_("checkbox"),
-            event.on_check(types.CommitSettingsChanged),
-            attribute.checked(model.behaviours.commit_messages),
-          ]),
-        ]),
       ],
     ),
   ])
@@ -386,22 +368,9 @@ fn consumer_info(config: Config) -> element.Element(Msg) {
     [
       html.div([attribute.class("relative group")], [
         html.p(
-          [attribute.class("text-nowrap w-24 text-[#fabd2f] overflow-clip")],
-          [element.text(config.consumer_group)],
-        ),
-        html.div(
           [
-            attribute.class(
-              "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-[#a89984] text-[#282828] text-xs px-2 py-1 text-center",
-            ),
+            attribute.class("text-nowrap w-48 text-[#fabd2f] overflow-clip"),
           ],
-          [html.text(config.consumer_group)],
-        ),
-      ]),
-      html.p([attribute.class("text-[#d5c4a1]")], [element.text("<-")]),
-      html.div([attribute.class("relative group")], [
-        html.p(
-          [attribute.class("text-nowrap w-24 text-[#fabd2f] overflow-clip")],
           [element.text(config.topic)],
         ),
         html.div(

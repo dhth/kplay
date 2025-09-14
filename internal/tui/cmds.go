@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -8,26 +9,23 @@ import (
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dhth/kplay/internal/fs"
-	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func FetchMessages(cl *kgo.Client, config t.Config, commit bool, numRecords int) tea.Cmd {
+func FetchMessages(cl *kgo.Client, config t.Config, numRecords int) tea.Cmd {
 	return func() tea.Msg {
-		records, err := k.FetchAndCommitRecords(cl, commit, numRecords)
-		if err != nil {
-			return msgsFetchedMsg{
-				err: err,
-			}
-		}
+		fetchCtx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+		defer cancel()
+
+		records := cl.PollRecords(fetchCtx, numRecords).Records()
 
 		messages := make([]t.Message, len(records))
 		for i, record := range records {
 			messages[i] = t.GetMessageFromRecord(record, config, true)
 		}
 
-		return msgsFetchedMsg{messages, err}
+		return msgsFetchedMsg{messages: messages, err: nil}
 	}
 }
 

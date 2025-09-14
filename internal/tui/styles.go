@@ -4,13 +4,11 @@ import "github.com/charmbracelet/lipgloss"
 
 const (
 	defaultBackgroundColor   = "#282828"
-	defaultForegroundColor   = "#ebdbb2"
 	listColor                = "#fe8019"
 	activeHeaderColor        = "#fe8019"
 	inactivePaneColor        = "#bdae93"
 	listPaneBorderColor      = "#3c3836"
 	topicColor               = "#d3869b"
-	consumerGroupColor       = "#fabd2f"
 	helpMsgColor             = "#83a598"
 	helpViewTitleColor       = "#83a598"
 	helpHeaderColor          = "#83a598"
@@ -20,7 +18,6 @@ const (
 	toolNameColor            = "#fe8019"
 	persistingMsgsColor      = "#fb4934"
 	skippingMsgsColor        = "#fabd2f"
-	committingMsgsColor      = "#fe8019"
 	msgDetailsHeadingColor   = "#fabd2f"
 	msgDetailsTombstoneColor = "#a89984"
 	errorColor               = "#fb4934"
@@ -66,18 +63,11 @@ var (
 	topicStyle = footerMsgStyle.
 			Foreground(lipgloss.Color(topicColor))
 
-	consumerGroupStyle = footerMsgStyle.
-				PaddingRight(1).
-				Foreground(lipgloss.Color(consumerGroupColor))
-
 	persistingStyle = footerMsgStyle.
 			Foreground(lipgloss.Color(persistingMsgsColor))
 
 	skippingStyle = footerMsgStyle.
 			Foreground(lipgloss.Color(skippingMsgsColor))
-
-	committingStyle = footerMsgStyle.
-			Foreground(lipgloss.Color(committingMsgsColor))
 
 	helpMsgStyle = footerMsgStyle.
 			Foreground(lipgloss.Color(helpMsgColor))

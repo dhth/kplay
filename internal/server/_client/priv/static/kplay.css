@@ -614,16 +614,16 @@ video {
   width: 40%;
 }
 
-.w-24 {
-  width: 6rem;
-}
-
 .w-3\/5 {
   width: 60%;
 }
 
 .w-4 {
   width: 1rem;
+}
+
+.w-48 {
+  width: 12rem;
 }
 
 .flex-1 {
