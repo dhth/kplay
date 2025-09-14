@@ -49,16 +49,16 @@ func NewRootCommand() (*cobra.Command, error) {
 		configPathFull string
 		homeDir        string
 		outputDir      string
+		fromOffset     int64
+		fromTimestamp  string
+		debug          bool
+		config         t.Config
 
 		persistMessages bool
 		skipMessages    bool
 		selectOnHover   bool
-		config          t.Config
-		debug           bool
 		webOpen         bool
 
-		scanFromOffset        int64
-		scanFromTimestamp     string
 		scanKeyFilterRegexStr string
 		scanNumMessages       uint
 		scanSaveMessages      bool
@@ -98,15 +98,16 @@ to brokers, message encoding, authentication, etc.
 
 			var parsedTimestamp *time.Time
 			if fromTimestampChanged {
-				t, err := time.Parse(time.RFC3339, scanFromTimestamp)
+				t, err := time.Parse(time.RFC3339, fromTimestamp)
 				if err != nil {
-					return fmt.Errorf("%w; expected RFC3339 format (e.g., 2006-01-02T15:04:05Z07:00)", errInvalidTimestampProvided)
+					return fmt.Errorf("%w: %q; expected RFC3339 format (e.g., 2006-01-02T15:04:05Z07:00)",
+						errInvalidTimestampProvided, fromTimestamp)
 				}
 				parsedTimestamp = &t
 			}
 
 			if fromOffsetChanged {
-				consumeBehaviours.StartOffset = &scanFromOffset
+				consumeBehaviours.StartOffset = &fromOffset
 			} else if fromTimestampChanged {
 				consumeBehaviours.StartTimeStamp = parsedTimestamp
 			}
@@ -284,22 +285,22 @@ to brokers, message encoding, authentication, etc.
 	tuiCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	tuiCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the setting \"persist messages\" ON")
 	tuiCmd.Flags().BoolVarP(&skipMessages, "skip-messages", "s", false, "whether to start the TUI with the setting \"skip messages\" ON")
-	tuiCmd.Flags().Int64VarP(&scanFromOffset, "from-offset", "o", 0, "start consuming messages from this offset (inclusive)")
-	tuiCmd.Flags().StringVarP(&scanFromTimestamp, "from-timestamp", "t", "", "start consuming messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
+	tuiCmd.Flags().Int64VarP(&fromOffset, "from-offset", "o", 0, "start consuming messages from this offset (inclusive)")
+	tuiCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "start consuming messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	tuiCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 	tuiCmd.Flags().StringVarP(&outputDir, "output-dir", "O", defaultOutputDir, "directory to persist messages in")
 
 	serveCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
-	serveCmd.Flags().Int64VarP(&scanFromOffset, "from-offset", "o", 0, "start consuming messages from this offset (inclusive)")
-	serveCmd.Flags().StringVarP(&scanFromTimestamp, "from-timestamp", "t", "", "start consuming messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
+	serveCmd.Flags().Int64VarP(&fromOffset, "from-offset", "o", 0, "start consuming messages from this offset (inclusive)")
+	serveCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "start consuming messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	serveCmd.Flags().BoolVarP(&selectOnHover, "select-on-hover", "S", false, "whether to start the web interface with the setting \"select on hover\" ON")
 	serveCmd.Flags().BoolVarP(&webOpen, "open", "O", false, "whether to open web interface in browser automatically")
 	serveCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 
 	scanCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	scanCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
-	scanCmd.Flags().Int64VarP(&scanFromOffset, "from-offset", "o", 0, "scan messages from this offset (inclusive)")
-	scanCmd.Flags().StringVarP(&scanFromTimestamp, "from-timestamp", "t", "", "scan messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
+	scanCmd.Flags().Int64VarP(&fromOffset, "from-offset", "o", 0, "scan messages from this offset (inclusive)")
+	scanCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "scan messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	scanCmd.Flags().StringVarP(&scanKeyFilterRegexStr, "key-regex", "k", "", "regex to filter message keys by")
 	scanCmd.Flags().UintVarP(&scanNumMessages, "num-records", "n", scan.ScanNumRecordsDefault, "maximum number of messages to scan")
 	scanCmd.Flags().BoolVarP(&scanSaveMessages, "save-messages", "s", false, "whether to save kafka messages to the local filesystem")
