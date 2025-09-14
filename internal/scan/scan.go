@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/dhth/kplay/internal/fs"
 	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
@@ -44,6 +45,7 @@ type scanProgress struct {
 	numRecordsMatched  uint
 	numBytesConsumed   uint64
 	lastOffsetSeen     int64
+	lastTimeStampSeen  time.Time
 	fsErrors           []fsError
 }
 
@@ -178,6 +180,7 @@ func (s *Scanner) scan(ctx context.Context) error {
 
 			s.progress.numBytesConsumed += uint64(len(record.Value))
 			s.progress.lastOffsetSeen = lastRecord.Offset
+			s.progress.lastTimeStampSeen = lastRecord.Timestamp
 		}
 
 		s.progress.numRecordsConsumed += uint(len(records))
@@ -281,35 +284,41 @@ func showSpinner(ctx context.Context, behaviours Behaviours, progressChan chan s
 	spinnerRunes := []rune{'⣷', '⣯', '⣟', '⡿', '⢿', '⣻', '⣽', '⣾'}
 	spinnerIndex := 0
 
+	highlightStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#282828"))
+	numRecordsStyle := highlightStyle.Background(lipgloss.Color("#fabd2f"))
+	offsetStyle := highlightStyle.Background(lipgloss.Color("#83a598"))
+	timestampStyle := highlightStyle.Background(lipgloss.Color("#d3869b"))
+	bytesStyle := highlightStyle.Background(lipgloss.Color("#8ec07c"))
+
+	progressLine := "scanning..."
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case p := <-progressChan:
 			progress = p
+
+			bytesConsumed := utils.HumanReadableBytes(progress.numBytesConsumed)
+			var matchInfo string
+			if behaviours.KeyFilterRegex != nil {
+				matchInfo = fmt.Sprintf("; %d matches", progress.numRecordsMatched)
+			}
+
+			progressLine = fmt.Sprintf("%s messages scanned%s (last offset: %s, last timestamp: %s, value bytes consumed: %s)",
+				numRecordsStyle.Render(fmt.Sprintf("%d", progress.numRecordsConsumed)),
+				matchInfo,
+				offsetStyle.Render(fmt.Sprintf("%d", progress.lastOffsetSeen)),
+				timestampStyle.Render(progress.lastTimeStampSeen.Format(time.RFC3339)),
+				bytesStyle.Render(bytesConsumed),
+			)
 		default:
 			if spinnerIndex >= len(spinnerRunes)-1 {
 				spinnerIndex = 0
 			}
 
 			spinnerRune := spinnerRunes[spinnerIndex]
-			if progress.numRecordsConsumed == 0 {
-				fmt.Fprintf(os.Stderr, "\r\033[K%c scanning...", spinnerRune)
-			} else {
-				bytesConsumed := utils.HumanReadableBytes(progress.numBytesConsumed)
-				var matchInfo string
-				if behaviours.KeyFilterRegex != nil {
-					matchInfo = fmt.Sprintf("; %d matches", progress.numRecordsMatched)
-				}
-
-				fmt.Fprintf(os.Stderr, "\r\033[K%c %d messages scanned%s (last offset: %d, value bytes consumed: %s)",
-					spinnerRune,
-					progress.numRecordsConsumed,
-					matchInfo,
-					progress.lastOffsetSeen,
-					bytesConsumed,
-				)
-			}
+			fmt.Fprintf(os.Stderr, "\r\033[K%c %s", spinnerRune, progressLine)
 
 			spinnerIndex++
 
