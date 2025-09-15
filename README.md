@@ -115,12 +115,13 @@ profiles:
 🔤 Message Encoding
 ---
 
-`kplay` supports parsing messages that are encoded in two data formats: JSON and
-protobuf. It also supports parsing raw data (using the `encodingFormat` "raw").
+`kplay` supports decoding messages that are encoded in two data formats: JSON
+and protobuf. It also supports decoding raw data (using the `encodingFormat`
+"raw").
 
-### Parsing protobuf encoded messages
+### Decoding protobuf encoded messages
 
-For parsing protobuf encoded messages, `kplay` needs to be provided with a
+For decoding protobuf encoded messages, `kplay` needs to be provided with a
 `FileDescriptorSet` and a descriptor name. Consider a .proto file like the
 following:
 

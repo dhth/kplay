@@ -156,24 +156,27 @@ fn message_list_item(
     ],
     [
       html.p([attribute.class("text-base font-semibold")], [
-        html.text(case message.error {
-          option.None -> message.key
-          option.Some(_) -> "error"
-        }),
+        html.text(message.key),
       ]),
-      html.div([attribute.class("flex space-x-2 text-sm")], case message.error {
-        option.None -> [
-          html.p([], [html.text("offset: " <> message.offset |> int.to_string)]),
-          html.p([], [
-            html.text("partition: " <> message.partition |> int.to_string),
-          ]),
-          case message.value {
-            option.None -> html.p([], [html.text("🪦")])
-            option.Some(_) -> element.none()
-          },
-        ]
-        option.Some(_) -> []
-      }),
+      html.div([attribute.class("flex space-x-2 text-sm")], [
+        html.p([], [
+          html.text("offset: " <> message.offset |> int.to_string),
+        ]),
+        html.p([], [
+          html.text("partition: " <> message.partition |> int.to_string),
+        ]),
+        case message.decode_error {
+          option.None -> html.p([], [])
+          option.Some(_) ->
+            html.p([], [
+              html.text("decode error"),
+            ])
+        },
+        case message.value {
+          option.None -> html.p([], [html.text("🪦")])
+          option.Some(_) -> element.none()
+        },
+      ]),
     ],
   )
 }
@@ -191,7 +194,7 @@ fn message_details_pane(model: Model) -> element.Element(Msg) {
         ),
       ])
     option.Some(#(_, msg)) ->
-      case msg.error {
+      case msg.decode_error {
         option.None ->
           html.div([], [
             html.p([attribute.class("text-[#fabd2f] text-lg mb-4")], [

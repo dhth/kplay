@@ -4255,14 +4255,14 @@ var Behaviours = class extends CustomType {
   }
 };
 var MessageDetails = class extends CustomType {
-  constructor(key2, offset, partition, metadata, value2, error) {
+  constructor(key2, offset, partition, metadata, value2, decode_error2) {
     super();
     this.key = key2;
     this.offset = offset;
     this.partition = partition;
     this.metadata = metadata;
     this.value = value2;
-    this.error = error;
+    this.decode_error = decode_error2;
   }
 };
 var ConfigFetched = class extends CustomType {
@@ -4371,9 +4371,9 @@ function message_details_decoder() {
                     optional(string3),
                     (value2) => {
                       return field2(
-                        "error",
+                        "decode_error",
                         optional(string3),
-                        (error) => {
+                        (decode_error2) => {
                           return success(
                             new MessageDetails(
                               key2,
@@ -4381,7 +4381,7 @@ function message_details_decoder() {
                               partition,
                               metadata,
                               value2,
-                              error
+                              decode_error2
                             )
                           );
                         }
@@ -4856,60 +4856,50 @@ function message_list_item(message, index5, current_index, select_on_hover) {
     toList([
       p(
         toList([class$("text-base font-semibold")]),
-        toList([
-          text2(
-            (() => {
-              let $ = message.error;
-              if ($ instanceof Some) {
-                return "error";
-              } else {
-                return message.key;
-              }
-            })()
-          )
-        ])
+        toList([text2(message.key)])
       ),
       div(
         toList([class$("flex space-x-2 text-sm")]),
-        (() => {
-          let $ = message.error;
-          if ($ instanceof Some) {
-            return toList([]);
-          } else {
-            return toList([
-              p(
-                toList([]),
-                toList([
-                  text2(
-                    "offset: " + (() => {
-                      let _pipe = message.offset;
-                      return to_string(_pipe);
-                    })()
-                  )
-                ])
-              ),
-              p(
-                toList([]),
-                toList([
-                  text2(
-                    "partition: " + (() => {
-                      let _pipe = message.partition;
-                      return to_string(_pipe);
-                    })()
-                  )
-                ])
-              ),
-              (() => {
-                let $1 = message.value;
-                if ($1 instanceof Some) {
-                  return none2();
-                } else {
-                  return p(toList([]), toList([text2("\u{1FAA6}")]));
-                }
-              })()
-            ]);
-          }
-        })()
+        toList([
+          p(
+            toList([]),
+            toList([
+              text2(
+                "offset: " + (() => {
+                  let _pipe = message.offset;
+                  return to_string(_pipe);
+                })()
+              )
+            ])
+          ),
+          p(
+            toList([]),
+            toList([
+              text2(
+                "partition: " + (() => {
+                  let _pipe = message.partition;
+                  return to_string(_pipe);
+                })()
+              )
+            ])
+          ),
+          (() => {
+            let $ = message.decode_error;
+            if ($ instanceof Some) {
+              return p(toList([]), toList([text2("decode error")]));
+            } else {
+              return p(toList([]), toList([]));
+            }
+          })(),
+          (() => {
+            let $ = message.value;
+            if ($ instanceof Some) {
+              return none2();
+            } else {
+              return p(toList([]), toList([text2("\u{1FAA6}")]));
+            }
+          })()
+        ])
       )
     ])
   );
@@ -4919,7 +4909,7 @@ function message_details_pane(model) {
   let $ = model.current_message;
   if ($ instanceof Some) {
     let msg = $[0][1];
-    let $1 = msg.error;
+    let $1 = msg.decode_error;
     if ($1 instanceof Some) {
       let e = $1[0];
       _block = pre(

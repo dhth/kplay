@@ -10,12 +10,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-var (
-	errKafkaRecordIsNil   = errors.New("kafka record is nil when it shouldn't be")
-	errProtoDescriptorNil = errors.New("protobuf descriptor is nil when it shouldn't be")
-)
-
-var listWidth = 44
+var errProtoDescriptorNil = errors.New("protobuf descriptor is nil when it shouldn't be")
 
 var unexpectedErrorMessage = "this is not expected; let @dhth know via https://github.com/dhth/kplay/issues"
 
@@ -26,33 +21,32 @@ type Message struct {
 	Timestamp string `json:"timestamp"`
 	Value     []byte `json:"-"`
 	Key       string `json:"key"`
-	Err       error  `json:"-"`
-	Decoded   bool   `json:"-"`
+	DecodeErr error  `json:"-"`
 }
 
 type SerializableMessage struct {
 	Message
-	Value *string `json:"value"`
-	Err   *string `json:"error"`
+	Value     *string `json:"value"`
+	DecodeErr *string `json:"decode_error"`
 }
 
 func (m Message) ToSerializable() SerializableMessage {
-	var err *string
+	var decodeErr *string
 	var value *string
 	if len(m.Value) > 0 {
 		valueStr := string(m.Value)
 		value = &valueStr
 	}
 
-	if m.Err != nil {
-		errStr := m.Err.Error()
-		err = &errStr
+	if m.DecodeErr != nil {
+		errStr := m.DecodeErr.Error()
+		decodeErr = &errStr
 	}
 
 	return SerializableMessage{
-		Message: m,
-		Value:   value,
-		Err:     err,
+		Message:   m,
+		Value:     value,
+		DecodeErr: decodeErr,
 	}
 }
 
@@ -60,8 +54,8 @@ func (m Message) GetDetails() string {
 	var msgValue string
 	if len(m.Value) == 0 {
 		msgValue = "tombstone"
-	} else if m.Err != nil {
-		msgValue = m.Err.Error()
+	} else if m.DecodeErr != nil {
+		msgValue = fmt.Sprintf("Decode Error: %s", m.DecodeErr.Error())
 	} else {
 		msgValue = string(m.Value)
 	}
@@ -80,14 +74,7 @@ func (m Message) GetDetails() string {
 	)
 }
 
-func GetMessageFromRecord(rec *kgo.Record, config Config, decode bool) Message {
-	if rec == nil {
-		return Message{
-			Err: fmt.Errorf("%w: %s", errKafkaRecordIsNil, unexpectedErrorMessage),
-		}
-	}
-
-	record := *rec
+func GetMessageFromRecord(record kgo.Record, config Config, decode bool) Message {
 	ts := record.Timestamp.Format(time.RFC3339)
 
 	if len(record.Value) == 0 {
@@ -97,7 +84,6 @@ func GetMessageFromRecord(rec *kgo.Record, config Config, decode bool) Message {
 			Partition: record.Partition,
 			Timestamp: ts,
 			Key:       string(record.Key),
-			Decoded:   decode,
 		}
 	}
 
@@ -109,29 +95,34 @@ func GetMessageFromRecord(rec *kgo.Record, config Config, decode bool) Message {
 			Timestamp: ts,
 			Value:     record.Value,
 			Key:       string(record.Key),
-			Decoded:   decode,
 		}
 	}
 
 	var bodyBytes []byte
-	var err error
+	var decodeErr error
 
 	switch config.Encoding {
 	case JSON:
-		bodyBytes, err = s.ParseJSONEncodedBytes(record.Value)
+		bodyBytes, decodeErr = s.PrettifyJSON(record.Value)
 	case Protobuf:
 		if config.Proto == nil {
-			err = fmt.Errorf("%w: %s", errProtoDescriptorNil, unexpectedErrorMessage)
+			decodeErr = fmt.Errorf("%w: %s", errProtoDescriptorNil, unexpectedErrorMessage)
 		} else {
-			bodyBytes, err = s.ParseProtobufEncodedBytes(record.Value, config.Proto.MsgDescriptor)
+			bodyBytes, decodeErr = s.TranscodeProto(record.Value, config.Proto.MsgDescriptor)
 		}
 	case Raw:
 		bodyBytes = record.Value
 	}
 
-	if err != nil {
+	if decodeErr != nil {
 		return Message{
-			Err: err,
+			Metadata:  utils.GetRecordMetadata(record),
+			Offset:    record.Offset,
+			Partition: record.Partition,
+			Timestamp: ts,
+			Value:     record.Value,
+			Key:       string(record.Key),
+			DecodeErr: decodeErr,
 		}
 	}
 
@@ -142,29 +133,25 @@ func GetMessageFromRecord(rec *kgo.Record, config Config, decode bool) Message {
 		Timestamp: ts,
 		Value:     bodyBytes,
 		Key:       string(record.Key),
-		Decoded:   decode,
 	}
 }
 
 func (m Message) Title() string {
-	if m.Err != nil {
-		return "error"
-	}
-
-	return utils.RightPadTrim(m.Key, listWidth-4)
+	return m.Key
 }
 
 func (m Message) Description() string {
-	if m.Err != nil {
-		return ""
+	var tombstoneMarker string
+	if len(m.Value) == 0 {
+		tombstoneMarker = " 🪦"
 	}
 
-	var tombstoneInfo string
-	if len(m.Value) == 0 {
-		tombstoneInfo = " 🪦"
+	var decodeErrorMarker string
+	if m.DecodeErr != nil {
+		decodeErrorMarker = " (e)"
 	}
-	offsetInfo := fmt.Sprintf("offset: %d, partition: %d", m.Offset, m.Partition)
-	return utils.RightPadTrim(fmt.Sprintf("%s%s", offsetInfo, tombstoneInfo), listWidth-4)
+
+	return fmt.Sprintf("offset: %d, partition: %d%s%s", m.Offset, m.Partition, decodeErrorMarker, tombstoneMarker)
 }
 
 func (m Message) FilterValue() string {

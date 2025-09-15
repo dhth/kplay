@@ -28,7 +28,11 @@ func FetchMessages(cl *kgo.Client, config t.Config, numRecords uint) tea.Cmd {
 
 		messages := make([]t.Message, len(records))
 		for i, record := range records {
-			messages[i] = t.GetMessageFromRecord(record, config, true)
+			if record == nil {
+				continue
+			}
+
+			messages[i] = t.GetMessageFromRecord(*record, config, true)
 		}
 
 		return msgsFetchedMsg{messages: messages, err: nil}
