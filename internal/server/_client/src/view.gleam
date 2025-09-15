@@ -194,31 +194,42 @@ fn message_details_pane(model: Model) -> element.Element(Msg) {
         ),
       ])
     option.Some(#(_, msg)) ->
-      case msg.decode_error {
-        option.None ->
-          html.div([], [
-            html.p([attribute.class("text-[#fabd2f] text-lg mb-4")], [
-              html.text("Metadata"),
-            ]),
-            html.pre([attribute.class("text-[#d5c4a1] text-base mb-8")], [
-              html.text(msg.metadata),
-            ]),
-            html.p([attribute.class("text-[#fabd2f] text-lg mb-4")], [
-              html.text("Value"),
-            ]),
-            case msg.value {
-              option.None -> html.p([], [html.text("tombstone 🪦")])
-              option.Some(v) ->
-                html.pre([attribute.class("text-[#d5c4a1] text-base mb-4")], [
-                  html.text(v),
-                ])
-            },
-          ])
-        option.Some(e) ->
-          html.pre([attribute.class("text-[#fb4934] text-base mb-4")], [
-            html.text(e),
-          ])
-      }
+      html.div(
+        [],
+        [
+          html.p([attribute.class("text-[#fabd2f] text-lg mb-4")], [
+            html.text("Metadata"),
+          ]),
+          html.pre([attribute.class("text-[#d5c4a1] text-base mb-8")], [
+            html.text(msg.metadata),
+          ]),
+          html.p([attribute.class("text-[#fabd2f] text-lg mb-4")], [
+            html.text("Value"),
+          ]),
+        ]
+          |> list.append(case msg.decode_error {
+            option.None -> [
+              case msg.value {
+                option.None -> html.p([], [html.text("tombstone 🪦")])
+                option.Some(v) ->
+                  html.pre(
+                    [attribute.class("text-[#d5c4a1] text-base mb-4 text-wrap")],
+                    [
+                      html.text(v),
+                    ],
+                  )
+              },
+            ]
+            option.Some(e) -> [
+              html.pre(
+                [attribute.class("text-[#fb4934] text-base mb-4 text-wrap")],
+                [
+                  html.text("Decode Error: " <> e),
+                ],
+              ),
+            ]
+          }),
+      )
   }
 
   html.div([attribute.class("w-3/5 p-6 overflow-auto")], [

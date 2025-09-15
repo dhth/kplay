@@ -173,14 +173,16 @@ func (s *Scanner) scan(ctx context.Context) error {
 				s.progress.numRecordsMatched++
 			}
 
-			if recordWriter != nil && (s.behaviours.KeyFilterRegex == nil || keyMatches) {
+			saveMsg := s.behaviours.KeyFilterRegex == nil || keyMatches
+
+			if recordWriter != nil && saveMsg {
 				err := recordWriter.writeMsg(msg, decode)
 				if err != nil {
 					return fmt.Errorf("%w: %s", errCouldntWriteRecordToFile, err.Error())
 				}
 			}
 
-			if s.behaviours.SaveMessages {
+			if s.behaviours.SaveMessages && saveMsg {
 				filePath := filepath.Join(
 					scanOutputDir,
 					fmt.Sprintf("partition-%d", msg.Partition),

@@ -679,6 +679,10 @@ video {
   white-space: pre-wrap;
 }
 
+.text-wrap {
+  text-wrap: wrap;
+}
+
 .text-nowrap {
   text-wrap: nowrap;
 }

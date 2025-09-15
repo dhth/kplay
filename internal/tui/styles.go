@@ -20,7 +20,6 @@ const (
 	skippingMsgsColor        = "#fabd2f"
 	msgDetailsHeadingColor   = "#fabd2f"
 	msgDetailsTombstoneColor = "#a89984"
-	errorColor               = "#fb4934"
 )
 
 var (
@@ -102,7 +101,4 @@ var (
 					PaddingRight(1).
 					Foreground(lipgloss.Color(defaultBackgroundColor)).
 					Background(lipgloss.Color(msgDetailsTombstoneColor))
-
-	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(errorColor))
 )
