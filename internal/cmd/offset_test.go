@@ -48,22 +48,22 @@ func TestParseFromOffset(t *testing.T) {
 		{
 			name:          "empty value",
 			input:         "",
-			expectedError: errInvalidOffsetProvided,
+			expectedError: errOffsetIsNotInt,
 		},
 		{
 			name:          "invalid offset",
 			input:         "abc",
-			expectedError: errInvalidOffsetProvided,
+			expectedError: errOffsetIsNotInt,
 		},
 		{
 			name:          "empty partition pairs",
 			input:         ":,:",
-			expectedError: errInvalidPartitionProvided,
+			expectedError: errPartitionIsNotAnInt,
 		},
 		{
 			name:          "empty partition",
 			input:         "0:100,:1000",
-			expectedError: errInvalidPartitionProvided,
+			expectedError: errPartitionIsNotAnInt,
 		},
 		{
 			name:          "invalid partition format",
@@ -73,17 +73,17 @@ func TestParseFromOffset(t *testing.T) {
 		{
 			name:          "invalid partition number",
 			input:         "0:100,abc:1000",
-			expectedError: errInvalidPartitionProvided,
+			expectedError: errPartitionIsNotAnInt,
 		},
 		{
 			name:          "empty offset",
 			input:         "0:100,1:",
-			expectedError: errInvalidOffsetProvided,
+			expectedError: errOffsetIsNotInt,
 		},
 		{
 			name:          "invalid partition offset",
 			input:         "0:100,1:abc",
-			expectedError: errInvalidOffsetProvided,
+			expectedError: errOffsetIsNotInt,
 		},
 	}
 
