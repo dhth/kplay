@@ -14,8 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A starting offset or timestamp can be provided in TUI/web mode, allowing kplay
+  to begin consuming from arbitrary starting points
 - Messages get persisted to $HOME/.kplay by default; this can be overridden via
   a flag
+- Message details are shown in the TUI/web view regardless of whether decoding
+    is successful
+
+### Removed
+
+- The ability to consume messages as part of a consumer group
 
 ## [v2.0.0] - Apr 23, 2025
 
