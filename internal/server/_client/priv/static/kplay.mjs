@@ -4909,17 +4909,10 @@ function message_details_pane(model) {
   let $ = model.current_message;
   if ($ instanceof Some) {
     let msg = $[0][1];
-    let $1 = msg.decode_error;
-    if ($1 instanceof Some) {
-      let e = $1[0];
-      _block = pre(
-        toList([class$("text-[#fb4934] text-base mb-4")]),
-        toList([text2(e)])
-      );
-    } else {
-      _block = div(
-        toList([]),
-        toList([
+    _block = div(
+      toList([]),
+      (() => {
+        let _pipe = toList([
           p(
             toList([class$("text-[#fabd2f] text-lg mb-4")]),
             toList([text2("Metadata")])
@@ -4931,22 +4924,49 @@ function message_details_pane(model) {
           p(
             toList([class$("text-[#fabd2f] text-lg mb-4")]),
             toList([text2("Value")])
-          ),
+          )
+        ]);
+        return append(
+          _pipe,
           (() => {
-            let $2 = msg.value;
-            if ($2 instanceof Some) {
-              let v = $2[0];
-              return pre(
-                toList([class$("text-[#d5c4a1] text-base mb-4")]),
-                toList([text2(v)])
-              );
+            let $1 = msg.decode_error;
+            if ($1 instanceof Some) {
+              let e = $1[0];
+              return toList([
+                pre(
+                  toList([
+                    class$("text-[#fb4934] text-base mb-4 text-wrap")
+                  ]),
+                  toList([text2("Decode Error: " + e)])
+                )
+              ]);
             } else {
-              return p(toList([]), toList([text2("tombstone \u{1FAA6}")]));
+              return toList([
+                (() => {
+                  let $2 = msg.value;
+                  if ($2 instanceof Some) {
+                    let v = $2[0];
+                    return pre(
+                      toList([
+                        class$(
+                          "text-[#d5c4a1] text-base mb-4 text-wrap"
+                        )
+                      ]),
+                      toList([text2(v)])
+                    );
+                  } else {
+                    return p(
+                      toList([]),
+                      toList([text2("tombstone \u{1FAA6}")])
+                    );
+                  }
+                })()
+              ]);
             }
           })()
-        ])
-      );
-    }
+        );
+      })()
+    );
   } else {
     _block = p(
       toList([class$("text-[#928374]")]),

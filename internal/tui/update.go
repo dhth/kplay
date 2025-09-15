@@ -283,13 +283,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			message, ok := m.msgsList.SelectedItem().(t.Message)
 
 			if ok {
-				var vpContent string
-				if message.DecodeErr != nil {
-					vpContent = errorStyle.Render(fmt.Sprintf("error: %s", message.DecodeErr.Error()))
-				} else {
-					vpContent = getMsgDetailsStylized(message, m.config.Encoding)
-				}
-				m.msgDetailsVP.SetContent(vpContent)
+				m.msgDetailsVP.SetContent(getMsgDetailsStylized(message, m.config.Encoding))
 			}
 
 		}

@@ -12,7 +12,7 @@ func getMsgDetailsStylized(m t.Message, encoding t.EncodingFormat) string {
 	if len(m.Value) == 0 {
 		msgValue = msgDetailsTombstoneStyle.Render("tombstone")
 	} else if m.DecodeErr != nil {
-		msgValue = msgDetailsErrorStyle.Render(m.DecodeErr.Error())
+		msgValue = msgDetailsErrorStyle.Render(fmt.Sprintf("Decode Error: %s", m.DecodeErr.Error()))
 	} else {
 		switch encoding {
 		case t.JSON, t.Protobuf:
