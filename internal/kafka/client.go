@@ -25,13 +25,18 @@ type Builder struct {
 	opts []kgo.Opt
 }
 
-func NewBuilder(brokers []string, topic string) Builder {
+func NewBuilder(brokers []string) Builder {
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(brokers...),
-		kgo.ConsumeTopics(topic),
 	}
 
 	return Builder{opts}
+}
+
+func (b Builder) WithTopic(topic string) Builder {
+	b.opts = append(b.opts, kgo.ConsumeTopics(topic))
+
+	return b
 }
 
 func (b Builder) WithMskIAMAuth(awsCfg aws.Config) Builder {
@@ -62,14 +67,31 @@ func (b Builder) WithMskIAMAuth(awsCfg aws.Config) Builder {
 	return b
 }
 
-func (b Builder) WithStartOffset(offset int64) Builder {
+func (b Builder) WithStartOffset(topic string, offset int64) Builder {
+	b.opts = append(b.opts, kgo.ConsumeTopics(topic))
 	b.opts = append(b.opts, kgo.ConsumeStartOffset(kgo.NewOffset().At(offset)))
 
 	return b
 }
 
-func (b Builder) WithStartTimestamp(timestamp time.Time) Builder {
+func (b Builder) WithPartitionOffsets(topic string, partitionOffsets map[int32]int64) Builder {
+	partitions := make(map[string]map[int32]kgo.Offset)
+	topicPartitions := make(map[int32]kgo.Offset)
+
+	for partition, offset := range partitionOffsets {
+		topicPartitions[partition] = kgo.NewOffset().At(offset)
+	}
+
+	partitions[topic] = topicPartitions
+
+	b.opts = append(b.opts, kgo.ConsumePartitions(partitions))
+
+	return b
+}
+
+func (b Builder) WithStartTimestamp(topic string, timestamp time.Time) Builder {
 	millis := timestamp.UnixMilli()
+	b.opts = append(b.opts, kgo.ConsumeTopics(topic))
 	b.opts = append(b.opts, kgo.ConsumeStartOffset(kgo.NewOffset().AfterMilli(millis)))
 
 	return b
@@ -81,7 +103,7 @@ func GetKafkaClient(
 	topic string,
 	consumeBehaviours t.ConsumeBehaviours,
 ) (*kgo.Client, error) {
-	builder := NewBuilder(brokers, topic)
+	builder := NewBuilder(brokers)
 
 	if auth == t.AWSMSKIAM {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -94,10 +116,14 @@ func GetKafkaClient(
 		builder = builder.WithMskIAMAuth(cfg)
 	}
 
-	if consumeBehaviours.StartOffset != nil {
-		builder = builder.WithStartOffset(*consumeBehaviours.StartOffset)
-	} else if consumeBehaviours.StartTimeStamp != nil {
-		builder = builder.WithStartTimestamp(*consumeBehaviours.StartTimeStamp)
+	if consumeBehaviours.StartTimeStamp != nil {
+		builder = builder.WithStartTimestamp(topic, *consumeBehaviours.StartTimeStamp)
+	} else if consumeBehaviours.StartOffset != nil {
+		builder = builder.WithStartOffset(topic, *consumeBehaviours.StartOffset)
+	} else if len(consumeBehaviours.PartitionOffsets) > 0 {
+		builder = builder.WithPartitionOffsets(topic, consumeBehaviours.PartitionOffsets)
+	} else {
+		builder = builder.WithTopic(topic)
 	}
 
 	client, err := builder.Build()

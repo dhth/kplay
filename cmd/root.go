@@ -49,7 +49,7 @@ func NewRootCommand() (*cobra.Command, error) {
 		configPathFull string
 		homeDir        string
 		outputDir      string
-		fromOffset     int64
+		fromOffset     string
 		fromTimestamp  string
 		debug          bool
 		config         t.Config
@@ -90,10 +90,10 @@ to brokers, message encoding, authentication, etc.
 				return fmt.Errorf("%w: %w", ErrConfigInvalid, err)
 			}
 
-			fromOffsetChanged := cmd.Flags().Changed("from-offset")
 			fromTimestampChanged := cmd.Flags().Changed("from-timestamp")
-			if fromOffsetChanged && fromTimestampChanged {
-				return fmt.Errorf("cannot use both --from-offset and --from-timestamp flags simultaneously")
+			fromOffsetChanged := cmd.Flags().Changed("from-offset")
+			if fromTimestampChanged && fromOffsetChanged {
+				return fmt.Errorf("cannot use both --from-timestamp and --from-offset flags simultaneously")
 			}
 
 			var parsedTimestamp *time.Time
@@ -104,12 +104,18 @@ to brokers, message encoding, authentication, etc.
 						errInvalidTimestampProvided, fromTimestamp)
 				}
 				parsedTimestamp = &t
-			}
-
-			if fromOffsetChanged {
-				consumeBehaviours.StartOffset = &fromOffset
-			} else if fromTimestampChanged {
 				consumeBehaviours.StartTimeStamp = parsedTimestamp
+			} else if fromOffsetChanged {
+				startOffset, partitionOffsets, err := parseFromOffset(fromOffset)
+				if err != nil {
+					return err
+				}
+
+				if startOffset != nil {
+					consumeBehaviours.StartOffset = startOffset
+				} else {
+					consumeBehaviours.PartitionOffsets = partitionOffsets
+				}
 			}
 
 			return nil
@@ -285,13 +291,13 @@ to brokers, message encoding, authentication, etc.
 	tuiCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	tuiCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the setting \"persist messages\" ON")
 	tuiCmd.Flags().BoolVarP(&skipMessages, "skip-messages", "s", false, "whether to start the TUI with the setting \"skip messages\" ON")
-	tuiCmd.Flags().Int64VarP(&fromOffset, "from-offset", "o", 0, "start consuming messages from this offset (inclusive)")
+	tuiCmd.Flags().StringVarP(&fromOffset, "from-offset", "o", "", "start consuming messages from this offset; provide a single offset for all partitions (eg. 1000) or specify offsets per partition (e.g., '0:1000,2:1500')")
 	tuiCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "start consuming messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	tuiCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 	tuiCmd.Flags().StringVarP(&outputDir, "output-dir", "O", defaultOutputDir, "directory to persist messages in")
 
 	serveCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
-	serveCmd.Flags().Int64VarP(&fromOffset, "from-offset", "o", 0, "start consuming messages from this offset (inclusive)")
+	serveCmd.Flags().StringVarP(&fromOffset, "from-offset", "o", "", "start consuming messages from this offset; provide a single offset for all partitions (eg. 1000) or specify offsets per partition (e.g., '0:1000,2:1500')")
 	serveCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "start consuming messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	serveCmd.Flags().BoolVarP(&selectOnHover, "select-on-hover", "S", false, "whether to start the web interface with the setting \"select on hover\" ON")
 	serveCmd.Flags().BoolVarP(&webOpen, "open", "O", false, "whether to open web interface in browser automatically")
@@ -299,7 +305,7 @@ to brokers, message encoding, authentication, etc.
 
 	scanCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	scanCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
-	scanCmd.Flags().Int64VarP(&fromOffset, "from-offset", "o", 0, "scan messages from this offset (inclusive)")
+	scanCmd.Flags().StringVarP(&fromOffset, "from-offset", "o", "", "scan messages from this offset; provide a single offset for all partitions (eg. 1000) or specify offsets per partition (e.g., '0:1000,2:1500')")
 	scanCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "scan messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	scanCmd.Flags().StringVarP(&scanKeyFilterRegexStr, "key-regex", "k", "", "regex to filter message keys by")
 	scanCmd.Flags().UintVarP(&scanNumMessages, "num-records", "n", scan.ScanNumRecordsDefault, "maximum number of messages to scan")
