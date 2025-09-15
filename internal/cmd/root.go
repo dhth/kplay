@@ -30,7 +30,8 @@ var (
 	errCouldntGetUserConfigDir  = errors.New("couldn't get your config directory")
 	ErrCouldntReadConfigFile    = errors.New("couldn't read config file")
 	ErrConfigInvalid            = errors.New("config is invalid")
-	errInvalidTimestampProvided = errors.New("invalid timestamp provided")
+	errInvalidTimestampProvided = errors.New(`invalid value provided for "from timestamp"`)
+	errInvalidOffsetProvided    = errors.New(`invalid value provided for "from offset"`)
 	errInvalidRegexProvided     = errors.New("invalid regex provided")
 )
 
@@ -76,6 +77,7 @@ func NewRootCommand() (*cobra.Command, error) {
 kplay relies on a configuration file that contains profiles for various Kafka topics, each with its own details related
 to brokers, message encoding, authentication, etc.
 `,
+		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			configPathFull = utils.ExpandTilde(configPath, homeDir)
 			configBytes, err := os.ReadFile(configPathFull)
@@ -108,7 +110,7 @@ to brokers, message encoding, authentication, etc.
 			} else if fromOffsetChanged {
 				startOffset, partitionOffsets, err := parseFromOffset(fromOffset)
 				if err != nil {
-					return err
+					return fmt.Errorf("%w: %s", errInvalidOffsetProvided, err.Error())
 				}
 
 				if startOffset != nil {
