@@ -27,24 +27,15 @@ pub fn fetch_behaviours() -> effect.Effect(types.Msg) {
   lustre_http.get(base_url() <> "api/behaviours", expect)
 }
 
-pub fn fetch_messages(num: Int, commit: Bool) -> effect.Effect(types.Msg) {
+pub fn fetch_messages(num: Int) -> effect.Effect(types.Msg) {
   let expect =
     lustre_http.expect_json(
       decode.list(message_details_decoder()),
       types.MessagesFetched,
     )
 
-  let commit_query_param = case commit {
-    False -> "false"
-    True -> "true"
-  }
-
   lustre_http.get(
-    base_url()
-      <> "api/fetch?num="
-      <> num |> int.to_string
-      <> "&commit="
-      <> commit_query_param,
+    base_url() <> "api/fetch?num=" <> num |> int.to_string,
     expect,
   )
 }

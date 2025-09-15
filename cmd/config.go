@@ -18,7 +18,6 @@ var (
 	errProfileNotFound                    = errors.New("profile not found")
 	errBrokersEmpty                       = errors.New("brokers cannot be empty")
 	errTopicEmpty                         = errors.New("topic cannot be empty")
-	errConsumerGroupEmpty                 = errors.New("consumer group cannot be empty")
 	errNoProfilesDefined                  = errors.New("no profiles defined")
 	errProtoConfigMissing                 = errors.New("protobuf config missing")
 	errCouldntReadDescriptorSetFile       = errors.New("couldn't read descriptor set file")
@@ -37,7 +36,6 @@ type profile struct {
 	ProtoConfig    *protoConfig `yaml:"protoConfig"`
 	Brokers        []string
 	Topic          string
-	ConsumerGroup  string `yaml:"consumerGroup"`
 }
 
 type protoConfig struct {
@@ -45,7 +43,7 @@ type protoConfig struct {
 	DescriptorName    string `yaml:"descriptorName"`
 }
 
-func GetProfileConfig(bytes []byte, profileName string, homeDir string) (t.Config, error) {
+func ParseProfileConfig(bytes []byte, profileName string, homeDir string) (t.Config, error) {
 	var kConfig kplayConfig
 	var config t.Config
 
@@ -81,10 +79,6 @@ func GetProfileConfig(bytes []byte, profileName string, homeDir string) (t.Confi
 
 		if strings.TrimSpace(pr.Topic) == "" {
 			return config, errTopicEmpty
-		}
-
-		if strings.TrimSpace(pr.ConsumerGroup) == "" {
-			return config, errConsumerGroupEmpty
 		}
 
 		if encodingFmt == t.Protobuf {
@@ -128,7 +122,6 @@ func GetProfileConfig(bytes []byte, profileName string, homeDir string) (t.Confi
 				Encoding:       encodingFmt,
 				Brokers:        pr.Brokers,
 				Topic:          pr.Topic,
-				ConsumerGroup:  pr.ConsumerGroup,
 				Proto:          &protoCfg,
 			}, nil
 		}
@@ -139,7 +132,6 @@ func GetProfileConfig(bytes []byte, profileName string, homeDir string) (t.Confi
 			Encoding:       encodingFmt,
 			Brokers:        pr.Brokers,
 			Topic:          pr.Topic,
-			ConsumerGroup:  pr.ConsumerGroup,
 		}, nil
 	}
 

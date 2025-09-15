@@ -113,29 +113,11 @@ func TestCLI(t *testing.T) {
 		}
 	})
 
-	t.Run("Overriding with empty consumer group fails", func(t *testing.T) {
-		// GIVEN
-		// WHEN
-		configPath := "assets/config-correct.yml"
-		c := exec.Command(binPath, "tui", "local", "-c", configPath, "-g", "   ", "--debug")
-		o, err := c.CombinedOutput()
-
-		// THEN
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
-			exitCode := exitError.ExitCode()
-			require.Equal(t, 1, exitCode, "exit code is not correct: got %d, expected: 1; output:\n%s", exitCode, o)
-			assert.Contains(t, string(o), "consumer group cannot be empty")
-		} else {
-			t.Fatalf("couldn't get error code")
-		}
-	})
-
 	t.Run("Fails if descriptor name incorrect", func(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-protobuf-incorrect-desc-name.yml"
-		c := exec.Command(binPath, "tui", "local", "-c", configPath, "-g", "   ", "--debug")
+		c := exec.Command(binPath, "tui", "local", "-c", configPath, "--debug")
 		o, err := c.CombinedOutput()
 
 		// THEN
@@ -153,7 +135,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-protobuf-incorrect-desc-set.yml"
-		c := exec.Command(binPath, "tui", "local", "-c", configPath, "-g", "   ", "--debug")
+		c := exec.Command(binPath, "tui", "local", "-c", configPath, "--debug")
 		o, err := c.CombinedOutput()
 
 		// THEN

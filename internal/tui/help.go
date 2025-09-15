@@ -41,8 +41,6 @@ kplay has 2 views:
                                        messages at the location
                                        messages/<topic>/partition-<partition>/offset-<offset>.txt)
     P                              Persist current message to local filesystem
-    c                              Toggle commit mode (if OFF, kplay will consume messages without
-                                        committing them)
     y                              Copy message details to clipboard
     [                              Move to previous item in list
     ]                              Move to next item in list

@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
@@ -15,7 +17,6 @@ import (
 const (
 	contentType     = "Content-Type"
 	applicationJSON = "application/json; charset=utf-8"
-	unexpected      = "something unexpected happened (let @dhth know about this via https://github.com/dhth/kplay/issues)"
 )
 
 func getMessages(client *kgo.Client, config t.Config) func(w http.ResponseWriter, r *http.Request) {
@@ -23,44 +24,35 @@ func getMessages(client *kgo.Client, config t.Config) func(w http.ResponseWriter
 		queryParams := r.URL.Query()
 		numMessagesStr := queryParams.Get("num")
 
-		numMessages := 1
+		var numMessages uint = 1
 		if numMessagesStr != "" {
 			num, err := strconv.Atoi(numMessagesStr)
 			if err != nil || num < 1 {
 				http.Error(w, fmt.Sprintf("incorrect value provided for query param \"num\": %s", err.Error()), http.StatusBadRequest)
 				return
 			}
-			numMessages = num
+			numMessages = uint(num)
 		}
 		if numMessages > 10 {
 			numMessages = 10
 		}
 
-		commitStr := queryParams.Get("commit")
-		var commitMessages bool
-		if commitStr != "" {
-			parsed, err := strconv.ParseBool(commitStr)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("incorrect value provided for query param \"commit\": %s", err.Error()), http.StatusBadRequest)
-				return
-			}
-			commitMessages = parsed
-		}
+		fetchCtx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+		defer cancel()
 
-		records, err := k.FetchAndCommitRecords(client, commitMessages, numMessages)
+		records, err := k.FetchRecords(fetchCtx, client, numMessages)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to fetch messages: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
 
-		if records == nil {
-			http.Error(w, fmt.Sprintf("%s: kafka client sent a nil response", unexpected), http.StatusInternalServerError)
-			return
-		}
-
 		messages := make([]t.SerializableMessage, 0)
 		for _, record := range records {
-			messages = append(messages, t.GetMessageFromRecord(record, config, true).ToSerializable())
+			if record == nil {
+				continue
+			}
+
+			messages = append(messages, t.GetMessageFromRecord(*record, config, true).ToSerializable())
 		}
 
 		jsonBytes, err := json.Marshal(messages)

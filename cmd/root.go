@@ -20,8 +20,7 @@ import (
 )
 
 const (
-	configFileName    = "kplay/kplay.yml"
-	consumerGroupFlag = "consumer-group"
+	configFileName = "kplay/kplay.yml"
 )
 
 var (
@@ -50,23 +49,23 @@ func NewRootCommand() (*cobra.Command, error) {
 		configPathFull string
 		homeDir        string
 		outputDir      string
+		fromOffset     int64
+		fromTimestamp  string
+		debug          bool
+		config         t.Config
 
 		persistMessages bool
 		skipMessages    bool
-		commitMessages  bool
 		selectOnHover   bool
-		consumerGroup   string
-		config          t.Config
-		debug           bool
 		webOpen         bool
 
-		scanFromOffset        int64
-		scanFromTimestamp     string
 		scanKeyFilterRegexStr string
 		scanNumMessages       uint
 		scanSaveMessages      bool
 		scanDecode            bool
 		scanBatchSize         uint
+
+		consumeBehaviours t.ConsumeBehaviours
 	)
 
 	rootCmd := &cobra.Command{
@@ -84,19 +83,33 @@ to brokers, message encoding, authentication, etc.
 				return fmt.Errorf("%w: %w", ErrCouldntReadConfigFile, err)
 			}
 
-			config, err = GetProfileConfig(configBytes, args[0], homeDir)
+			config, err = ParseProfileConfig(configBytes, args[0], homeDir)
 			if errors.Is(err, errProfileNotFound) {
 				return err
 			} else if err != nil {
 				return fmt.Errorf("%w: %w", ErrConfigInvalid, err)
 			}
 
-			if cmd.Flags().Changed(consumerGroupFlag) {
-				if strings.TrimSpace(consumerGroup) == "" {
-					return errConsumerGroupEmpty
-				}
+			fromOffsetChanged := cmd.Flags().Changed("from-offset")
+			fromTimestampChanged := cmd.Flags().Changed("from-timestamp")
+			if fromOffsetChanged && fromTimestampChanged {
+				return fmt.Errorf("cannot use both --from-offset and --from-timestamp flags simultaneously")
+			}
 
-				config.ConsumerGroup = consumerGroup
+			var parsedTimestamp *time.Time
+			if fromTimestampChanged {
+				t, err := time.Parse(time.RFC3339, fromTimestamp)
+				if err != nil {
+					return fmt.Errorf("%w: %q; expected RFC3339 format (e.g., 2006-01-02T15:04:05Z07:00)",
+						errInvalidTimestampProvided, fromTimestamp)
+				}
+				parsedTimestamp = &t
+			}
+
+			if fromOffsetChanged {
+				consumeBehaviours.StartOffset = &fromOffset
+			} else if fromTimestampChanged {
+				consumeBehaviours.StartTimeStamp = parsedTimestamp
 			}
 
 			return nil
@@ -110,7 +123,6 @@ to brokers, message encoding, authentication, etc.
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			behaviours := tui.Behaviours{
-				CommitMessages:  commitMessages,
 				PersistMessages: persistMessages,
 				SkipMessages:    skipMessages,
 			}
@@ -129,7 +141,12 @@ to brokers, message encoding, authentication, etc.
 				return nil
 			}
 
-			cl, err := k.GetKafkaClient(config.Authentication, config.Brokers, config.ConsumerGroup, config.Topic)
+			cl, err := k.GetKafkaClient(
+				config.Authentication,
+				config.Brokers,
+				config.Topic,
+				consumeBehaviours,
+			)
 			if err != nil {
 				return fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
 			}
@@ -154,8 +171,7 @@ to brokers, message encoding, authentication, etc.
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			behaviours := server.Behaviours{
-				CommitMessages: commitMessages,
-				SelectOnHover:  selectOnHover,
+				SelectOnHover: selectOnHover,
 			}
 			if debug {
 				fmt.Printf(`%s
@@ -168,7 +184,12 @@ to brokers, message encoding, authentication, etc.
 				return nil
 			}
 
-			cl, err := k.GetKafkaClient(config.Authentication, config.Brokers, config.ConsumerGroup, config.Topic)
+			cl, err := k.GetKafkaClient(
+				config.Authentication,
+				config.Brokers,
+				config.Topic,
+				consumeBehaviours,
+			)
 			if err != nil {
 				return fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
 			}
@@ -191,28 +212,13 @@ to brokers, message encoding, authentication, etc.
 		Short:        "scan messages in a kafka topic and optionally write them to the local filesystem",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if scanBatchSize == 0 {
 				return fmt.Errorf("batch size must be greater than 0")
 			}
 
 			if scanNumMessages == 0 {
 				return fmt.Errorf("count must be greater than 0")
-			}
-
-			fromOffsetChanged := cmd.Flags().Changed("from-offset")
-			fromTimestampChanged := cmd.Flags().Changed("from-timestamp")
-			if fromOffsetChanged && fromTimestampChanged {
-				return fmt.Errorf("cannot use both --from-offset and --from-timestamp flags simultaneously")
-			}
-
-			var parsedTimestamp *time.Time
-			if fromTimestampChanged {
-				t, err := time.Parse(time.RFC3339, scanFromTimestamp)
-				if err != nil {
-					return fmt.Errorf("%w; expected RFC3339 format (e.g., 2006-01-02T15:04:05Z07:00)", errInvalidTimestampProvided)
-				}
-				parsedTimestamp = &t
 			}
 
 			var keyFilterRegex *regexp.Regexp
@@ -232,13 +238,6 @@ to brokers, message encoding, authentication, etc.
 				BatchSize:      scanBatchSize,
 			}
 
-			consumeBehaviours := t.ConsumeBehaviours{}
-			if fromOffsetChanged {
-				consumeBehaviours.StartOffset = &scanFromOffset
-			} else if fromTimestampChanged {
-				consumeBehaviours.StartTimeStamp = parsedTimestamp
-			}
-
 			if debug {
 				fmt.Printf(`%s
   output directory        %s
@@ -256,7 +255,7 @@ to brokers, message encoding, authentication, etc.
 				return nil
 			}
 
-			client, err := k.GetScanKafkaClient(config.Authentication, config.Brokers, config.Topic, consumeBehaviours)
+			client, err := k.GetKafkaClient(config.Authentication, config.Brokers, config.Topic, consumeBehaviours)
 			if err != nil {
 				return err
 			}
@@ -286,22 +285,22 @@ to brokers, message encoding, authentication, etc.
 	tuiCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	tuiCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the setting \"persist messages\" ON")
 	tuiCmd.Flags().BoolVarP(&skipMessages, "skip-messages", "s", false, "whether to start the TUI with the setting \"skip messages\" ON")
-	tuiCmd.Flags().BoolVarP(&commitMessages, "commit-messages", "C", true, "whether to start the TUI with the setting \"commit messages\" ON")
-	tuiCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
+	tuiCmd.Flags().Int64VarP(&fromOffset, "from-offset", "o", 0, "start consuming messages from this offset (inclusive)")
+	tuiCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "start consuming messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	tuiCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 	tuiCmd.Flags().StringVarP(&outputDir, "output-dir", "O", defaultOutputDir, "directory to persist messages in")
 
 	serveCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
-	serveCmd.Flags().StringVarP(&consumerGroup, consumerGroupFlag, "g", "", "consumer group to use (overrides the one in kplay's config file)")
-	serveCmd.Flags().BoolVarP(&commitMessages, "commit-messages", "C", true, "whether to start the web interface with the setting \"commit messages\" ON")
+	serveCmd.Flags().Int64VarP(&fromOffset, "from-offset", "o", 0, "start consuming messages from this offset (inclusive)")
+	serveCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "start consuming messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	serveCmd.Flags().BoolVarP(&selectOnHover, "select-on-hover", "S", false, "whether to start the web interface with the setting \"select on hover\" ON")
-	serveCmd.Flags().BoolVarP(&webOpen, "open", "o", false, "whether to open web interface in browser automatically")
+	serveCmd.Flags().BoolVarP(&webOpen, "open", "O", false, "whether to open web interface in browser automatically")
 	serveCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 
 	scanCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
 	scanCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
-	scanCmd.Flags().Int64VarP(&scanFromOffset, "from-offset", "o", 0, "scan messages from this offset (inclusive)")
-	scanCmd.Flags().StringVarP(&scanFromTimestamp, "from-timestamp", "t", "", "scan messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
+	scanCmd.Flags().Int64VarP(&fromOffset, "from-offset", "o", 0, "scan messages from this offset (inclusive)")
+	scanCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "scan messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	scanCmd.Flags().StringVarP(&scanKeyFilterRegexStr, "key-regex", "k", "", "regex to filter message keys by")
 	scanCmd.Flags().UintVarP(&scanNumMessages, "num-records", "n", scan.ScanNumRecordsDefault, "maximum number of messages to scan")
 	scanCmd.Flags().BoolVarP(&scanSaveMessages, "save-messages", "s", false, "whether to save kafka messages to the local filesystem")

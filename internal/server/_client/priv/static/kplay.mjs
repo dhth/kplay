@@ -311,7 +311,10 @@ function isEqual(x, y) {
       }
     }
     let [keys2, get2] = getters(a2);
-    for (let k of keys2(a2)) {
+    const ka = keys2(a2);
+    const kb = keys2(b);
+    if (ka.length !== kb.length) return false;
+    for (let k of ka) {
       values2.push(get2(a2, k), get2(b, k));
     }
   }
@@ -353,9 +356,10 @@ function structurallyCompatibleObjects(a2, b) {
   if (nonstructural.some((c) => a2 instanceof c)) return false;
   return a2.constructor === b.constructor;
 }
-function makeError(variant, module, line, fn, message, extra) {
+function makeError(variant, file, module, line, fn, message, extra) {
   let error = new globalThis.Error(message);
   error.gleam_error = variant;
+  error.file = file;
   error.module = module;
   error.line = line;
   error.function = fn;
@@ -366,9 +370,9 @@ function makeError(variant, module, line, fn, message, extra) {
 
 // build/dev/javascript/gleam_stdlib/gleam/option.mjs
 var Some = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var None = class extends CustomType {
@@ -394,7 +398,7 @@ function map(option, fun) {
     let x = option[0];
     return new Some(fun(x));
   } else {
-    return new None();
+    return option;
   }
 }
 
@@ -1265,12 +1269,12 @@ function from_list_loop(loop$list, loop$initial) {
   while (true) {
     let list3 = loop$list;
     let initial = loop$initial;
-    if (list3.hasLength(0)) {
+    if (list3 instanceof Empty) {
       return initial;
     } else {
+      let rest = list3.tail;
       let key2 = list3.head[0];
       let value2 = list3.head[1];
-      let rest = list3.tail;
       loop$list = rest;
       loop$initial = insert(initial, key2, value2);
     }
@@ -1283,7 +1287,7 @@ function reverse_and_concat(loop$remaining, loop$accumulator) {
   while (true) {
     let remaining = loop$remaining;
     let accumulator = loop$accumulator;
-    if (remaining.hasLength(0)) {
+    if (remaining instanceof Empty) {
       return accumulator;
     } else {
       let first2 = remaining.head;
@@ -1297,11 +1301,11 @@ function do_keys_loop(loop$list, loop$acc) {
   while (true) {
     let list3 = loop$list;
     let acc = loop$acc;
-    if (list3.hasLength(0)) {
+    if (list3 instanceof Empty) {
       return reverse_and_concat(acc, toList([]));
     } else {
-      let key2 = list3.head[0];
       let rest = list3.tail;
+      let key2 = list3.head[0];
       loop$list = rest;
       loop$acc = prepend(key2, acc);
     }
@@ -1316,7 +1320,7 @@ function reverse_and_prepend(loop$prefix, loop$suffix) {
   while (true) {
     let prefix = loop$prefix;
     let suffix = loop$suffix;
-    if (prefix.hasLength(0)) {
+    if (prefix instanceof Empty) {
       return suffix;
     } else {
       let first$1 = prefix.head;
@@ -1334,7 +1338,7 @@ function map_loop(loop$list, loop$fun, loop$acc) {
     let list3 = loop$list;
     let fun = loop$fun;
     let acc = loop$acc;
-    if (list3.hasLength(0)) {
+    if (list3 instanceof Empty) {
       return reverse(acc);
     } else {
       let first$1 = list3.head;
@@ -1354,7 +1358,7 @@ function index_map_loop(loop$list, loop$fun, loop$index, loop$acc) {
     let fun = loop$fun;
     let index5 = loop$index;
     let acc = loop$acc;
-    if (list3.hasLength(0)) {
+    if (list3 instanceof Empty) {
       return reverse(acc);
     } else {
       let first$1 = list3.head;
@@ -1374,7 +1378,7 @@ function append_loop(loop$first, loop$second) {
   while (true) {
     let first2 = loop$first;
     let second = loop$second;
-    if (first2.hasLength(0)) {
+    if (first2 instanceof Empty) {
       return second;
     } else {
       let first$1 = first2.head;
@@ -1392,7 +1396,7 @@ function fold(loop$list, loop$initial, loop$fun) {
     let list3 = loop$list;
     let initial = loop$initial;
     let fun = loop$fun;
-    if (list3.hasLength(0)) {
+    if (list3 instanceof Empty) {
       return initial;
     } else {
       let first$1 = list3.head;
@@ -1409,7 +1413,7 @@ function index_fold_loop(loop$over, loop$acc, loop$with, loop$index) {
     let acc = loop$acc;
     let with$ = loop$with;
     let index5 = loop$index;
-    if (over.hasLength(0)) {
+    if (over instanceof Empty) {
       return acc;
     } else {
       let first$1 = over.head;
@@ -1430,13 +1434,13 @@ function concat_loop(loop$strings, loop$accumulator) {
   while (true) {
     let strings = loop$strings;
     let accumulator = loop$accumulator;
-    if (strings.atLeastLength(1)) {
+    if (strings instanceof Empty) {
+      return accumulator;
+    } else {
       let string6 = strings.head;
       let strings$1 = strings.tail;
       loop$strings = strings$1;
       loop$accumulator = accumulator + string6;
-    } else {
-      return accumulator;
     }
   }
 }
@@ -1448,7 +1452,7 @@ function join_loop(loop$strings, loop$separator, loop$accumulator) {
     let strings = loop$strings;
     let separator = loop$separator;
     let accumulator = loop$accumulator;
-    if (strings.hasLength(0)) {
+    if (strings instanceof Empty) {
       return accumulator;
     } else {
       let string6 = strings.head;
@@ -1460,7 +1464,7 @@ function join_loop(loop$strings, loop$separator, loop$accumulator) {
   }
 }
 function join(strings, separator) {
-  if (strings.hasLength(0)) {
+  if (strings instanceof Empty) {
     return "";
   } else {
     let first$1 = strings.head;
@@ -1473,47 +1477,44 @@ function drop_start(loop$string, loop$num_graphemes) {
     let string6 = loop$string;
     let num_graphemes = loop$num_graphemes;
     let $ = num_graphemes > 0;
-    if (!$) {
-      return string6;
-    } else {
+    if ($) {
       let $1 = pop_grapheme(string6);
-      if ($1.isOk()) {
+      if ($1 instanceof Ok) {
         let string$1 = $1[0][1];
         loop$string = string$1;
         loop$num_graphemes = num_graphemes - 1;
       } else {
         return string6;
       }
+    } else {
+      return string6;
     }
   }
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/result.mjs
 function map3(result, fun) {
-  if (result.isOk()) {
+  if (result instanceof Ok) {
     let x = result[0];
     return new Ok(fun(x));
   } else {
-    let e = result[0];
-    return new Error(e);
+    return result;
   }
 }
 function map_error(result, fun) {
-  if (result.isOk()) {
-    let x = result[0];
-    return new Ok(x);
+  if (result instanceof Ok) {
+    return result;
   } else {
     let error = result[0];
     return new Error(fun(error));
   }
 }
 function try$(result, fun) {
-  if (result.isOk()) {
+  if (result instanceof Ok) {
     let x = result[0];
     return fun(x);
   } else {
-    let e = result[0];
-    return new Error(e);
+    return result;
   }
 }
 function then$(result, fun) {
@@ -1542,7 +1543,7 @@ function bool(data) {
 }
 function do_any(decoders) {
   return (data) => {
-    if (decoders.hasLength(0)) {
+    if (decoders instanceof Empty) {
       return new Error(
         toList([new DecodeError("another type", classify_dynamic(data), toList([]))])
       );
@@ -1550,9 +1551,8 @@ function do_any(decoders) {
       let decoder = decoders.head;
       let decoders$1 = decoders.tail;
       let $ = decoder(data);
-      if ($.isOk()) {
-        let decoded = $[0];
-        return new Ok(decoded);
+      if ($ instanceof Ok) {
+        return $;
       } else {
         return do_any(decoders$1)(data);
       }
@@ -1571,7 +1571,7 @@ function push_path(error, name) {
   );
   let _block;
   let $ = decoder(name$1);
-  if ($.isOk()) {
+  if ($ instanceof Ok) {
     let name$22 = $[0];
     _block = name$22;
   } else {
@@ -1580,10 +1580,9 @@ function push_path(error, name) {
     _block = identity(_pipe$1);
   }
   let name$2 = _block;
-  let _record = error;
   return new DecodeError(
-    _record.expected,
-    _record.found,
+    error.expected,
+    error.found,
     prepend(name$2, error.path)
   );
 }
@@ -1677,9 +1676,11 @@ var Decoder = class extends CustomType {
 };
 function run(data, decoder) {
   let $ = decoder.function(data);
-  let maybe_invalid_data = $[0];
-  let errors = $[1];
-  if (errors.hasLength(0)) {
+  let maybe_invalid_data;
+  let errors;
+  maybe_invalid_data = $[0];
+  errors = $[1];
+  if (errors instanceof Empty) {
     return new Ok(maybe_invalid_data);
   } else {
     return new Error(errors);
@@ -1694,8 +1695,10 @@ function map4(decoder, transformer) {
   return new Decoder(
     (d) => {
       let $ = decoder.function(d);
-      let data = $[0];
-      let errors = $[1];
+      let data;
+      let errors;
+      data = $[0];
+      errors = $[1];
       return [transformer(data), errors];
     }
   );
@@ -1705,15 +1708,17 @@ function run_decoders(loop$data, loop$failure, loop$decoders) {
     let data = loop$data;
     let failure = loop$failure;
     let decoders = loop$decoders;
-    if (decoders.hasLength(0)) {
+    if (decoders instanceof Empty) {
       return failure;
     } else {
       let decoder = decoders.head;
       let decoders$1 = decoders.tail;
       let $ = decoder.function(data);
-      let layer = $;
-      let errors = $[1];
-      if (errors.hasLength(0)) {
+      let layer;
+      let errors;
+      layer = $;
+      errors = $[1];
+      if (errors instanceof Empty) {
         return layer;
       } else {
         loop$data = data;
@@ -1727,9 +1732,11 @@ function one_of(first2, alternatives) {
   return new Decoder(
     (dynamic_data) => {
       let $ = first2.function(dynamic_data);
-      let layer = $;
-      let errors = $[1];
-      if (errors.hasLength(0)) {
+      let layer;
+      let errors;
+      layer = $;
+      errors = $[1];
+      if (errors instanceof Empty) {
         return layer;
       } else {
         return run_decoders(dynamic_data, layer, alternatives);
@@ -1745,8 +1752,10 @@ function optional(inner) {
         return [new None(), toList([])];
       } else {
         let $1 = inner.function(data);
-        let data$1 = $1[0];
-        let errors = $1[1];
+        let data$1;
+        let errors;
+        data$1 = $1[0];
+        errors = $1[1];
         return [new Some(data$1), errors];
       }
     }
@@ -1759,7 +1768,7 @@ function decode_error(expected, found) {
 }
 function run_dynamic_function(data, name, f) {
   let $ = f(data);
-  if ($.isOk()) {
+  if ($ instanceof Ok) {
     let data$1 = $[0];
     return [data$1, toList([])];
   } else {
@@ -1822,7 +1831,7 @@ function push_path2(layer, path) {
     (key2) => {
       let key$1 = identity(key2);
       let $ = run(key$1, decoder);
-      if ($.isOk()) {
+      if ($ instanceof Ok) {
         let key$2 = $[0];
         return key$2;
       } else {
@@ -1833,10 +1842,9 @@ function push_path2(layer, path) {
   let errors = map2(
     layer[1],
     (error) => {
-      let _record = error;
       return new DecodeError2(
-        _record.expected,
-        _record.found,
+        error.expected,
+        error.found,
         append(path$1, error.path)
       );
     }
@@ -1850,26 +1858,30 @@ function index3(loop$path, loop$position, loop$inner, loop$data, loop$handle_mis
     let inner = loop$inner;
     let data = loop$data;
     let handle_miss = loop$handle_miss;
-    if (path.hasLength(0)) {
+    if (path instanceof Empty) {
       let _pipe = inner(data);
       return push_path2(_pipe, reverse(position));
     } else {
       let key2 = path.head;
       let path$1 = path.tail;
       let $ = index2(data, key2);
-      if ($.isOk() && $[0] instanceof Some) {
-        let data$1 = $[0][0];
-        loop$path = path$1;
-        loop$position = prepend(key2, position);
-        loop$inner = inner;
-        loop$data = data$1;
-        loop$handle_miss = handle_miss;
-      } else if ($.isOk() && $[0] instanceof None) {
-        return handle_miss(data, prepend(key2, position));
+      if ($ instanceof Ok) {
+        let $1 = $[0];
+        if ($1 instanceof Some) {
+          let data$1 = $1[0];
+          loop$path = path$1;
+          loop$position = prepend(key2, position);
+          loop$inner = inner;
+          loop$data = data$1;
+          loop$handle_miss = handle_miss;
+        } else {
+          return handle_miss(data, prepend(key2, position));
+        }
       } else {
         let kind = $[0];
         let $1 = inner(data);
-        let default$ = $1[0];
+        let default$;
+        default$ = $1[0];
         let _pipe = [
           default$,
           toList([new DecodeError2(kind, classify_dynamic(data), toList([]))])
@@ -1889,7 +1901,8 @@ function subfield(field_path, field_decoder, next) {
         data,
         (data2, position) => {
           let $12 = field_decoder.function(data2);
-          let default$ = $12[0];
+          let default$;
+          default$ = $12[0];
           let _pipe = [
             default$,
             toList([new DecodeError2("Field", "Nothing", toList([]))])
@@ -1897,11 +1910,15 @@ function subfield(field_path, field_decoder, next) {
           return push_path2(_pipe, reverse(position));
         }
       );
-      let out = $[0];
-      let errors1 = $[1];
+      let out;
+      let errors1;
+      out = $[0];
+      errors1 = $[1];
       let $1 = next(out).function(data);
-      let out$1 = $1[0];
-      let errors2 = $1[1];
+      let out$1;
+      let errors2;
+      out$1 = $1[0];
+      errors2 = $1[1];
       return [out$1, append(errors1, errors2)];
     }
   );
@@ -1912,10 +1929,10 @@ function field2(field_name, field_decoder, next) {
 
 // build/dev/javascript/gleam_stdlib/gleam/bool.mjs
 function to_string2(bool4) {
-  if (!bool4) {
-    return "False";
-  } else {
+  if (bool4) {
     return "True";
+  } else {
+    return "False";
   }
 }
 function guard(requirement, consequence, alternative) {
@@ -2010,21 +2027,27 @@ function getPositionFromMultiline(line, column, string6) {
 var UnexpectedEndOfInput = class extends CustomType {
 };
 var UnexpectedByte = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
+  }
+};
+var UnexpectedSequence = class extends CustomType {
+  constructor($0) {
+    super();
+    this[0] = $0;
   }
 };
 var UnexpectedFormat = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var UnableToDecode = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 function do_parse(json, decoder) {
@@ -2075,7 +2098,8 @@ function batch(effects) {
       effects,
       toList([]),
       (b, _use1) => {
-        let a2 = _use1.all;
+        let a2;
+        a2 = _use1.all;
         return append(b, a2);
       }
     )
@@ -2101,25 +2125,19 @@ var Element2 = class extends CustomType {
     this.void = void$;
   }
 };
-var Map2 = class extends CustomType {
-  constructor(subtree) {
-    super();
-    this.subtree = subtree;
-  }
-};
 var Attribute = class extends CustomType {
-  constructor(x0, x1, as_property) {
+  constructor($0, $1, as_property) {
     super();
-    this[0] = x0;
-    this[1] = x1;
+    this[0] = $0;
+    this[1] = $1;
     this.as_property = as_property;
   }
 };
 var Event2 = class extends CustomType {
-  constructor(x0, x1) {
+  constructor($0, $1) {
     super();
-    this[0] = x0;
-    this[1] = x1;
+    this[0] = $0;
+    this[1] = $1;
   }
 };
 function attribute_to_event_handler(attribute2) {
@@ -2149,12 +2167,7 @@ function do_handlers(loop$element, loop$handlers, loop$key) {
     let key2 = loop$key;
     if (element2 instanceof Text) {
       return handlers2;
-    } else if (element2 instanceof Map2) {
-      let subtree = element2.subtree;
-      loop$element = subtree();
-      loop$handlers = handlers2;
-      loop$key = key2;
-    } else {
+    } else if (element2 instanceof Element2) {
       let attrs = element2.attrs;
       let children2 = element2.children;
       let handlers$1 = fold(
@@ -2162,7 +2175,7 @@ function do_handlers(loop$element, loop$handlers, loop$key) {
         handlers2,
         (handlers3, attr) => {
           let $ = attribute_to_event_handler(attr);
-          if ($.isOk()) {
+          if ($ instanceof Ok) {
             let name = $[0][0];
             let handler = $[0][1];
             return insert(handlers3, key2 + "-" + name, handler);
@@ -2172,6 +2185,11 @@ function do_handlers(loop$element, loop$handlers, loop$key) {
         }
       );
       return do_element_list_handlers(children2, handlers$1, key2);
+    } else {
+      let subtree = element2.subtree;
+      loop$element = subtree();
+      loop$handlers = handlers2;
+      loop$key = key2;
     }
   }
 }
@@ -2271,23 +2289,23 @@ function new$2() {
 
 // build/dev/javascript/lustre/lustre/internals/patch.mjs
 var Diff = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var Emit = class extends CustomType {
-  constructor(x0, x1) {
+  constructor($0, $1) {
     super();
-    this[0] = x0;
-    this[1] = x1;
+    this[0] = $0;
+    this[1] = $1;
   }
 };
 var Init = class extends CustomType {
-  constructor(x0, x1) {
+  constructor($0, $1) {
     super();
-    this[0] = x0;
-    this[1] = x1;
+    this[0] = $0;
+    this[1] = $1;
   }
 };
 function is_empty_element_diff(diff2) {
@@ -2299,63 +2317,63 @@ function is_empty_element_diff(diff2) {
 
 // build/dev/javascript/lustre/lustre/internals/runtime.mjs
 var Attrs = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var Batch = class extends CustomType {
-  constructor(x0, x1) {
+  constructor($0, $1) {
     super();
-    this[0] = x0;
-    this[1] = x1;
+    this[0] = $0;
+    this[1] = $1;
   }
 };
 var Debug = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var Dispatch = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var Emit2 = class extends CustomType {
-  constructor(x0, x1) {
+  constructor($0, $1) {
     super();
-    this[0] = x0;
-    this[1] = x1;
+    this[0] = $0;
+    this[1] = $1;
   }
 };
 var Event3 = class extends CustomType {
-  constructor(x0, x1) {
+  constructor($0, $1) {
     super();
-    this[0] = x0;
-    this[1] = x1;
+    this[0] = $0;
+    this[1] = $1;
   }
 };
 var Shutdown = class extends CustomType {
 };
 var Subscribe = class extends CustomType {
-  constructor(x0, x1) {
+  constructor($0, $1) {
     super();
-    this[0] = x0;
-    this[1] = x1;
+    this[0] = $0;
+    this[1] = $1;
   }
 };
 var Unsubscribe = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var ForceModel = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 
@@ -2948,18 +2966,15 @@ function is_valid_host_within_brackets_char(char) {
 }
 function parse_fragment(rest, pieces) {
   return new Ok(
-    (() => {
-      let _record = pieces;
-      return new Uri(
-        _record.scheme,
-        _record.userinfo,
-        _record.host,
-        _record.port,
-        _record.path,
-        _record.query,
-        new Some(rest)
-      );
-    })()
+    new Uri(
+      pieces.scheme,
+      pieces.userinfo,
+      pieces.host,
+      pieces.port,
+      pieces.path,
+      pieces.query,
+      new Some(rest)
+    )
   );
 }
 function parse_query_with_question_mark_loop(loop$original, loop$uri_string, loop$pieces, loop$size) {
@@ -2968,43 +2983,40 @@ function parse_query_with_question_mark_loop(loop$original, loop$uri_string, loo
     let uri_string = loop$uri_string;
     let pieces = loop$pieces;
     let size = loop$size;
-    if (uri_string.startsWith("#") && size === 0) {
-      let rest = uri_string.slice(1);
-      return parse_fragment(rest, pieces);
-    } else if (uri_string.startsWith("#")) {
-      let rest = uri_string.slice(1);
-      let query = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
-        _record.host,
-        _record.port,
-        _record.path,
-        new Some(query),
-        _record.fragment
-      );
-      let pieces$1 = _block;
-      return parse_fragment(rest, pieces$1);
+    if (uri_string.startsWith("#")) {
+      if (size === 0) {
+        let rest = uri_string.slice(1);
+        return parse_fragment(rest, pieces);
+      } else {
+        let rest = uri_string.slice(1);
+        let query = string_codeunit_slice(original, 0, size);
+        let pieces$1 = new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          pieces.host,
+          pieces.port,
+          pieces.path,
+          new Some(query),
+          pieces.fragment
+        );
+        return parse_fragment(rest, pieces$1);
+      }
     } else if (uri_string === "") {
       return new Ok(
-        (() => {
-          let _record = pieces;
-          return new Uri(
-            _record.scheme,
-            _record.userinfo,
-            _record.host,
-            _record.port,
-            _record.path,
-            new Some(original),
-            _record.fragment
-          );
-        })()
+        new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          pieces.host,
+          pieces.port,
+          pieces.path,
+          new Some(original),
+          pieces.fragment
+        )
       );
     } else {
       let $ = pop_codeunit(uri_string);
-      let rest = $[1];
+      let rest;
+      rest = $[1];
       loop$original = original;
       loop$uri_string = rest;
       loop$pieces = pieces;
@@ -3024,53 +3036,45 @@ function parse_path_loop(loop$original, loop$uri_string, loop$pieces, loop$size)
     if (uri_string.startsWith("?")) {
       let rest = uri_string.slice(1);
       let path = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
-        _record.host,
-        _record.port,
+      let pieces$1 = new Uri(
+        pieces.scheme,
+        pieces.userinfo,
+        pieces.host,
+        pieces.port,
         path,
-        _record.query,
-        _record.fragment
+        pieces.query,
+        pieces.fragment
       );
-      let pieces$1 = _block;
       return parse_query_with_question_mark(rest, pieces$1);
     } else if (uri_string.startsWith("#")) {
       let rest = uri_string.slice(1);
       let path = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
-        _record.host,
-        _record.port,
+      let pieces$1 = new Uri(
+        pieces.scheme,
+        pieces.userinfo,
+        pieces.host,
+        pieces.port,
         path,
-        _record.query,
-        _record.fragment
+        pieces.query,
+        pieces.fragment
       );
-      let pieces$1 = _block;
       return parse_fragment(rest, pieces$1);
     } else if (uri_string === "") {
       return new Ok(
-        (() => {
-          let _record = pieces;
-          return new Uri(
-            _record.scheme,
-            _record.userinfo,
-            _record.host,
-            _record.port,
-            original,
-            _record.query,
-            _record.fragment
-          );
-        })()
+        new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          pieces.host,
+          pieces.port,
+          original,
+          pieces.query,
+          pieces.fragment
+        )
       );
     } else {
       let $ = pop_codeunit(uri_string);
-      let rest = $[1];
+      let rest;
+      rest = $[1];
       loop$original = original;
       loop$uri_string = rest;
       loop$pieces = pieces;
@@ -3138,62 +3142,50 @@ function parse_port_loop(loop$uri_string, loop$pieces, loop$port) {
       loop$port = port * 10 + 9;
     } else if (uri_string.startsWith("?")) {
       let rest = uri_string.slice(1);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
-        _record.host,
+      let pieces$1 = new Uri(
+        pieces.scheme,
+        pieces.userinfo,
+        pieces.host,
         new Some(port),
-        _record.path,
-        _record.query,
-        _record.fragment
+        pieces.path,
+        pieces.query,
+        pieces.fragment
       );
-      let pieces$1 = _block;
       return parse_query_with_question_mark(rest, pieces$1);
     } else if (uri_string.startsWith("#")) {
       let rest = uri_string.slice(1);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
-        _record.host,
+      let pieces$1 = new Uri(
+        pieces.scheme,
+        pieces.userinfo,
+        pieces.host,
         new Some(port),
-        _record.path,
-        _record.query,
-        _record.fragment
+        pieces.path,
+        pieces.query,
+        pieces.fragment
       );
-      let pieces$1 = _block;
       return parse_fragment(rest, pieces$1);
     } else if (uri_string.startsWith("/")) {
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
-        _record.host,
+      let pieces$1 = new Uri(
+        pieces.scheme,
+        pieces.userinfo,
+        pieces.host,
         new Some(port),
-        _record.path,
-        _record.query,
-        _record.fragment
+        pieces.path,
+        pieces.query,
+        pieces.fragment
       );
-      let pieces$1 = _block;
       return parse_path(uri_string, pieces$1);
     } else if (uri_string === "") {
       return new Ok(
-        (() => {
-          let _record = pieces;
-          return new Uri(
-            _record.scheme,
-            _record.userinfo,
-            _record.host,
-            new Some(port),
-            _record.path,
-            _record.query,
-            _record.fragment
-          );
-        })()
+        new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          pieces.host,
+          new Some(port),
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        )
       );
     } else {
       return new Error(void 0);
@@ -3255,84 +3247,70 @@ function parse_host_outside_of_brackets_loop(loop$original, loop$uri_string, loo
     let size = loop$size;
     if (uri_string === "") {
       return new Ok(
-        (() => {
-          let _record = pieces;
-          return new Uri(
-            _record.scheme,
-            _record.userinfo,
-            new Some(original),
-            _record.port,
-            _record.path,
-            _record.query,
-            _record.fragment
-          );
-        })()
+        new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          new Some(original),
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        )
       );
     } else if (uri_string.startsWith(":")) {
       let host = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
+      let pieces$1 = new Uri(
+        pieces.scheme,
+        pieces.userinfo,
         new Some(host),
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
+        pieces.port,
+        pieces.path,
+        pieces.query,
+        pieces.fragment
       );
-      let pieces$1 = _block;
       return parse_port(uri_string, pieces$1);
     } else if (uri_string.startsWith("/")) {
       let host = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
+      let pieces$1 = new Uri(
+        pieces.scheme,
+        pieces.userinfo,
         new Some(host),
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
+        pieces.port,
+        pieces.path,
+        pieces.query,
+        pieces.fragment
       );
-      let pieces$1 = _block;
       return parse_path(uri_string, pieces$1);
     } else if (uri_string.startsWith("?")) {
       let rest = uri_string.slice(1);
       let host = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
+      let pieces$1 = new Uri(
+        pieces.scheme,
+        pieces.userinfo,
         new Some(host),
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
+        pieces.port,
+        pieces.path,
+        pieces.query,
+        pieces.fragment
       );
-      let pieces$1 = _block;
       return parse_query_with_question_mark(rest, pieces$1);
     } else if (uri_string.startsWith("#")) {
       let rest = uri_string.slice(1);
       let host = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
+      let pieces$1 = new Uri(
+        pieces.scheme,
+        pieces.userinfo,
         new Some(host),
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
+        pieces.port,
+        pieces.path,
+        pieces.query,
+        pieces.fragment
       );
-      let pieces$1 = _block;
       return parse_fragment(rest, pieces$1);
     } else {
       let $ = pop_codeunit(uri_string);
-      let rest = $[1];
+      let rest;
+      rest = $[1];
       loop$original = original;
       loop$uri_string = rest;
       loop$pieces = pieces;
@@ -3348,97 +3326,92 @@ function parse_host_within_brackets_loop(loop$original, loop$uri_string, loop$pi
     let size = loop$size;
     if (uri_string === "") {
       return new Ok(
-        (() => {
-          let _record = pieces;
-          return new Uri(
-            _record.scheme,
-            _record.userinfo,
-            new Some(uri_string),
-            _record.port,
-            _record.path,
-            _record.query,
-            _record.fragment
-          );
-        })()
+        new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          new Some(uri_string),
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        )
       );
-    } else if (uri_string.startsWith("]") && size === 0) {
-      let rest = uri_string.slice(1);
-      return parse_port(rest, pieces);
     } else if (uri_string.startsWith("]")) {
-      let rest = uri_string.slice(1);
-      let host = string_codeunit_slice(original, 0, size + 1);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
-        new Some(host),
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
-      );
-      let pieces$1 = _block;
-      return parse_port(rest, pieces$1);
-    } else if (uri_string.startsWith("/") && size === 0) {
-      return parse_path(uri_string, pieces);
+      if (size === 0) {
+        let rest = uri_string.slice(1);
+        return parse_port(rest, pieces);
+      } else {
+        let rest = uri_string.slice(1);
+        let host = string_codeunit_slice(original, 0, size + 1);
+        let pieces$1 = new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          new Some(host),
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        );
+        return parse_port(rest, pieces$1);
+      }
     } else if (uri_string.startsWith("/")) {
-      let host = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
-        new Some(host),
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
-      );
-      let pieces$1 = _block;
-      return parse_path(uri_string, pieces$1);
-    } else if (uri_string.startsWith("?") && size === 0) {
-      let rest = uri_string.slice(1);
-      return parse_query_with_question_mark(rest, pieces);
+      if (size === 0) {
+        return parse_path(uri_string, pieces);
+      } else {
+        let host = string_codeunit_slice(original, 0, size);
+        let pieces$1 = new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          new Some(host),
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        );
+        return parse_path(uri_string, pieces$1);
+      }
     } else if (uri_string.startsWith("?")) {
-      let rest = uri_string.slice(1);
-      let host = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
-        new Some(host),
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
-      );
-      let pieces$1 = _block;
-      return parse_query_with_question_mark(rest, pieces$1);
-    } else if (uri_string.startsWith("#") && size === 0) {
-      let rest = uri_string.slice(1);
-      return parse_fragment(rest, pieces);
+      if (size === 0) {
+        let rest = uri_string.slice(1);
+        return parse_query_with_question_mark(rest, pieces);
+      } else {
+        let rest = uri_string.slice(1);
+        let host = string_codeunit_slice(original, 0, size);
+        let pieces$1 = new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          new Some(host),
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        );
+        return parse_query_with_question_mark(rest, pieces$1);
+      }
     } else if (uri_string.startsWith("#")) {
-      let rest = uri_string.slice(1);
-      let host = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        _record.userinfo,
-        new Some(host),
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
-      );
-      let pieces$1 = _block;
-      return parse_fragment(rest, pieces$1);
+      if (size === 0) {
+        let rest = uri_string.slice(1);
+        return parse_fragment(rest, pieces);
+      } else {
+        let rest = uri_string.slice(1);
+        let host = string_codeunit_slice(original, 0, size);
+        let pieces$1 = new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          new Some(host),
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        );
+        return parse_fragment(rest, pieces$1);
+      }
     } else {
       let $ = pop_codeunit(uri_string);
-      let char = $[0];
-      let rest = $[1];
+      let char;
+      let rest;
+      char = $[0];
+      rest = $[1];
       let $1 = is_valid_host_within_brackets_char(char);
       if ($1) {
         loop$original = original;
@@ -3466,33 +3439,27 @@ function parse_host(uri_string, pieces) {
   if (uri_string.startsWith("[")) {
     return parse_host_within_brackets(uri_string, pieces);
   } else if (uri_string.startsWith(":")) {
-    let _block;
-    let _record = pieces;
-    _block = new Uri(
-      _record.scheme,
-      _record.userinfo,
+    let pieces$1 = new Uri(
+      pieces.scheme,
+      pieces.userinfo,
       new Some(""),
-      _record.port,
-      _record.path,
-      _record.query,
-      _record.fragment
+      pieces.port,
+      pieces.path,
+      pieces.query,
+      pieces.fragment
     );
-    let pieces$1 = _block;
     return parse_port(uri_string, pieces$1);
   } else if (uri_string === "") {
     return new Ok(
-      (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          new Some(""),
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })()
+      new Uri(
+        pieces.scheme,
+        pieces.userinfo,
+        new Some(""),
+        pieces.port,
+        pieces.path,
+        pieces.query,
+        pieces.fragment
+      )
     );
   } else {
     return parse_host_outside_of_brackets(uri_string, pieces);
@@ -3504,25 +3471,24 @@ function parse_userinfo_loop(loop$original, loop$uri_string, loop$pieces, loop$s
     let uri_string = loop$uri_string;
     let pieces = loop$pieces;
     let size = loop$size;
-    if (uri_string.startsWith("@") && size === 0) {
-      let rest = uri_string.slice(1);
-      return parse_host(rest, pieces);
-    } else if (uri_string.startsWith("@")) {
-      let rest = uri_string.slice(1);
-      let userinfo = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        _record.scheme,
-        new Some(userinfo),
-        _record.host,
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
-      );
-      let pieces$1 = _block;
-      return parse_host(rest, pieces$1);
+    if (uri_string.startsWith("@")) {
+      if (size === 0) {
+        let rest = uri_string.slice(1);
+        return parse_host(rest, pieces);
+      } else {
+        let rest = uri_string.slice(1);
+        let userinfo = string_codeunit_slice(original, 0, size);
+        let pieces$1 = new Uri(
+          pieces.scheme,
+          new Some(userinfo),
+          pieces.host,
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        );
+        return parse_host(rest, pieces$1);
+      }
     } else if (uri_string === "") {
       return parse_host(original, pieces);
     } else if (uri_string.startsWith("/")) {
@@ -3533,7 +3499,8 @@ function parse_userinfo_loop(loop$original, loop$uri_string, loop$pieces, loop$s
       return parse_host(original, pieces);
     } else {
       let $ = pop_codeunit(uri_string);
-      let rest = $[1];
+      let rest;
+      rest = $[1];
       loop$original = original;
       loop$uri_string = rest;
       loop$pieces = pieces;
@@ -3547,18 +3514,15 @@ function parse_authority_pieces(string6, pieces) {
 function parse_authority_with_slashes(uri_string, pieces) {
   if (uri_string === "//") {
     return new Ok(
-      (() => {
-        let _record = pieces;
-        return new Uri(
-          _record.scheme,
-          _record.userinfo,
-          new Some(""),
-          _record.port,
-          _record.path,
-          _record.query,
-          _record.fragment
-        );
-      })()
+      new Uri(
+        pieces.scheme,
+        pieces.userinfo,
+        new Some(""),
+        pieces.port,
+        pieces.path,
+        pieces.query,
+        pieces.fragment
+      )
     );
   } else if (uri_string.startsWith("//")) {
     let rest = uri_string.slice(2);
@@ -3573,97 +3537,91 @@ function parse_scheme_loop(loop$original, loop$uri_string, loop$pieces, loop$siz
     let uri_string = loop$uri_string;
     let pieces = loop$pieces;
     let size = loop$size;
-    if (uri_string.startsWith("/") && size === 0) {
-      return parse_authority_with_slashes(uri_string, pieces);
-    } else if (uri_string.startsWith("/")) {
-      let scheme = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        new Some(lowercase(scheme)),
-        _record.userinfo,
-        _record.host,
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
-      );
-      let pieces$1 = _block;
-      return parse_authority_with_slashes(uri_string, pieces$1);
-    } else if (uri_string.startsWith("?") && size === 0) {
-      let rest = uri_string.slice(1);
-      return parse_query_with_question_mark(rest, pieces);
+    if (uri_string.startsWith("/")) {
+      if (size === 0) {
+        return parse_authority_with_slashes(uri_string, pieces);
+      } else {
+        let scheme = string_codeunit_slice(original, 0, size);
+        let pieces$1 = new Uri(
+          new Some(lowercase(scheme)),
+          pieces.userinfo,
+          pieces.host,
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        );
+        return parse_authority_with_slashes(uri_string, pieces$1);
+      }
     } else if (uri_string.startsWith("?")) {
-      let rest = uri_string.slice(1);
-      let scheme = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        new Some(lowercase(scheme)),
-        _record.userinfo,
-        _record.host,
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
-      );
-      let pieces$1 = _block;
-      return parse_query_with_question_mark(rest, pieces$1);
-    } else if (uri_string.startsWith("#") && size === 0) {
-      let rest = uri_string.slice(1);
-      return parse_fragment(rest, pieces);
+      if (size === 0) {
+        let rest = uri_string.slice(1);
+        return parse_query_with_question_mark(rest, pieces);
+      } else {
+        let rest = uri_string.slice(1);
+        let scheme = string_codeunit_slice(original, 0, size);
+        let pieces$1 = new Uri(
+          new Some(lowercase(scheme)),
+          pieces.userinfo,
+          pieces.host,
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        );
+        return parse_query_with_question_mark(rest, pieces$1);
+      }
     } else if (uri_string.startsWith("#")) {
-      let rest = uri_string.slice(1);
-      let scheme = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        new Some(lowercase(scheme)),
-        _record.userinfo,
-        _record.host,
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
-      );
-      let pieces$1 = _block;
-      return parse_fragment(rest, pieces$1);
-    } else if (uri_string.startsWith(":") && size === 0) {
-      return new Error(void 0);
+      if (size === 0) {
+        let rest = uri_string.slice(1);
+        return parse_fragment(rest, pieces);
+      } else {
+        let rest = uri_string.slice(1);
+        let scheme = string_codeunit_slice(original, 0, size);
+        let pieces$1 = new Uri(
+          new Some(lowercase(scheme)),
+          pieces.userinfo,
+          pieces.host,
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        );
+        return parse_fragment(rest, pieces$1);
+      }
     } else if (uri_string.startsWith(":")) {
-      let rest = uri_string.slice(1);
-      let scheme = string_codeunit_slice(original, 0, size);
-      let _block;
-      let _record = pieces;
-      _block = new Uri(
-        new Some(lowercase(scheme)),
-        _record.userinfo,
-        _record.host,
-        _record.port,
-        _record.path,
-        _record.query,
-        _record.fragment
-      );
-      let pieces$1 = _block;
-      return parse_authority_with_slashes(rest, pieces$1);
+      if (size === 0) {
+        return new Error(void 0);
+      } else {
+        let rest = uri_string.slice(1);
+        let scheme = string_codeunit_slice(original, 0, size);
+        let pieces$1 = new Uri(
+          new Some(lowercase(scheme)),
+          pieces.userinfo,
+          pieces.host,
+          pieces.port,
+          pieces.path,
+          pieces.query,
+          pieces.fragment
+        );
+        return parse_authority_with_slashes(rest, pieces$1);
+      }
     } else if (uri_string === "") {
       return new Ok(
-        (() => {
-          let _record = pieces;
-          return new Uri(
-            _record.scheme,
-            _record.userinfo,
-            _record.host,
-            _record.port,
-            original,
-            _record.query,
-            _record.fragment
-          );
-        })()
+        new Uri(
+          pieces.scheme,
+          pieces.userinfo,
+          pieces.host,
+          pieces.port,
+          original,
+          pieces.query,
+          pieces.fragment
+        )
       );
     } else {
       let $ = pop_codeunit(uri_string);
-      let rest = $[1];
+      let rest;
+      rest = $[1];
       loop$original = original;
       loop$uri_string = rest;
       loop$pieces = pieces;
@@ -3694,9 +3652,13 @@ function to_string3(uri) {
   let _block$2;
   let $2 = uri.host;
   let $3 = starts_with(uri.path, "/");
-  if ($2 instanceof Some && !$3 && $2[0] !== "") {
+  if (!$3 && $2 instanceof Some) {
     let host = $2[0];
-    _block$2 = prepend("/", parts$2);
+    if (host !== "") {
+      _block$2 = prepend("/", parts$2);
+    } else {
+      _block$2 = parts$2;
+    }
   } else {
     _block$2 = parts$2;
   }
@@ -3704,7 +3666,7 @@ function to_string3(uri) {
   let _block$3;
   let $4 = uri.host;
   let $5 = uri.port;
-  if ($4 instanceof Some && $5 instanceof Some) {
+  if ($5 instanceof Some && $4 instanceof Some) {
     let port = $5[0];
     _block$3 = prepend(":", prepend(to_string(port), parts$3));
   } else {
@@ -3715,30 +3677,40 @@ function to_string3(uri) {
   let $6 = uri.scheme;
   let $7 = uri.userinfo;
   let $8 = uri.host;
-  if ($6 instanceof Some && $7 instanceof Some && $8 instanceof Some) {
-    let s = $6[0];
-    let u = $7[0];
-    let h = $8[0];
-    _block$4 = prepend(
-      s,
-      prepend(
-        "://",
-        prepend(u, prepend("@", prepend(h, parts$4)))
-      )
-    );
-  } else if ($6 instanceof Some && $7 instanceof None && $8 instanceof Some) {
-    let s = $6[0];
-    let h = $8[0];
-    _block$4 = prepend(s, prepend("://", prepend(h, parts$4)));
-  } else if ($6 instanceof Some && $7 instanceof Some && $8 instanceof None) {
+  if ($8 instanceof Some) {
+    if ($7 instanceof Some) {
+      if ($6 instanceof Some) {
+        let h = $8[0];
+        let u = $7[0];
+        let s = $6[0];
+        _block$4 = prepend(
+          s,
+          prepend(
+            "://",
+            prepend(u, prepend("@", prepend(h, parts$4)))
+          )
+        );
+      } else {
+        _block$4 = parts$4;
+      }
+    } else if ($6 instanceof Some) {
+      let h = $8[0];
+      let s = $6[0];
+      _block$4 = prepend(s, prepend("://", prepend(h, parts$4)));
+    } else {
+      let h = $8[0];
+      _block$4 = prepend("//", prepend(h, parts$4));
+    }
+  } else if ($7 instanceof Some) {
+    if ($6 instanceof Some) {
+      let s = $6[0];
+      _block$4 = prepend(s, prepend(":", parts$4));
+    } else {
+      _block$4 = parts$4;
+    }
+  } else if ($6 instanceof Some) {
     let s = $6[0];
     _block$4 = prepend(s, prepend(":", parts$4));
-  } else if ($6 instanceof Some && $7 instanceof None && $8 instanceof None) {
-    let s = $6[0];
-    _block$4 = prepend(s, prepend(":", parts$4));
-  } else if ($6 instanceof None && $7 instanceof None && $8 instanceof Some) {
-    let h = $8[0];
-    _block$4 = prepend("//", prepend(h, parts$4));
   } else {
     _block$4 = parts$4;
   }
@@ -3782,24 +3754,24 @@ var Http = class extends CustomType {
 var Https = class extends CustomType {
 };
 function method_to_string(method) {
-  if (method instanceof Connect) {
-    return "connect";
-  } else if (method instanceof Delete) {
-    return "delete";
-  } else if (method instanceof Get) {
+  if (method instanceof Get) {
     return "get";
+  } else if (method instanceof Post) {
+    return "post";
   } else if (method instanceof Head) {
     return "head";
+  } else if (method instanceof Put) {
+    return "put";
+  } else if (method instanceof Delete) {
+    return "delete";
+  } else if (method instanceof Trace) {
+    return "trace";
+  } else if (method instanceof Connect) {
+    return "connect";
   } else if (method instanceof Options) {
     return "options";
   } else if (method instanceof Patch) {
     return "patch";
-  } else if (method instanceof Post) {
-    return "post";
-  } else if (method instanceof Put) {
-    return "put";
-  } else if (method instanceof Trace) {
-    return "trace";
   } else {
     let s = method[0];
     return s;
@@ -3937,7 +3909,7 @@ function try_await(promise, callback) {
   return then_await(
     _pipe,
     (result) => {
-      if (result.isOk()) {
+      if (result instanceof Ok) {
         let a2 = result[0];
         return callback(a2);
       } else {
@@ -3994,9 +3966,9 @@ async function read_text_body(response) {
 
 // build/dev/javascript/gleam_fetch/gleam/fetch.mjs
 var NetworkError = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var UnableToReadBody = class extends CustomType {
@@ -4015,21 +3987,21 @@ function send(request) {
 
 // build/dev/javascript/lustre_http/lustre_http.mjs
 var BadUrl = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var InternalServerError = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var JsonError = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var NetworkError2 = class extends CustomType {
@@ -4037,10 +4009,10 @@ var NetworkError2 = class extends CustomType {
 var NotFound = class extends CustomType {
 };
 var OtherError = class extends CustomType {
-  constructor(x0, x1) {
+  constructor($0, $1) {
     super();
-    this[0] = x0;
-    this[1] = x1;
+    this[0] = $0;
+    this[1] = $1;
   }
 };
 var Unauthorized = class extends CustomType {
@@ -4057,7 +4029,7 @@ function do_send(req, expect, dispatch) {
   let _pipe$2 = map_promise(
     _pipe$1,
     (response) => {
-      if (response.isOk()) {
+      if (response instanceof Ok) {
         let res = response[0];
         return expect.run(new Ok(res));
       } else {
@@ -4078,7 +4050,7 @@ function get(url, expect) {
   return from(
     (dispatch) => {
       let $ = to(url);
-      if ($.isOk()) {
+      if ($ instanceof Ok) {
         let req = $[0];
         return do_send(req, expect, dispatch);
       } else {
@@ -4088,21 +4060,24 @@ function get(url, expect) {
   );
 }
 function response_to_result(response) {
-  if (response instanceof Response && (200 <= response.status && response.status <= 299)) {
-    let status = response.status;
+  let status = response.status;
+  if (200 <= status && status <= 299) {
     let body2 = response.body;
     return new Ok(body2);
-  } else if (response instanceof Response && response.status === 401) {
-    return new Error(new Unauthorized());
-  } else if (response instanceof Response && response.status === 404) {
-    return new Error(new NotFound());
-  } else if (response instanceof Response && response.status === 500) {
-    let body2 = response.body;
-    return new Error(new InternalServerError(body2));
   } else {
-    let code3 = response.status;
-    let body2 = response.body;
-    return new Error(new OtherError(code3, body2));
+    let $ = response.status;
+    if ($ === 401) {
+      return new Error(new Unauthorized());
+    } else if ($ === 404) {
+      return new Error(new NotFound());
+    } else if ($ === 500) {
+      let body2 = response.body;
+      return new Error(new InternalServerError(body2));
+    } else {
+      let code3 = $;
+      let body2 = response.body;
+      return new Error(new OtherError(code3, body2));
+    }
   }
 }
 function expect_json(decoder, to_msg) {
@@ -4114,9 +4089,8 @@ function expect_json(decoder, to_msg) {
         _pipe$1,
         (body2) => {
           let $ = parse(body2, decoder);
-          if ($.isOk()) {
-            let json = $[0];
-            return new Ok(json);
+          if ($ instanceof Ok) {
+            return $;
           } else {
             let json_error = $[0];
             return new Error(new JsonError(json_error));
@@ -4267,79 +4241,69 @@ async function import_(string6) {
 
 // build/dev/javascript/kplay/types.mjs
 var Config = class extends CustomType {
-  constructor(profile_name, brokers, topic, consumer_group) {
+  constructor(profile_name, brokers, topic) {
     super();
     this.profile_name = profile_name;
     this.brokers = brokers;
     this.topic = topic;
-    this.consumer_group = consumer_group;
   }
 };
 var Behaviours = class extends CustomType {
-  constructor(commit_messages, select_on_hover) {
+  constructor(select_on_hover) {
     super();
-    this.commit_messages = commit_messages;
     this.select_on_hover = select_on_hover;
   }
 };
 var MessageDetails = class extends CustomType {
-  constructor(key2, offset, partition, metadata, value2, error) {
+  constructor(key2, offset, partition, metadata, value2, decode_error2) {
     super();
     this.key = key2;
     this.offset = offset;
     this.partition = partition;
     this.metadata = metadata;
     this.value = value2;
-    this.error = error;
+    this.decode_error = decode_error2;
   }
 };
 var ConfigFetched = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var BehavioursFetched = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var FetchMessages = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var ClearMessages = class extends CustomType {
 };
-var CommitSettingsChanged = class extends CustomType {
-  constructor(x0) {
-    super();
-    this[0] = x0;
-  }
-};
 var HoverSettingsChanged = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var MessageChosen = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var MessagesFetched = class extends CustomType {
-  constructor(x0) {
+  constructor($0) {
     super();
-    this[0] = x0;
+    this[0] = $0;
   }
 };
 var GoToStart = class extends CustomType {
-};
-var GoToEnd = class extends CustomType {
 };
 function config_decoder() {
   return field2(
@@ -4354,15 +4318,7 @@ function config_decoder() {
             "topic",
             string3,
             (topic) => {
-              return field2(
-                "consumer_group",
-                string3,
-                (consumer_group) => {
-                  return success(
-                    new Config(profile_name, brokers, topic, consumer_group)
-                  );
-                }
-              );
+              return success(new Config(profile_name, brokers, topic));
             }
           );
         }
@@ -4371,28 +4327,25 @@ function config_decoder() {
   );
 }
 function display_config(config) {
-  return " -> profile_name: " + config.profile_name + "\n -> brokers: " + (() => {
-    let _pipe = config.brokers;
-    return join(_pipe, ", ");
-  })() + "\n -> topic: " + config.topic + "\n -> consumer_group: " + config.consumer_group;
+  let _pipe = toList([
+    " -> profile_name: " + config.profile_name,
+    " -> brokers: " + (() => {
+      let _pipe2 = config.brokers;
+      return join(_pipe2, ", ");
+    })(),
+    " -> topic: " + config.topic
+  ]);
+  return join(_pipe, "\n");
 }
 function default_behaviours() {
-  return new Behaviours(true, false);
+  return new Behaviours(false);
 }
 function behaviours_decoder() {
   return field2(
-    "commit_messages",
+    "select_on_hover",
     bool2,
-    (commit_messages) => {
-      return field2(
-        "select_on_hover",
-        bool2,
-        (select_on_hover) => {
-          return success(
-            new Behaviours(commit_messages, select_on_hover)
-          );
-        }
-      );
+    (select_on_hover) => {
+      return success(new Behaviours(select_on_hover));
     }
   );
 }
@@ -4418,9 +4371,9 @@ function message_details_decoder() {
                     optional(string3),
                     (value2) => {
                       return field2(
-                        "error",
+                        "decode_error",
                         optional(string3),
-                        (error) => {
+                        (decode_error2) => {
                           return success(
                             new MessageDetails(
                               key2,
@@ -4428,7 +4381,7 @@ function message_details_decoder() {
                               partition,
                               metadata,
                               value2,
-                              error
+                              decode_error2
                             )
                           );
                         }
@@ -4449,10 +4402,10 @@ function message_details_decoder() {
 var dev = false;
 function base_url() {
   let $ = dev;
-  if (!$) {
-    return location();
-  } else {
+  if ($) {
     return "http://127.0.0.1:6500/";
+  } else {
+    return location();
   }
 }
 function fetch_config() {
@@ -4473,25 +4426,18 @@ function fetch_behaviours() {
   );
   return get(base_url() + "api/behaviours", expect);
 }
-function fetch_messages(num, commit) {
+function fetch_messages(num) {
   let expect = expect_json(
     list2(message_details_decoder()),
     (var0) => {
       return new MessagesFetched(var0);
     }
   );
-  let _block;
-  if (!commit) {
-    _block = "false";
-  } else {
-    _block = "true";
-  }
-  let commit_query_param = _block;
   return get(
     base_url() + "api/fetch?num=" + (() => {
       let _pipe = num;
       return to_string(_pipe);
-    })() + "&commit=" + commit_query_param,
+    })(),
     expect
   );
 }
@@ -4513,12 +4459,12 @@ var Model2 = class extends CustomType {
 function display_model(model) {
   let _block;
   let $ = model.config;
-  if ($ instanceof None) {
-    _block = "empty";
-  } else {
+  if ($ instanceof Some) {
     let c = $[0];
     let _pipe2 = c;
     _block = display_config(_pipe2);
+  } else {
+    _block = "empty";
   }
   let config = _block;
   let _block$1;
@@ -4526,11 +4472,9 @@ function display_model(model) {
   let _pipe$1 = map(
     _pipe,
     (a2) => {
-      {
-        let i = a2[0];
-        let _pipe$12 = i;
-        return to_string(_pipe$12);
-      }
+      let i = a2[0];
+      let _pipe$12 = i;
+      return to_string(_pipe$12);
     }
   );
   _block$1 = unwrap(_pipe$1, "none");
@@ -4556,195 +4500,128 @@ function init_model() {
 function update(model, msg) {
   if (msg instanceof ConfigFetched) {
     let res = msg[0];
-    if (!res.isOk()) {
-      let e = res[0];
+    if (res instanceof Ok) {
+      let c = res[0];
       return [
-        (() => {
-          let _record = model;
-          return new Model2(
-            _record.config,
-            _record.behaviours,
-            _record.messages,
-            _record.messages_cache,
-            new Some(e),
-            _record.current_message,
-            _record.fetching,
-            _record.debug
-          );
-        })(),
+        new Model2(
+          new Some(c),
+          model.behaviours,
+          model.messages,
+          model.messages_cache,
+          model.http_error,
+          model.current_message,
+          model.fetching,
+          model.debug
+        ),
         none()
       ];
     } else {
-      let c = res[0];
+      let e = res[0];
       return [
-        (() => {
-          let _record = model;
-          return new Model2(
-            new Some(c),
-            _record.behaviours,
-            _record.messages,
-            _record.messages_cache,
-            _record.http_error,
-            _record.current_message,
-            _record.fetching,
-            _record.debug
-          );
-        })(),
+        new Model2(
+          model.config,
+          model.behaviours,
+          model.messages,
+          model.messages_cache,
+          new Some(e),
+          model.current_message,
+          model.fetching,
+          model.debug
+        ),
         none()
       ];
     }
   } else if (msg instanceof BehavioursFetched) {
     let res = msg[0];
-    if (!res.isOk()) {
-      return [model, none()];
-    } else {
+    if (res instanceof Ok) {
       let b = res[0];
       return [
-        (() => {
-          let _record = model;
-          return new Model2(
-            _record.config,
-            b,
-            _record.messages,
-            _record.messages_cache,
-            _record.http_error,
-            _record.current_message,
-            _record.fetching,
-            _record.debug
-          );
-        })(),
+        new Model2(
+          model.config,
+          b,
+          model.messages,
+          model.messages_cache,
+          model.http_error,
+          model.current_message,
+          model.fetching,
+          model.debug
+        ),
         none()
       ];
+    } else {
+      return [model, none()];
     }
   } else if (msg instanceof FetchMessages) {
     let num = msg[0];
     return [
-      (() => {
-        let _record = model;
-        return new Model2(
-          _record.config,
-          _record.behaviours,
-          _record.messages,
-          _record.messages_cache,
-          new None(),
-          _record.current_message,
-          true,
-          _record.debug
-        );
-      })(),
-      fetch_messages(num, model.behaviours.commit_messages)
+      new Model2(
+        model.config,
+        model.behaviours,
+        model.messages,
+        model.messages_cache,
+        new None(),
+        model.current_message,
+        true,
+        model.debug
+      ),
+      fetch_messages(num)
     ];
   } else if (msg instanceof ClearMessages) {
     return [
-      (() => {
-        let _record = model;
-        return new Model2(
-          _record.config,
-          _record.behaviours,
-          toList([]),
-          new_map(),
-          new None(),
-          new None(),
-          _record.fetching,
-          _record.debug
-        );
-      })(),
-      none()
-    ];
-  } else if (msg instanceof CommitSettingsChanged) {
-    let selected = msg[0];
-    return [
-      (() => {
-        let _record = model;
-        return new Model2(
-          _record.config,
-          (() => {
-            let _record$1 = model.behaviours;
-            return new Behaviours(selected, _record$1.select_on_hover);
-          })(),
-          _record.messages,
-          _record.messages_cache,
-          _record.http_error,
-          _record.current_message,
-          _record.fetching,
-          _record.debug
-        );
-      })(),
+      new Model2(
+        model.config,
+        model.behaviours,
+        toList([]),
+        new_map(),
+        new None(),
+        new None(),
+        model.fetching,
+        model.debug
+      ),
       none()
     ];
   } else if (msg instanceof HoverSettingsChanged) {
     let selected = msg[0];
     return [
-      (() => {
-        let _record = model;
-        return new Model2(
-          _record.config,
-          (() => {
-            let _record$1 = model.behaviours;
-            return new Behaviours(_record$1.commit_messages, selected);
-          })(),
-          _record.messages,
-          _record.messages_cache,
-          _record.http_error,
-          _record.current_message,
-          _record.fetching,
-          _record.debug
-        );
-      })(),
+      new Model2(
+        model.config,
+        new Behaviours(selected),
+        model.messages,
+        model.messages_cache,
+        model.http_error,
+        model.current_message,
+        model.fetching,
+        model.debug
+      ),
       none()
     ];
-  } else if (msg instanceof GoToEnd) {
-    return [model, none()];
-  } else if (msg instanceof GoToStart) {
-    return [model, none()];
   } else if (msg instanceof MessageChosen) {
     let index5 = msg[0];
     let _block;
     let _pipe = model.messages_cache;
     _block = map_get(_pipe, index5);
     let maybe_message = _block;
-    if (!maybe_message.isOk()) {
-      return [model, none()];
-    } else {
+    if (maybe_message instanceof Ok) {
       let msg$1 = maybe_message[0];
       return [
-        (() => {
-          let _record = model;
-          return new Model2(
-            _record.config,
-            _record.behaviours,
-            _record.messages,
-            _record.messages_cache,
-            _record.http_error,
-            new Some([index5, msg$1]),
-            _record.fetching,
-            _record.debug
-          );
-        })(),
-        none()
-      ];
-    }
-  } else {
-    let result = msg[0];
-    if (!result.isOk()) {
-      let e = result[0];
-      return [
-        (() => {
-          let _record = model;
-          return new Model2(
-            _record.config,
-            _record.behaviours,
-            _record.messages,
-            _record.messages_cache,
-            new Some(e),
-            _record.current_message,
-            false,
-            _record.debug
-          );
-        })(),
+        new Model2(
+          model.config,
+          model.behaviours,
+          model.messages,
+          model.messages_cache,
+          model.http_error,
+          new Some([index5, msg$1]),
+          model.fetching,
+          model.debug
+        ),
         none()
       ];
     } else {
+      return [model, none()];
+    }
+  } else if (msg instanceof MessagesFetched) {
+    let result = msg[0];
+    if (result instanceof Ok) {
       let messages = result[0];
       let _block;
       let _pipe = model.messages;
@@ -4758,22 +4635,38 @@ function update(model, msg) {
       _block$1 = from_list(_pipe$2);
       let messages_cache = _block$1;
       return [
-        (() => {
-          let _record = model;
-          return new Model2(
-            _record.config,
-            _record.behaviours,
-            updated_messages,
-            messages_cache,
-            _record.http_error,
-            _record.current_message,
-            false,
-            _record.debug
-          );
-        })(),
+        new Model2(
+          model.config,
+          model.behaviours,
+          updated_messages,
+          messages_cache,
+          model.http_error,
+          model.current_message,
+          false,
+          model.debug
+        ),
+        none()
+      ];
+    } else {
+      let e = result[0];
+      return [
+        new Model2(
+          model.config,
+          model.behaviours,
+          model.messages,
+          model.messages_cache,
+          new Some(e),
+          model.current_message,
+          false,
+          model.debug
+        ),
         none()
       ];
     }
+  } else if (msg instanceof GoToStart) {
+    return [model, none()];
+  } else {
+    return [model, none()];
   }
 }
 
@@ -4855,28 +4748,26 @@ function http_error_to_string(error) {
     return "internal server error: " + e;
   } else if (error instanceof JsonError) {
     let e = error[0];
-    if (e instanceof UnableToDecode) {
+    if (e instanceof UnexpectedEndOfInput) {
+      return "unexpected end of input";
+    } else if (e instanceof UnexpectedByte) {
+      return "unexpected byte";
+    } else if (e instanceof UnexpectedSequence) {
+      return "unexpected sequence";
+    } else if (e instanceof UnexpectedFormat) {
+      return "unexpected format";
+    } else {
       let de = e[0];
       let _pipe = de;
       let _pipe$1 = map2(
         _pipe,
         (err) => {
-          {
-            let exp2 = err.expected;
-            let found = err.found;
-            return "couldn't decode JSON; expected: " + exp2 + ", found: " + found;
-          }
+          let exp2 = err.expected;
+          let found = err.found;
+          return "couldn't decode JSON; expected: " + exp2 + ", found: " + found;
         }
       );
       return join(_pipe$1, ", ");
-    } else if (e instanceof UnexpectedByte) {
-      return "unexpected byte";
-    } else if (e instanceof UnexpectedEndOfInput) {
-      return "unexpected end of input";
-    } else if (e instanceof UnexpectedFormat) {
-      return "unexpected format";
-    } else {
-      return "unexpected sequence";
     }
   } else if (error instanceof NetworkError2) {
     return "network error";
@@ -4937,18 +4828,22 @@ function landing_section() {
 }
 function message_list_item(message, index5, current_index, select_on_hover) {
   let _block;
-  if (current_index instanceof Some && current_index[0] === index5) {
+  if (current_index instanceof Some) {
     let i = current_index[0];
-    _block = " text-[#fe8019] border-l-[#fe8019]";
+    if (i === index5) {
+      _block = " text-[#fe8019] border-l-[#fe8019]";
+    } else {
+      _block = " text-[#d5c4a1] border-l-[#282828]";
+    }
   } else {
     _block = " text-[#d5c4a1] border-l-[#282828]";
   }
   let border_class = _block;
   let _block$1;
-  if (!select_on_hover) {
-    _block$1 = on_click(new MessageChosen(index5));
-  } else {
+  if (select_on_hover) {
     _block$1 = on_mouse_over(new MessageChosen(index5));
+  } else {
+    _block$1 = on_click(new MessageChosen(index5));
   }
   let event_handler = _block$1;
   return div(
@@ -4961,60 +4856,50 @@ function message_list_item(message, index5, current_index, select_on_hover) {
     toList([
       p(
         toList([class$("text-base font-semibold")]),
-        toList([
-          text2(
-            (() => {
-              let $ = message.error;
-              if ($ instanceof None) {
-                return message.key;
-              } else {
-                return "error";
-              }
-            })()
-          )
-        ])
+        toList([text2(message.key)])
       ),
       div(
         toList([class$("flex space-x-2 text-sm")]),
-        (() => {
-          let $ = message.error;
-          if ($ instanceof None) {
-            return toList([
-              p(
-                toList([]),
-                toList([
-                  text2(
-                    "offset: " + (() => {
-                      let _pipe = message.offset;
-                      return to_string(_pipe);
-                    })()
-                  )
-                ])
-              ),
-              p(
-                toList([]),
-                toList([
-                  text2(
-                    "partition: " + (() => {
-                      let _pipe = message.partition;
-                      return to_string(_pipe);
-                    })()
-                  )
-                ])
-              ),
-              (() => {
-                let $1 = message.value;
-                if ($1 instanceof None) {
-                  return p(toList([]), toList([text2("\u{1FAA6}")]));
-                } else {
-                  return none2();
-                }
-              })()
-            ]);
-          } else {
-            return toList([]);
-          }
-        })()
+        toList([
+          p(
+            toList([]),
+            toList([
+              text2(
+                "offset: " + (() => {
+                  let _pipe = message.offset;
+                  return to_string(_pipe);
+                })()
+              )
+            ])
+          ),
+          p(
+            toList([]),
+            toList([
+              text2(
+                "partition: " + (() => {
+                  let _pipe = message.partition;
+                  return to_string(_pipe);
+                })()
+              )
+            ])
+          ),
+          (() => {
+            let $ = message.decode_error;
+            if ($ instanceof Some) {
+              return p(toList([]), toList([text2("decode error")]));
+            } else {
+              return p(toList([]), toList([]));
+            }
+          })(),
+          (() => {
+            let $ = message.value;
+            if ($ instanceof Some) {
+              return none2();
+            } else {
+              return p(toList([]), toList([text2("\u{1FAA6}")]));
+            }
+          })()
+        ])
       )
     ])
   );
@@ -5022,26 +4907,16 @@ function message_list_item(message, index5, current_index, select_on_hover) {
 function message_details_pane(model) {
   let _block;
   let $ = model.current_message;
-  if ($ instanceof None) {
-    _block = p(
-      toList([class$("text-[#928374]")]),
-      toList([
-        text2(
-          (() => {
-            let $1 = model.behaviours.select_on_hover;
-            if ($1) {
-              return "Hover on";
-            } else {
-              return "Select";
-            }
-          })() + " an entry in the left pane to view details here."
-        )
-      ])
-    );
-  } else {
+  if ($ instanceof Some) {
     let msg = $[0][1];
-    let $1 = msg.error;
-    if ($1 instanceof None) {
+    let $1 = msg.decode_error;
+    if ($1 instanceof Some) {
+      let e = $1[0];
+      _block = pre(
+        toList([class$("text-[#fb4934] text-base mb-4")]),
+        toList([text2(e)])
+      );
+    } else {
       _block = div(
         toList([]),
         toList([
@@ -5059,25 +4934,35 @@ function message_details_pane(model) {
           ),
           (() => {
             let $2 = msg.value;
-            if ($2 instanceof None) {
-              return p(toList([]), toList([text2("tombstone \u{1FAA6}")]));
-            } else {
+            if ($2 instanceof Some) {
               let v = $2[0];
               return pre(
                 toList([class$("text-[#d5c4a1] text-base mb-4")]),
                 toList([text2(v)])
               );
+            } else {
+              return p(toList([]), toList([text2("tombstone \u{1FAA6}")]));
             }
           })()
         ])
       );
-    } else {
-      let e = $1[0];
-      _block = pre(
-        toList([class$("text-[#fb4934] text-base mb-4")]),
-        toList([text2(e)])
-      );
     }
+  } else {
+    _block = p(
+      toList([class$("text-[#928374]")]),
+      toList([
+        text2(
+          (() => {
+            let $1 = model.behaviours.select_on_hover;
+            if ($1) {
+              return "Hover on";
+            } else {
+              return "Select";
+            }
+          })() + " an entry in the left pane to view details here."
+        )
+      ])
+    );
   }
   let message_details = _block;
   return div(
@@ -5097,10 +4982,8 @@ function messages_section_with_messages(model) {
   _block = map(
     _pipe,
     (a2) => {
-      {
-        let i = a2[0];
-        return i;
-      }
+      let i = a2[0];
+      return i;
     }
   );
   let current_index = _block;
@@ -5150,7 +5033,7 @@ function messages_section_with_messages(model) {
 }
 function messages_section(model) {
   let $ = model.messages;
-  if ($.hasLength(0)) {
+  if ($ instanceof Empty) {
     return landing_section();
   } else {
     return messages_section_with_messages(model);
@@ -5219,30 +5102,7 @@ function consumer_info(config) {
         toList([
           p(
             toList([
-              class$("text-nowrap w-24 text-[#fabd2f] overflow-clip")
-            ]),
-            toList([text(config.consumer_group)])
-          ),
-          div(
-            toList([
-              class$(
-                "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-[#a89984] text-[#282828] text-xs px-2 py-1 text-center"
-              )
-            ]),
-            toList([text2(config.consumer_group)])
-          )
-        ])
-      ),
-      p(
-        toList([class$("text-[#d5c4a1]")]),
-        toList([text("<-")])
-      ),
-      div(
-        toList([class$("relative group")]),
-        toList([
-          p(
-            toList([
-              class$("text-nowrap w-24 text-[#fabd2f] overflow-clip")
+              class$("text-nowrap w-48 text-[#fabd2f] overflow-clip")
             ]),
             toList([text(config.topic)])
           ),
@@ -5344,33 +5204,6 @@ function controls_div_with_config(model, config) {
                 ])
               )
             ])
-          ),
-          div(
-            toList([class$("flex items-center space-x-2")]),
-            toList([
-              label(
-                toList([
-                  class$("cursor-pointer"),
-                  for$("commit-messages")
-                ]),
-                toList([text("commit messages")])
-              ),
-              input(
-                toList([
-                  class$(
-                    "w-4 h-4 text-[#fabd2f] bg-[#282828] focus:ring-[#fabd2f] cursor-pointer"
-                  ),
-                  id("commit-messages"),
-                  type_("checkbox"),
-                  on_check(
-                    (var0) => {
-                      return new CommitSettingsChanged(var0);
-                    }
-                  ),
-                  checked(model.behaviours.commit_messages)
-                ])
-              )
-            ])
           )
         ])
       )
@@ -5388,9 +5221,7 @@ function controls_section(model) {
 }
 function error_section(model) {
   let $ = model.http_error;
-  if ($ instanceof None) {
-    return none2();
-  } else {
+  if ($ instanceof Some) {
     let err = $[0];
     return div(
       toList([
@@ -5417,6 +5248,8 @@ function error_section(model) {
         )
       ])
     );
+  } else {
+    return none2();
   }
 }
 function view(model) {
@@ -5442,6 +5275,7 @@ function view(model) {
 }
 
 // build/dev/javascript/kplay/kplay.mjs
+var FILEPATH = "src/kplay.gleam";
 function init2(_) {
   return [
     init_model(),
@@ -5451,14 +5285,15 @@ function init2(_) {
 function main() {
   let app = application(init2, update, view);
   let $ = start2(app, "#app", void 0);
-  if (!$.isOk()) {
+  if (!($ instanceof Ok)) {
     throw makeError(
       "let_assert",
+      FILEPATH,
       "kplay",
       11,
       "main",
       "Pattern match failed, no pattern matched the value.",
-      { value: $ }
+      { value: $, start: 253, end: 302, pattern_start: 264, pattern_end: 269 }
     );
   }
   return $;

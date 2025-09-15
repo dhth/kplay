@@ -15,7 +15,7 @@ var (
 	errCouldntConvertProtoMsgToJSON = errors.New("couldn't convert proto message to JSON")
 )
 
-func ParseProtobufEncodedBytes(bytes []byte, msgDescriptor protoreflect.MessageDescriptor) ([]byte, error) {
+func TranscodeProto(bytes []byte, msgDescriptor protoreflect.MessageDescriptor) ([]byte, error) {
 	msg := dynamicpb.NewMessage(msgDescriptor)
 
 	if err := proto.Unmarshal(bytes, msg); err != nil {

@@ -44,7 +44,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			cmds = append(cmds, FetchMessages(m.client, m.config, m.behaviours.CommitMessages, 1))
+			cmds = append(cmds, FetchMessages(m.client, m.config, 1))
 			m.fetchingInProgress = true
 		case "N":
 			if m.activeView == helpView {
@@ -56,7 +56,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			cmds = append(cmds, FetchMessages(m.client, m.config, m.behaviours.CommitMessages, 10))
+			cmds = append(cmds, FetchMessages(m.client, m.config, 10))
 			m.fetchingInProgress = true
 		case "}":
 			if m.activeView == helpView {
@@ -68,17 +68,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			cmds = append(cmds, FetchMessages(m.client, m.config, m.behaviours.CommitMessages, 100))
+			cmds = append(cmds, FetchMessages(m.client, m.config, 100))
 			m.fetchingInProgress = true
 		case "?":
 			m.lastView = m.activeView
 			m.activeView = helpView
-		case "c":
-			if m.activeView == helpView {
-				break
-			}
-
-			m.behaviours.CommitMessages = !m.behaviours.CommitMessages
 		case "p":
 			if m.activeView == helpView {
 				break
@@ -233,7 +227,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgsFetchedMsg:
 		m.fetchingInProgress = false
 		if msg.err != nil {
-			m.errorMsg = msg.err.Error()
+			m.errorMsg = fmt.Sprintf("failed to fetch messages: %s", msg.err.Error())
 			break
 		}
 
@@ -290,8 +284,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if ok {
 				var vpContent string
-				if message.Err != nil {
-					vpContent = errorStyle.Render(fmt.Sprintf("error: %s", message.Err.Error()))
+				if message.DecodeErr != nil {
+					vpContent = errorStyle.Render(fmt.Sprintf("error: %s", message.DecodeErr.Error()))
 				} else {
 					vpContent = getMsgDetailsStylized(message, m.config.Encoding)
 				}

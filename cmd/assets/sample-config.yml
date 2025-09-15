@@ -5,7 +5,6 @@ profiles:
     brokers:
       - 127.0.0.1:9092
     topic: kplay-test-1
-    consumerGroup: kplay-consumer-group-1
 
   - name: proto-encoded
     authentication: aws_msk_iam
@@ -16,7 +15,6 @@ profiles:
     brokers:
       - 127.0.0.1:9092
     topic: kplay-test-2
-    consumerGroup: kplay-consumer-group-1
 
   - name: raw
     authentication: none
@@ -24,4 +22,3 @@ profiles:
     brokers:
       - 127.0.0.1:9092
     topic: kplay-test-3
-    consumerGroup: kplay-consumer-group-1

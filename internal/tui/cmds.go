@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -13,9 +14,12 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func FetchMessages(cl *kgo.Client, config t.Config, commit bool, numRecords int) tea.Cmd {
+func FetchMessages(cl *kgo.Client, config t.Config, numRecords uint) tea.Cmd {
 	return func() tea.Msg {
-		records, err := k.FetchAndCommitRecords(cl, commit, numRecords)
+		fetchCtx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+		defer cancel()
+
+		records, err := k.FetchRecords(fetchCtx, cl, numRecords)
 		if err != nil {
 			return msgsFetchedMsg{
 				err: err,
@@ -24,10 +28,14 @@ func FetchMessages(cl *kgo.Client, config t.Config, commit bool, numRecords int)
 
 		messages := make([]t.Message, len(records))
 		for i, record := range records {
-			messages[i] = t.GetMessageFromRecord(record, config, true)
+			if record == nil {
+				continue
+			}
+
+			messages[i] = t.GetMessageFromRecord(*record, config, true)
 		}
 
-		return msgsFetchedMsg{messages, err}
+		return msgsFetchedMsg{messages: messages, err: nil}
 	}
 }
 

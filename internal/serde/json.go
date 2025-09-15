@@ -1,25 +1,28 @@
 package serde
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 )
 
-var errCouldntUnmarshalJSONData = errors.New("couldn't unmarshal JSON encoded bytes")
+var errCouldntUnmarshalToJSON = errors.New("couldn't unmarshal bytes to JSON")
 
-func ParseJSONEncodedBytes(bytes []byte) ([]byte, error) {
-	var data map[string]any
-	err := json.Unmarshal(bytes, &data)
+func PrettifyJSON(data []byte) ([]byte, error) {
+	var msg json.RawMessage
+	err := json.Unmarshal(data, &msg)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", errCouldntUnmarshalJSONData, err.Error())
+		return nil, fmt.Errorf("%w: %s", errCouldntUnmarshalToJSON, err.Error())
 	}
 
-	indentedBytes, err := json.MarshalIndent(data, "", "  ")
+	var out bytes.Buffer
+
+	err = json.Indent(&out, data, "", "  ")
 	if err != nil {
 		// nolint:nilerr
-		return bytes, nil
+		return data, nil
 	}
 
-	return indentedBytes, nil
+	return out.Bytes(), nil
 }

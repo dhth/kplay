@@ -5,4 +5,3 @@ profiles
     brokers:
       - 127.0.0.1:9092
     topic: kplay-test-1
-    consumerGroup: kplay-consumer-group-1
