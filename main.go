@@ -7,10 +7,10 @@ import (
 
 	_ "embed"
 
-	"github.com/dhth/kplay/cmd"
+	"github.com/dhth/kplay/internal/cmd"
 )
 
-//go:embed cmd/assets/sample-config.yml
+//go:embed internal/cmd/assets/sample-config.yml
 var sampleConfig []byte
 
 func main() {
