@@ -15,6 +15,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dhth/kplay/internal/fs"
+	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/dhth/kplay/internal/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -90,7 +91,7 @@ func (s *Scanner) Execute() error {
 		case <-sigChan:
 			return nil
 			// timeout after first signal
-		case <-time.After(8 * time.Second):
+		case <-time.After(5 * time.Second):
 			return t.ErrCouldntShutDownGracefully
 		}
 	case err := <-scanErrChan:
@@ -123,21 +124,33 @@ func (s *Scanner) scan(ctx context.Context) error {
 	recordWriter = rw
 
 	progressChan := make(chan scanProgress, 1)
+	spinnerDone := make(chan struct{})
 
-	go showSpinner(ctx, s.behaviours, progressChan)
+	go showSpinner(spinnerDone, progressChan, s.behaviours)
+
+	defer func() {
+		spinnerDone <- struct{}{}
+		close(spinnerDone)
+		close(progressChan)
+		s.reportResults(scanOutputDir, scanOutputFilePath)
+	}()
 
 	for s.progress.numRecordsConsumed < s.behaviours.NumMessages {
 		select {
 		case <-ctx.Done():
-			return s.reportResults(scanOutputDir, scanOutputFilePath)
+			return nil
 		default:
 		}
 
 		toFetch := min(s.behaviours.NumMessages-s.progress.numRecordsConsumed, s.behaviours.BatchSize)
 
 		fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		records := s.client.PollRecords(fetchCtx, int(toFetch)).Records()
+		records, err := k.FetchRecords(fetchCtx, s.client, toFetch)
 		cancel()
+
+		if err != nil {
+			return err
+		}
 
 		if len(records) == 0 {
 			continue
@@ -188,14 +201,14 @@ func (s *Scanner) scan(ctx context.Context) error {
 
 	}
 
-	return s.reportResults(scanOutputDir, scanOutputFilePath)
+	return nil
 }
 
-func (s *Scanner) reportResults(scanOutputDir, scanOutputFilePath string) error {
+func (s *Scanner) reportResults(scanOutputDir, scanOutputFilePath string) {
 	fmt.Fprint(os.Stderr, "\r\033[K")
 
 	if s.progress.numRecordsConsumed == 0 {
-		return nil
+		return
 	}
 
 	fmt.Printf(`Summary:
@@ -219,10 +232,8 @@ Value bytes consumed:          %s
 			errStrs[i] = fmt.Sprintf("- offset: %d, key: %s, error: %s", err.offset, err.key, err.err.Error())
 		}
 
-		return fmt.Errorf("encountered the following errors while saving values to the local filesystem:\n%s", strings.Join(errStrs, "\n"))
+		fmt.Printf("\nEncountered the following errors while saving values to the local filesystem:\n%s", strings.Join(errStrs, "\n"))
 	}
-
-	return nil
 }
 
 func newMessageWriter(filePath string) (*messageWriter, error) {
@@ -278,7 +289,7 @@ func (rw *messageWriter) close() error {
 	return nil
 }
 
-func showSpinner(ctx context.Context, behaviours Behaviours, progressChan chan scanProgress) {
+func showSpinner(doneChan chan struct{}, progressChan chan scanProgress, behaviours Behaviours) {
 	var progress scanProgress
 	spinnerRunes := []rune{'⣷', '⣯', '⣟', '⡿', '⢿', '⣻', '⣽', '⣾'}
 	spinnerIndex := 0
@@ -293,7 +304,7 @@ func showSpinner(ctx context.Context, behaviours Behaviours, progressChan chan s
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-doneChan:
 			fmt.Fprint(os.Stderr, "\r\033[K")
 			return
 		case p := <-progressChan:
@@ -323,7 +334,7 @@ func showSpinner(ctx context.Context, behaviours Behaviours, progressChan chan s
 			spinnerIndex++
 
 			select {
-			case <-ctx.Done():
+			case <-doneChan:
 				fmt.Fprint(os.Stderr, "\r\033[K")
 				return
 			case <-time.After(100 * time.Millisecond):

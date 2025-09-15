@@ -227,7 +227,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgsFetchedMsg:
 		m.fetchingInProgress = false
 		if msg.err != nil {
-			m.errorMsg = msg.err.Error()
+			m.errorMsg = fmt.Sprintf("failed to fetch messages: %s", msg.err.Error())
 			break
 		}
 

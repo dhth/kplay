@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -23,23 +24,27 @@ func getMessages(client *kgo.Client, config t.Config) func(w http.ResponseWriter
 		queryParams := r.URL.Query()
 		numMessagesStr := queryParams.Get("num")
 
-		numMessages := 1
+		var numMessages uint = 1
 		if numMessagesStr != "" {
 			num, err := strconv.Atoi(numMessagesStr)
 			if err != nil || num < 1 {
 				http.Error(w, fmt.Sprintf("incorrect value provided for query param \"num\": %s", err.Error()), http.StatusBadRequest)
 				return
 			}
-			numMessages = num
+			numMessages = uint(num)
 		}
 		if numMessages > 10 {
 			numMessages = 10
 		}
 
-		ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+		fetchCtx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 		defer cancel()
 
-		records := client.PollRecords(ctx, numMessages).Records()
+		records, err := k.FetchRecords(fetchCtx, client, numMessages)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to fetch messages: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
 
 		messages := make([]t.SerializableMessage, 0)
 		for _, record := range records {

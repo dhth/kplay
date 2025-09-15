@@ -9,16 +9,22 @@ import (
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dhth/kplay/internal/fs"
+	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func FetchMessages(cl *kgo.Client, config t.Config, numRecords int) tea.Cmd {
+func FetchMessages(cl *kgo.Client, config t.Config, numRecords uint) tea.Cmd {
 	return func() tea.Msg {
 		fetchCtx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 		defer cancel()
 
-		records := cl.PollRecords(fetchCtx, numRecords).Records()
+		records, err := k.FetchRecords(fetchCtx, cl, numRecords)
+		if err != nil {
+			return msgsFetchedMsg{
+				err: err,
+			}
+		}
 
 		messages := make([]t.Message, len(records))
 		for i, record := range records {
