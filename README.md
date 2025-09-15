@@ -116,8 +116,8 @@ profiles:
 ---
 
 `kplay` supports decoding messages that are encoded in two data formats: JSON
-and protobuf. It also supports decoding raw data (using the `encodingFormat`
-"raw").
+and protobuf. It also supports handling the message bytes as raw data (using the
+`encodingFormat` "raw").
 
 ### Decoding protobuf encoded messages
 
