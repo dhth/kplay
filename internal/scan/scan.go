@@ -196,7 +196,7 @@ func (s *Scanner) scan(ctx context.Context) error {
 			}
 
 			s.progress.numBytesConsumed += uint64(len(record.Value))
-			s.progress.lastOffsetDetails = fmt.Sprintf("partition-%d:%d", lastRecord.Partition, lastRecord.Offset)
+			s.progress.lastOffsetDetails = fmt.Sprintf("%d:%d", lastRecord.Partition, lastRecord.Offset)
 			s.progress.lastTimeStampSeen = lastRecord.Timestamp
 		}
 
@@ -345,7 +345,7 @@ func showSpinner(doneChan chan struct{}, progressChan chan scanProgress, behavio
 			if progress.numDecodeErrors > 0 {
 				decodeErrorsSection = fmt.Sprintf(", decode errors: %s", errorStyle.Render(fmt.Sprintf("%d", progress.numDecodeErrors)))
 			}
-			progressLine = fmt.Sprintf("%s messages scanned%s (last offset: %s, last timestamp: %s, value bytes consumed: %s%s)",
+			progressLine = fmt.Sprintf("%s messages scanned%s (offset: %s, timestamp: %s, bytes consumed: %s%s)",
 				numRecordsStyle.Render(fmt.Sprintf("%d", progress.numRecordsConsumed)),
 				matchInfo,
 				offsetStyle.Render(progress.lastOffsetDetails),
