@@ -9,17 +9,12 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/twmb/franz-go/pkg/kgo"
 	kaws "github.com/twmb/franz-go/pkg/sasl/aws"
 )
 
-var (
-	errCouldntRetrieveAWSCredentials = errors.New("couldn't retrieve AWS credentials")
-	errCouldntLoadAwsConfig          = errors.New("couldn't load AWS config")
-	errCouldntCreateKafkaClient      = errors.New("couldn't create kafka client")
-)
+var errCouldntCreateKafkaClient = errors.New("couldn't create kafka client")
 
 type Builder struct {
 	opts []kgo.Opt
@@ -43,7 +38,7 @@ func (b Builder) WithMskIAMAuth(awsCfg aws.Config) Builder {
 	authFn := func(c context.Context) (kaws.Auth, error) {
 		creds, err := awsCfg.Credentials.Retrieve(c)
 		if err != nil {
-			return kaws.Auth{}, fmt.Errorf("%w: %w", errCouldntRetrieveAWSCredentials, err)
+			return kaws.Auth{}, fmt.Errorf("%w: %w", t.ErrCouldntRetrieveAWSCredentials, err)
 		}
 
 		return kaws.Auth{
@@ -102,18 +97,12 @@ func GetKafkaClient(
 	brokers []string,
 	topic string,
 	consumeBehaviours t.ConsumeBehaviours,
+	awsCfg *aws.Config,
 ) (*kgo.Client, error) {
 	builder := NewBuilder(brokers)
 
 	if auth == t.AWSMSKIAM {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		cfg, err := config.LoadDefaultConfig(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s", errCouldntLoadAwsConfig, err.Error())
-		}
-		builder = builder.WithMskIAMAuth(cfg)
+		builder = builder.WithMskIAMAuth(*awsCfg)
 	}
 
 	if consumeBehaviours.StartTimeStamp != nil {

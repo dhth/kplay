@@ -10,6 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	a "github.com/dhth/kplay/internal/awsweb"
+	f "github.com/dhth/kplay/internal/forwarder"
 	k "github.com/dhth/kplay/internal/kafka"
 	"github.com/dhth/kplay/internal/scan"
 	"github.com/dhth/kplay/internal/server"
@@ -155,11 +159,22 @@ to brokers, message encoding, authentication, etc.
 				return nil
 			}
 
+			var awsConfig *aws.Config
+			if config.Authentication == t.AWSMSKIAM {
+				awsCfg, err := a.GetAWSConfig(context.Background())
+				if err != nil {
+					return err
+				}
+
+				awsConfig = &awsCfg
+			}
+
 			cl, err := k.GetKafkaClient(
 				config.Authentication,
 				config.Brokers,
 				config.Topic,
 				consumeBehaviours,
+				awsConfig,
 			)
 			if err != nil {
 				return fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
@@ -198,11 +213,22 @@ to brokers, message encoding, authentication, etc.
 				return nil
 			}
 
+			var awsConfig *aws.Config
+			if config.Authentication == t.AWSMSKIAM {
+				awsCfg, err := a.GetAWSConfig(context.Background())
+				if err != nil {
+					return err
+				}
+
+				awsConfig = &awsCfg
+			}
+
 			cl, err := k.GetKafkaClient(
 				config.Authentication,
 				config.Brokers,
 				config.Topic,
 				consumeBehaviours,
+				awsConfig,
 			)
 			if err != nil {
 				return fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
@@ -269,7 +295,23 @@ to brokers, message encoding, authentication, etc.
 				return nil
 			}
 
-			client, err := k.GetKafkaClient(config.Authentication, config.Brokers, config.Topic, consumeBehaviours)
+			var awsConfig *aws.Config
+			if config.Authentication == t.AWSMSKIAM {
+				awsCfg, err := a.GetAWSConfig(context.Background())
+				if err != nil {
+					return err
+				}
+
+				awsConfig = &awsCfg
+			}
+
+			client, err := k.GetKafkaClient(
+				config.Authentication,
+				config.Brokers,
+				config.Topic,
+				consumeBehaviours,
+				awsConfig,
+			)
 			if err != nil {
 				return err
 			}
@@ -279,6 +321,51 @@ to brokers, message encoding, authentication, etc.
 			scanner := scan.New(client, config, scanBehaviours, outputDir)
 
 			return scanner.Execute()
+		},
+	}
+
+	forwardCmd := &cobra.Command{
+		Use:          "forward <PROFILE>",
+		Short:        "fetch messages in a kafka topic and forward them to an S3 bucket",
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if debug {
+				fmt.Printf(`%s
+%s
+`,
+					config.Display(),
+					consumeBehaviours.Display(),
+				)
+
+				return nil
+			}
+
+			ctx := context.Background()
+
+			awsConfig, err := a.GetAWSConfig(ctx)
+			if err != nil {
+				return err
+			}
+
+			s3Client := s3.NewFromConfig(awsConfig)
+
+			client, err := k.GetKafkaClient(
+				config.Authentication,
+				config.Brokers,
+				config.Topic,
+				consumeBehaviours,
+				&awsConfig,
+			)
+			if err != nil {
+				return err
+			}
+
+			defer client.Close()
+
+			forwarder := f.New(client, s3Client, config)
+
+			return forwarder.Execute(ctx)
 		},
 	}
 
@@ -322,6 +409,7 @@ to brokers, message encoding, authentication, etc.
 	rootCmd.AddCommand(tuiCmd)
 	rootCmd.AddCommand(serveCmd)
 	rootCmd.AddCommand(scanCmd)
+	rootCmd.AddCommand(forwardCmd)
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 

@@ -14,11 +14,6 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-var (
-	errCouldntStartServer     = errors.New("couldn't start server")
-	errForcefulShutdownFailed = errors.New("forceful shutdown failed")
-)
-
 func Serve(client *kgo.Client, config t.Config, initialBehaviours Behaviours, open bool) error {
 	mux := http.NewServeMux()
 
@@ -80,12 +75,12 @@ func Serve(client *kgo.Client, config t.Config, initialBehaviours Behaviours, op
 		if err := server.Shutdown(shutDownCtx); err != nil {
 			fmt.Printf("Error shutting down: %s\nTrying forceful shutdown...\n", err.Error())
 			if err := server.Close(); err != nil {
-				return fmt.Errorf("%w:: %s", errForcefulShutdownFailed, err.Error())
+				return fmt.Errorf("%w:: %s", t.ErrForcefulServerShutdownFailed, err.Error())
 			}
 		}
 		fmt.Printf("\nbye 👋\n")
 	case err := <-serverErrChan:
-		return fmt.Errorf("%w: %s", errCouldntStartServer, err.Error())
+		return fmt.Errorf("%w: %s", t.ErrCouldntStartHTTPServer, err.Error())
 	}
 
 	return nil
