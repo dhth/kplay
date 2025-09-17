@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -29,7 +30,7 @@ func NewBuilder(brokers []string) Builder {
 }
 
 func (b Builder) WithTopic(topic string) Builder {
-	b.opts = append(b.opts, kgo.ConsumeTopics(topic))
+	b.opts = append(b.opts, kgo.ConsumeTopics(strings.Split(topic, ",")...))
 
 	return b
 }
@@ -63,7 +64,7 @@ func (b Builder) WithMskIAMAuth(awsCfg aws.Config) Builder {
 }
 
 func (b Builder) WithStartOffset(topic string, offset int64) Builder {
-	b.opts = append(b.opts, kgo.ConsumeTopics(topic))
+	b.opts = append(b.opts, kgo.ConsumeTopics(strings.Split(topic, ",")...))
 	b.opts = append(b.opts, kgo.ConsumeStartOffset(kgo.NewOffset().At(offset)))
 
 	return b
@@ -86,14 +87,14 @@ func (b Builder) WithPartitionOffsets(topic string, partitionOffsets map[int32]i
 
 func (b Builder) WithStartTimestamp(topic string, timestamp time.Time) Builder {
 	millis := timestamp.UnixMilli()
-	b.opts = append(b.opts, kgo.ConsumeTopics(topic))
+	b.opts = append(b.opts, kgo.ConsumeTopics(strings.Split(topic, ",")...))
 	b.opts = append(b.opts, kgo.ConsumeStartOffset(kgo.NewOffset().AfterMilli(millis)))
 
 	return b
 }
 
 func (b Builder) WithConsumerGroup(topic, group string) Builder {
-	b.opts = append(b.opts, kgo.ConsumeTopics(topic))
+	b.opts = append(b.opts, kgo.ConsumeTopics(strings.Split(topic, ",")...))
 	b.opts = append(b.opts, kgo.ConsumerGroup(group))
 
 	return b

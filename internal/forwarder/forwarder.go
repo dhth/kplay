@@ -22,21 +22,21 @@ import (
 )
 
 const (
-	fetchBatchSize                = 100
+	fetchBatchSize                = 50
 	shutDownTimeoutSeconds        = 20
 	httpServerShutDownTimeoutSecs = 3
 )
 
 type Forwarder struct {
 	clients  []*kgo.Client
-	config   t.Config
+	configs  []t.Config
 	s3Client *s3.Client
 }
 
-func New(clients []*kgo.Client, s3Client *s3.Client, config t.Config) Forwarder {
+func New(clients []*kgo.Client, s3Client *s3.Client, configs []t.Config) Forwarder {
 	forwarder := Forwarder{
 		clients:  clients,
-		config:   config,
+		configs:  configs,
 		s3Client: s3Client,
 	}
 
@@ -60,10 +60,6 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 		f.pollRecords(forwarderCtx, uploadWorkChan)
 		shutDownChan <- struct{}{}
 	}(forwarderShutDownChan)
-
-	for range 10 {
-		go f.startUploadWorker(ctx, uploadWorkChan)
-	}
 
 	go func(shutDownChan chan struct{}) {
 		startServer(forwarderCtx)
@@ -89,10 +85,11 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 				return nil
 				// timeout after first signal
 			case <-timeout:
-				slog.Error("Couldn't shut down gracefully; exiting")
+				slog.Error("couldn't shut down gracefully; exiting")
 				return t.ErrCouldntShutDownGracefully
 			}
 		}
+		slog.Info("all components stopped gracefully; bye 👋")
 		return nil
 	case <-serverShutDownChan:
 		cancel()
@@ -148,68 +145,78 @@ func startServer(ctx context.Context) {
 }
 
 type uploadWork struct {
-	clientIndex int
-	record      *kgo.Record
+	msg       t.Message
+	objectKey string
 }
 
-func (f *Forwarder) pollRecords(ctx context.Context, uploadChan chan<- uploadWork) {
-	client := f.clients[0]
-	topics := client.GetConsumeTopics()
+func (f *Forwarder) pollRecords(ctx context.Context, uploadChan chan uploadWork) {
+	slog.Info("starting record poller")
 
-	slog.Info("starting record poller", "topics", topics)
+	pendingWork := make([]uploadWork, 0)
 
-	pendingRecords := make([]*kgo.Record, 0)
+	uploadCtx, uploadCancel := context.WithCancel(context.TODO())
 
+	for range 50 {
+		go f.startUploadWorker(uploadCtx, uploadChan)
+	}
+
+	clientIndex := 0
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("shutting down record poller", "topics", topics)
+			slog.Info("finishing uploads for pending records")
+			for _, work := range pendingWork {
+				uploadChan <- work
+			}
+
+			uploadCancel()
+			slog.Info("shut down record poller")
 			return
 		default:
-			if len(pendingRecords) > 0 {
-				var remainingRecords []*kgo.Record
-				for _, record := range pendingRecords {
+			if len(pendingWork) > 0 {
+				var remainingWork []uploadWork
+				for _, work := range pendingWork {
 					select {
-					case <-ctx.Done():
-						slog.Info("shutting down record poller", "topics", topics)
-						return
-					case uploadChan <- uploadWork{record: record}:
+					case uploadChan <- work:
 					default:
-						remainingRecords = append(remainingRecords, record)
+						remainingWork = append(remainingWork, work)
 					}
 				}
-				pendingRecords = remainingRecords
-			} else {
+				pendingWork = remainingWork
+			}
+
+			if len(pendingWork) == 0 {
+				client := f.clients[clientIndex]
 				fetchCtx, fetchCancel := context.WithTimeout(ctx, 5*time.Second)
 				records, err := k.FetchRecords(fetchCtx, client, fetchBatchSize)
 				fetchCancel()
 
 				if err != nil {
-					time.Sleep(3 * time.Second)
-					slog.Error("couldn't fetch records from Kafka", "error", err)
-					continue
-				}
+					slog.Error("couldn't fetch records from Kafka", "profile", f.configs[clientIndex].Name, "error", err)
+				} else if len(records) > 0 {
+					slog.Info("fetched kafka records", "profile", f.configs[clientIndex].Name, "num_records", len(records))
 
-				if len(records) == 0 {
-					slog.Info("kafka returned no records")
-					time.Sleep(3 * time.Second)
-					continue
-				}
-
-				slog.Info("fetched kafka records", "num_records", len(records))
-
-				for _, record := range records {
-					select {
-					case <-ctx.Done():
-						slog.Info("shutting down record poller", "topics", topics)
-						return
-					case uploadChan <- uploadWork{record: record}:
-					default:
-						pendingRecords = append(pendingRecords, record)
+					for _, record := range records {
+						msg := t.GetMessageFromRecord(*record, f.configs[clientIndex], true)
+						work := uploadWork{
+							msg:       msg,
+							objectKey: fmt.Sprintf("%s/partition-%d/offset-%d.txt", record.Topic, record.Partition, record.Offset),
+						}
+						// select {
+						// case uploadChan <- work:
+						// default:
+						pendingWork = append(pendingWork, work)
+						// }
 					}
 				}
 			}
 
+			clientIndex++
+			if clientIndex >= len(f.clients) {
+				clientIndex = 0
+			}
+
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
@@ -223,36 +230,24 @@ func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploa
 			slog.Info("shutting down s3 upload worker")
 			return
 		case work := <-workChan:
-			record := work.record
-			objectKey := fmt.Sprintf("%s/partition-%d/offset-%d.txt", f.config.Topic, record.Partition, record.Offset)
 
-			toBreak := false
 			var err error
 			for i := range 5 {
-				msg := t.GetMessageFromRecord(*record, f.config, true)
-				bodyReader := strings.NewReader(msg.GetDetails())
-				uploadCtx, uploadCancel := context.WithTimeout(ctx, 5*time.Second)
-				err = upload(uploadCtx, f.s3Client, bodyReader, "kafka-forwarder-aa18b37f-5d40-4265-82fb-54ec346a4683", objectKey)
+				bodyReader := strings.NewReader(work.msg.GetDetails())
+				uploadCtx, uploadCancel := context.WithTimeout(context.TODO(), 5*time.Second)
+				err = upload(uploadCtx, f.s3Client, bodyReader, "kafka-forwarder-aa18b37f-5d40-4265-82fb-54ec346a4683", work.objectKey)
 				uploadCancel()
 
 				if err != nil {
 					if errors.Is(err, context.Canceled) {
-						slog.Info("uploading to s3 cancelled", "object_key", objectKey, "attempt_num", i+1)
+						slog.Info("uploading to s3 cancelled", "object_key", work.objectKey, "attempt_num", i+1)
 					} else {
-						slog.Error("uploading to s3 failed", "object_key", objectKey, "attempt_num", i+1, "error", err)
+						slog.Error("uploading to s3 failed", "object_key", work.objectKey, "attempt_num", i+1, "error", err)
 					}
 				}
 
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					if err == nil {
-						slog.Info("uploaded to s3", "object_key", objectKey, "attempt_num", i+1)
-						toBreak = true
-					}
-				}
-				if toBreak {
+				if err == nil {
+					slog.Info("uploaded to s3", "object_key", work.objectKey, "attempt_num", i+1)
 					break
 				}
 			}

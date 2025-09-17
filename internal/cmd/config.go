@@ -137,3 +137,110 @@ func ParseProfileConfig(bytes []byte, profileName string, homeDir string) (t.Con
 
 	return config, fmt.Errorf("%w; available profiles: %v", errProfileNotFound, availableProfiles)
 }
+
+func ParseProfileConfigs(bytes []byte, profileNames []string, homeDir string) ([]t.Config, error) {
+	var kConfig kplayConfig
+	var configs []t.Config
+
+	err := yaml.Unmarshal(bytes, &kConfig)
+	if err != nil {
+		return configs, fmt.Errorf("%w: %s", errCouldntParseConfig, err.Error())
+	}
+
+	if len(kConfig.Profiles) == 0 {
+		return configs, errNoProfilesDefined
+	}
+
+	availableProfiles := make([]string, len(kConfig.Profiles))
+	for i, pr := range kConfig.Profiles {
+		availableProfiles[i] = pr.Name
+	}
+
+	for _, profileName := range profileNames {
+		found := false
+		for _, pr := range kConfig.Profiles {
+			if pr.Name != profileName {
+				continue
+			}
+			found = true
+
+			auth, err := t.ValidateAuthValue(pr.Authentication)
+			if err != nil {
+				return configs, err
+			}
+
+			encodingFmt, err := t.ValidateEncodingFmtValue(pr.EncodingFormat)
+			if err != nil {
+				return configs, err
+			}
+
+			if len(pr.Brokers) == 0 {
+				return configs, errBrokersEmpty
+			}
+
+			if strings.TrimSpace(pr.Topic) == "" {
+				return configs, errTopicEmpty
+			}
+
+			if encodingFmt == t.Protobuf {
+				if pr.ProtoConfig == nil {
+					return configs, errProtoConfigMissing
+				}
+
+				if strings.TrimSpace(pr.ProtoConfig.DescriptorSetFile) == "" {
+					return configs, fmt.Errorf("protobuf descriptor set file is empty/missing")
+				}
+
+				pr.ProtoConfig.DescriptorSetFile = utils.ExpandTilde(os.ExpandEnv(pr.ProtoConfig.DescriptorSetFile), homeDir)
+
+				if strings.TrimSpace(pr.ProtoConfig.DescriptorName) == "" {
+					return configs, fmt.Errorf("protobuf descriptor name is empty/missing")
+				}
+
+				descriptorBytes, err := os.ReadFile(pr.ProtoConfig.DescriptorSetFile)
+				if err != nil {
+					return configs, fmt.Errorf("%w: %s", errCouldntReadDescriptorSetFile, err.Error())
+				}
+
+				descriptorName := protoreflect.FullName(pr.ProtoConfig.DescriptorName)
+				if !descriptorName.IsValid() {
+					return configs, errDescriptorNameIsInvalid
+				}
+
+				msgDescriptor, err := k.GetDescriptorFromDescriptorSet(descriptorBytes, descriptorName)
+				if err != nil {
+					return configs, fmt.Errorf("%w: %s", ErrIssueWithProtobufFileDescriptorSet, err.Error())
+				}
+
+				protoCfg := t.ProtoConfig{
+					DescriptorSetFile: pr.ProtoConfig.DescriptorSetFile,
+					DescriptorName:    pr.ProtoConfig.DescriptorName,
+					MsgDescriptor:     msgDescriptor,
+				}
+				configs = append(configs, t.Config{
+					Name:           profileName,
+					Authentication: auth,
+					Encoding:       encodingFmt,
+					Brokers:        pr.Brokers,
+					Topic:          pr.Topic,
+					Proto:          &protoCfg,
+				})
+			} else {
+				configs = append(configs, t.Config{
+					Name:           profileName,
+					Authentication: auth,
+					Encoding:       encodingFmt,
+					Brokers:        pr.Brokers,
+					Topic:          pr.Topic,
+				})
+			}
+			break
+		}
+
+		if !found {
+			return configs, fmt.Errorf("%w; available profiles: %v", errProfileNotFound, availableProfiles)
+		}
+	}
+
+	return configs, nil
+}

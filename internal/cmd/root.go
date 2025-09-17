@@ -78,6 +78,56 @@ func NewRootCommand() (*cobra.Command, error) {
 		consumeBehaviours t.ConsumeBehaviours
 	)
 
+	preRunE := func(cmd *cobra.Command, args []string) error {
+		configPathFromEnvVar := os.Getenv(envVarConfigPath)
+		if configPathFromEnvVar != "" && !cmd.Flags().Changed("config-path") {
+			configPath = configPathFromEnvVar
+		}
+
+		configPathFull = utils.ExpandTilde(configPath, homeDir)
+		configBytes, err := os.ReadFile(configPathFull)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrCouldntReadConfigFile, err)
+		}
+
+		config, err = ParseProfileConfig(configBytes, args[0], homeDir)
+		if errors.Is(err, errProfileNotFound) {
+			return err
+		} else if err != nil {
+			return fmt.Errorf("%w: %w", ErrConfigInvalid, err)
+		}
+
+		fromTimestampChanged := cmd.Flags().Changed("from-timestamp")
+		fromOffsetChanged := cmd.Flags().Changed("from-offset")
+		if fromTimestampChanged && fromOffsetChanged {
+			return fmt.Errorf("cannot use both --from-timestamp and --from-offset flags simultaneously")
+		}
+
+		var parsedTimestamp *time.Time
+		if fromTimestampChanged {
+			t, err := time.Parse(time.RFC3339, fromTimestamp)
+			if err != nil {
+				return fmt.Errorf("%w: %q; expected RFC3339 format (e.g., 2006-01-02T15:04:05Z07:00)",
+					errInvalidTimestampProvided, fromTimestamp)
+			}
+			parsedTimestamp = &t
+			consumeBehaviours.StartTimeStamp = parsedTimestamp
+		} else if fromOffsetChanged {
+			startOffset, partitionOffsets, err := parseFromOffset(fromOffset)
+			if err != nil {
+				return fmt.Errorf("%w: %s", errInvalidOffsetProvided, err.Error())
+			}
+
+			if startOffset != nil {
+				consumeBehaviours.StartOffset = startOffset
+			} else {
+				consumeBehaviours.PartitionOffsets = partitionOffsets
+			}
+		}
+
+		return nil
+	}
+
 	rootCmd := &cobra.Command{
 		Use:   "kplay",
 		Short: "kplay lets you inspect messages in a Kafka topic in a simple and deliberate manner.",
@@ -87,62 +137,14 @@ kplay relies on a configuration file that contains profiles for various Kafka to
 to brokers, message encoding, authentication, etc.
 `,
 		SilenceErrors: true,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			configPathFromEnvVar := os.Getenv(envVarConfigPath)
-			if configPathFromEnvVar != "" && !cmd.Flags().Changed("config-path") {
-				configPath = configPathFromEnvVar
-			}
-
-			configPathFull = utils.ExpandTilde(configPath, homeDir)
-			configBytes, err := os.ReadFile(configPathFull)
-			if err != nil {
-				return fmt.Errorf("%w: %w", ErrCouldntReadConfigFile, err)
-			}
-
-			config, err = ParseProfileConfig(configBytes, args[0], homeDir)
-			if errors.Is(err, errProfileNotFound) {
-				return err
-			} else if err != nil {
-				return fmt.Errorf("%w: %w", ErrConfigInvalid, err)
-			}
-
-			fromTimestampChanged := cmd.Flags().Changed("from-timestamp")
-			fromOffsetChanged := cmd.Flags().Changed("from-offset")
-			if fromTimestampChanged && fromOffsetChanged {
-				return fmt.Errorf("cannot use both --from-timestamp and --from-offset flags simultaneously")
-			}
-
-			var parsedTimestamp *time.Time
-			if fromTimestampChanged {
-				t, err := time.Parse(time.RFC3339, fromTimestamp)
-				if err != nil {
-					return fmt.Errorf("%w: %q; expected RFC3339 format (e.g., 2006-01-02T15:04:05Z07:00)",
-						errInvalidTimestampProvided, fromTimestamp)
-				}
-				parsedTimestamp = &t
-				consumeBehaviours.StartTimeStamp = parsedTimestamp
-			} else if fromOffsetChanged {
-				startOffset, partitionOffsets, err := parseFromOffset(fromOffset)
-				if err != nil {
-					return fmt.Errorf("%w: %s", errInvalidOffsetProvided, err.Error())
-				}
-
-				if startOffset != nil {
-					consumeBehaviours.StartOffset = startOffset
-				} else {
-					consumeBehaviours.PartitionOffsets = partitionOffsets
-				}
-			}
-
-			return nil
-		},
 	}
 
 	tuiCmd := &cobra.Command{
-		Use:          "tui <PROFILE>",
-		Short:        "open kplay's TUI",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
+		Use:               "tui <PROFILE>",
+		Short:             "open kplay's TUI",
+		Args:              cobra.ExactArgs(1),
+		SilenceUsage:      true,
+		PersistentPreRunE: preRunE,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			behaviours := tui.Behaviours{
 				PersistMessages: persistMessages,
@@ -198,10 +200,11 @@ to brokers, message encoding, authentication, etc.
 	}
 
 	serveCmd := &cobra.Command{
-		Use:          "serve <PROFILE>",
-		Short:        "open kplay's web interface",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
+		Use:               "serve <PROFILE>",
+		Short:             "open kplay's web interface",
+		Args:              cobra.ExactArgs(1),
+		SilenceUsage:      true,
+		PersistentPreRunE: preRunE,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			behaviours := server.Behaviours{
 				SelectOnHover: selectOnHover,
@@ -252,10 +255,11 @@ to brokers, message encoding, authentication, etc.
 	}
 
 	scanCmd := &cobra.Command{
-		Use:          "scan <PROFILE>",
-		Short:        "scan messages in a kafka topic and optionally write them to the local filesystem",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
+		Use:               "scan <PROFILE>",
+		Short:             "scan messages in a kafka topic and optionally write them to the local filesystem",
+		Args:              cobra.ExactArgs(1),
+		SilenceUsage:      true,
+		PersistentPreRunE: preRunE,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if scanBatchSize == 0 {
 				return fmt.Errorf("batch size must be greater than 0")
@@ -329,11 +333,36 @@ to brokers, message encoding, authentication, etc.
 	}
 
 	forwardCmd := &cobra.Command{
-		Use:          "forward <PROFILE>",
+		Use:          "forward <PROFILE>,<PROFILE>,...",
 		Short:        "fetch messages in a kafka topic and forward them to an S3 bucket",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			configPathFromEnvVar := os.Getenv(envVarConfigPath)
+			if configPathFromEnvVar != "" && !cmd.Flags().Changed("config-path") {
+				configPath = configPathFromEnvVar
+			}
+
+			configPathFull = utils.ExpandTilde(configPath, homeDir)
+			configBytes, err := os.ReadFile(configPathFull)
+			if err != nil {
+				return fmt.Errorf("%w: %w", ErrCouldntReadConfigFile, err)
+			}
+
+			profileNames := strings.Split(args[0], ",")
+
+			configs, err := ParseProfileConfigs(configBytes, profileNames, homeDir)
+
+			if errors.Is(err, errProfileNotFound) {
+				return err
+			} else if err != nil {
+				return fmt.Errorf("%w: %w", ErrConfigInvalid, err)
+			}
+
+			if len(configs) == 0 {
+				return nil
+			}
+
 			forwarderCg := strings.TrimSpace(forwarderConsumerGroup)
 			if len(forwarderCg) < 5 {
 				return fmt.Errorf("%w (%q); needs to be atleast 5 characters", errConsumerGroupTooShort, forwarderConsumerGroup)
@@ -343,7 +372,7 @@ to brokers, message encoding, authentication, etc.
 				fmt.Printf(`%s
 %s
 `,
-					config.Display(),
+					configs[0].Display(),
 					consumeBehaviours.Display(),
 				)
 
@@ -359,27 +388,33 @@ to brokers, message encoding, authentication, etc.
 
 			s3Client := s3.NewFromConfig(awsConfig)
 
-			client, err := k.GetKafkaClientForForwarding(
-				config.Authentication,
-				config.Brokers,
-				config.Topic,
-				forwarderConsumerGroup,
-				&awsConfig,
-			)
-			if err != nil {
-				return err
+			var kafkaClients []*kgo.Client
+
+			for _, config := range configs {
+				client, err := k.GetKafkaClientForForwarding(
+					config.Authentication,
+					config.Brokers,
+					config.Topic,
+					forwarderConsumerGroup,
+					&awsConfig,
+				)
+				if err != nil {
+					return err
+				}
+
+				pingCtx, pingCancel := context.WithTimeout(ctx, 5*time.Second)
+				defer pingCancel()
+
+				if err := client.Ping(pingCtx); err != nil {
+					return fmt.Errorf("%w: %s", errCouldntPingBrokers, err.Error())
+				}
+
+				defer client.Close()
+
+				kafkaClients = append(kafkaClients, client)
 			}
 
-			pingCtx, pingCancel := context.WithTimeout(ctx, 5*time.Second)
-			defer pingCancel()
-
-			if err := client.Ping(pingCtx); err != nil {
-				return fmt.Errorf("%w: %s", errCouldntPingBrokers, err.Error())
-			}
-
-			defer client.Close()
-
-			forwarder := f.New([]*kgo.Client{client}, s3Client, config)
+			forwarder := f.New(kafkaClients, s3Client, configs)
 
 			return forwarder.Execute(ctx)
 		},
