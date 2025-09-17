@@ -90,7 +90,7 @@ func ParseProfileConfig(bytes []byte, profileName string, homeDir string) (t.Con
 				return config, fmt.Errorf("protobuf descriptor set file is empty/missing")
 			}
 
-			pr.ProtoConfig.DescriptorSetFile = utils.ExpandTilde(pr.ProtoConfig.DescriptorSetFile, homeDir)
+			pr.ProtoConfig.DescriptorSetFile = utils.ExpandTilde(os.ExpandEnv(pr.ProtoConfig.DescriptorSetFile), homeDir)
 
 			if strings.TrimSpace(pr.ProtoConfig.DescriptorName) == "" {
 				return config, fmt.Errorf("protobuf descriptor name is empty/missing")
