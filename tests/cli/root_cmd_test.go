@@ -12,6 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	correctConfigPath     = "assets/config-correct.yml"
+	nonExistentConfigPath = "assets/non-existent-file.yml"
+)
+
 func skipIntegration(t *testing.T) {
 	t.Helper()
 	if os.Getenv("INTEGRATION") != "1" {
@@ -39,7 +44,10 @@ func TestCLI(t *testing.T) {
 		}
 	}()
 
-	// SUCCESSES
+	//-------------//
+	//  SUCCESSES  //
+	//-------------//
+
 	t.Run("Help", func(t *testing.T) {
 		// GIVEN
 		// WHEN
@@ -53,8 +61,7 @@ func TestCLI(t *testing.T) {
 	t.Run("Parsing correct config works", func(t *testing.T) {
 		// GIVEN
 		// WHEN
-		configPath := "assets/config-correct.yml"
-		c := exec.Command(binPath, "tui", "local", "-c", configPath, "--debug")
+		c := exec.Command(binPath, "tui", "local", "--config-path", correctConfigPath, "--debug")
 		o, err := c.CombinedOutput()
 		// THEN
 		if err != nil {
@@ -67,7 +74,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-raw-encoding.yml"
-		c := exec.Command(binPath, "tui", "local", "-c", configPath, "--debug")
+		c := exec.Command(binPath, "tui", "local", "--config-path", configPath, "--debug")
 		o, err := c.CombinedOutput()
 		// THEN
 		if err != nil {
@@ -76,12 +83,58 @@ func TestCLI(t *testing.T) {
 		assert.NoError(t, err, "output:\n%s", o)
 	})
 
-	// FAILURES
+	t.Run("Reading config path from environment variable works", func(t *testing.T) {
+		// GIVEN
+		// WHEN
+		c := exec.Command(binPath, "tui", "local", "--debug")
+		c.Env = append(c.Environ(), fmt.Sprintf("KPLAY_CONFIG_PATH=%s", correctConfigPath))
+		o, err := c.CombinedOutput()
+		// THEN
+		if err != nil {
+			fmt.Printf("output:\n%s", o)
+		}
+		assert.NoError(t, err, "output:\n%s", o)
+	})
+
+	t.Run("Config path flag overrides environment variable", func(t *testing.T) {
+		// GIVEN
+		// WHEN
+		c := exec.Command(binPath, "tui", "local", "--config-path", correctConfigPath, "--debug")
+		c.Env = append(c.Environ(), fmt.Sprintf("KPLAY_CONFIG_PATH=%s", nonExistentConfigPath))
+		o, err := c.CombinedOutput()
+		// THEN
+		if err != nil {
+			fmt.Printf("output:\n%s", o)
+		}
+		assert.NoError(t, err, "output:\n%s", o)
+	})
+
+	//------------//
+	//  FAILURES  //
+	//------------//
+
 	t.Run("Fails for absent config file", func(t *testing.T) {
 		// GIVEN
 		// WHEN
-		configPath := "assets/non-existent-file.yml"
-		c := exec.Command(binPath, "tui", "local", "-c", configPath, "--debug")
+		c := exec.Command(binPath, "tui", "local", "--config-path", nonExistentConfigPath, "--debug")
+		o, err := c.CombinedOutput()
+
+		// THEN
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
+			exitCode := exitError.ExitCode()
+			require.Equal(t, 1, exitCode, "exit code is not correct: got %d, expected: 1; output:\n%s", exitCode, o)
+			assert.Contains(t, string(o), "couldn't read config file")
+		} else {
+			t.Fatalf("couldn't get error code")
+		}
+	})
+
+	t.Run("Fails for absent config file provided via environment variable", func(t *testing.T) {
+		// GIVEN
+		// WHEN
+		c := exec.Command(binPath, "tui", "local", "--debug")
+		c.Env = append(c.Environ(), fmt.Sprintf("KPLAY_CONFIG_PATH=%s", nonExistentConfigPath))
 		o, err := c.CombinedOutput()
 
 		// THEN
@@ -99,7 +152,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-incorrect-yml.yml"
-		c := exec.Command(binPath, "tui", "local", "-c", configPath, "--debug")
+		c := exec.Command(binPath, "tui", "local", "--config-path", configPath, "--debug")
 		o, err := c.CombinedOutput()
 
 		// THEN
@@ -117,7 +170,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-protobuf-incorrect-desc-name.yml"
-		c := exec.Command(binPath, "tui", "local", "-c", configPath, "--debug")
+		c := exec.Command(binPath, "tui", "local", "--config-path", configPath, "--debug")
 		o, err := c.CombinedOutput()
 
 		// THEN
@@ -135,7 +188,7 @@ func TestCLI(t *testing.T) {
 		// GIVEN
 		// WHEN
 		configPath := "assets/config-protobuf-incorrect-desc-set.yml"
-		c := exec.Command(binPath, "tui", "local", "-c", configPath, "--debug")
+		c := exec.Command(binPath, "tui", "local", "--config-path", configPath, "--debug")
 		o, err := c.CombinedOutput()
 
 		// THEN
