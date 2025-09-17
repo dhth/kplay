@@ -21,6 +21,7 @@ import (
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/dhth/kplay/internal/utils"
 	"github.com/spf13/cobra"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 const (
@@ -378,7 +379,7 @@ to brokers, message encoding, authentication, etc.
 
 			defer client.Close()
 
-			forwarder := f.New(client, s3Client, config)
+			forwarder := f.New([]*kgo.Client{client}, s3Client, config)
 
 			return forwarder.Execute(ctx)
 		},

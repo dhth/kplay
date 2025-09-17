@@ -95,8 +95,6 @@ func (b Builder) WithStartTimestamp(topic string, timestamp time.Time) Builder {
 func (b Builder) WithConsumerGroup(topic, group string) Builder {
 	b.opts = append(b.opts, kgo.ConsumeTopics(topic))
 	b.opts = append(b.opts, kgo.ConsumerGroup(group))
-	b.opts = append(b.opts, kgo.ConsumeStartOffset(kgo.NewOffset().At(-1)))
-	b.opts = append(b.opts, kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()))
 
 	return b
 }
