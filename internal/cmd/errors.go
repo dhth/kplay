@@ -9,7 +9,7 @@ import (
 //go:embed assets/sample-config.yml
 var sampleConfig []byte
 
-func HandleErrors(err error) (string, bool) {
+func GetErrorFollowUp(err error) (string, bool) {
 	if errors.Is(err, ErrIssueWithProtobufFileDescriptorSet) {
 		return `
 Hint: A protobuf file descriptor set can be created using the "Protocol Buffer Compiler" (https://grpc.io/docs/protoc-installation) as follows:
