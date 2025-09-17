@@ -406,7 +406,7 @@ to brokers, message encoding, authentication, etc.
 				defer pingCancel()
 
 				if err := client.Ping(pingCtx); err != nil {
-					return fmt.Errorf("%w: %s", errCouldntPingBrokers, err.Error())
+					return fmt.Errorf("%w (profile: %q): %s", errCouldntPingBrokers, config.Name, err.Error())
 				}
 
 				defer client.Close()

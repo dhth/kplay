@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -44,8 +45,10 @@ func New(clients []*kgo.Client, s3Client *s3.Client, configs []t.Config) Forward
 }
 
 func (f *Forwarder) Execute(ctx context.Context) error {
-	forwarderCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	forwarderCtx, forwarderCancel := context.WithCancel(ctx)
+	serverCtx, serverCancel := context.WithCancel(ctx)
+	defer forwarderCancel()
+	defer serverCancel()
 
 	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -57,43 +60,52 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 	serverShutDownChan := make(chan struct{})
 
 	go func(shutDownChan chan struct{}) {
-		f.pollRecords(forwarderCtx, uploadWorkChan)
-		shutDownChan <- struct{}{}
-	}(forwarderShutDownChan)
-
-	go func(shutDownChan chan struct{}) {
-		startServer(forwarderCtx)
+		startServer(serverCtx)
 		shutDownChan <- struct{}{}
 	}(serverShutDownChan)
 
-	componentsRunning := 2
+	go func(shutDownChan chan struct{}) {
+		f.start(forwarderCtx, uploadWorkChan)
+		shutDownChan <- struct{}{}
+	}(forwarderShutDownChan)
 
 	select {
 	case <-sigChan:
-		slog.Info("Received shutdown signal; stopping forwarder and http server")
-		cancel()
+		slog.Info("received shutdown signal; stopping forwarder first")
+		forwarderCancel()
 
 		timeout := time.After(shutDownTimeoutSeconds * time.Second)
-		for componentsRunning > 0 {
-			select {
-			case <-forwarderShutDownChan:
-				componentsRunning--
-			case <-serverShutDownChan:
-				componentsRunning--
-				// on a second signal
-			case <-sigChan:
-				return nil
-				// timeout after first signal
-			case <-timeout:
-				slog.Error("couldn't shut down gracefully; exiting")
-				return t.ErrCouldntShutDownGracefully
-			}
+
+		select {
+		case <-forwarderShutDownChan:
+			slog.Info("forwarder shut down; now stopping http server")
+		case <-sigChan:
+			slog.Error("got a second shutdown signal; shutting down right away")
+			return nil
+		case <-timeout:
+			slog.Error("couldn't shut down forwarder gracefully; exiting")
+			return t.ErrCouldntShutDownGracefully
 		}
+
+		serverCancel()
+		select {
+		case <-serverShutDownChan:
+			slog.Info("http server stopped")
+		case <-sigChan:
+			slog.Error("got a second shutdown signal; shutting down right away")
+			return nil
+		case <-timeout:
+			slog.Error("couldn't shut down http server gracefully; exiting")
+			return t.ErrCouldntShutDownGracefully
+		}
+
 		slog.Info("all components stopped gracefully; bye 👋")
 		return nil
 	case <-serverShutDownChan:
-		cancel()
+		slog.Error("server shut down unexpectedly; stopping forwarder as well")
+		forwarderCancel()
 		<-forwarderShutDownChan
+		slog.Error("all components stopped")
 		return nil
 	}
 }
@@ -149,35 +161,41 @@ type uploadWork struct {
 	objectKey string
 }
 
-func (f *Forwarder) pollRecords(ctx context.Context, uploadChan chan uploadWork) {
-	slog.Info("starting record poller")
+func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
+	slog.Info("starting forwarder")
 
 	pendingWork := make([]uploadWork, 0)
 
 	uploadCtx, uploadCancel := context.WithCancel(context.TODO())
+	var wg sync.WaitGroup
 
 	for range 50 {
-		go f.startUploadWorker(uploadCtx, uploadChan)
+		wg.Add(1)
+		go f.startUploadWorker(uploadCtx, uploadWorkChan, &wg)
 	}
 
 	clientIndex := 0
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("finishing uploads for pending records")
-			for _, work := range pendingWork {
-				uploadChan <- work
+			if len(pendingWork) > 0 {
+				slog.Info("finishing uploads for pending records", "num_pending", len(pendingWork))
+				for _, work := range pendingWork {
+					uploadWorkChan <- work
+				}
 			}
 
+			slog.Info("waiting for upload workers to finish")
 			uploadCancel()
-			slog.Info("shut down record poller")
+			wg.Wait()
+			slog.Info("forwarder shut down")
 			return
 		default:
 			if len(pendingWork) > 0 {
 				var remainingWork []uploadWork
 				for _, work := range pendingWork {
 					select {
-					case uploadChan <- work:
+					case uploadWorkChan <- work:
 					default:
 						remainingWork = append(remainingWork, work)
 					}
@@ -202,26 +220,24 @@ func (f *Forwarder) pollRecords(ctx context.Context, uploadChan chan uploadWork)
 							msg:       msg,
 							objectKey: fmt.Sprintf("%s/partition-%d/offset-%d.txt", record.Topic, record.Partition, record.Offset),
 						}
-						// select {
-						// case uploadChan <- work:
-						// default:
 						pendingWork = append(pendingWork, work)
-						// }
 					}
 				}
+
+				time.Sleep(500 * time.Millisecond)
 			}
 
 			clientIndex++
 			if clientIndex >= len(f.clients) {
 				clientIndex = 0
 			}
-
-			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
 
-func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploadWork) {
+func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploadWork, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	slog.Info("starting s3 upload worker")
 
 	for {
@@ -239,11 +255,7 @@ func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploa
 				uploadCancel()
 
 				if err != nil {
-					if errors.Is(err, context.Canceled) {
-						slog.Info("uploading to s3 cancelled", "object_key", work.objectKey, "attempt_num", i+1)
-					} else {
-						slog.Error("uploading to s3 failed", "object_key", work.objectKey, "attempt_num", i+1, "error", err)
-					}
+					slog.Error("uploading to s3 failed", "object_key", work.objectKey, "attempt_num", i+1, "error", err)
 				}
 
 				if err == nil {
