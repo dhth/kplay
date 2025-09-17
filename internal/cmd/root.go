@@ -333,10 +333,10 @@ to brokers, message encoding, authentication, etc.
 	}
 
 	forwardCmd := &cobra.Command{
-		Use:          "forward <PROFILE>,<PROFILE>,...",
+		Use:          "forward <PROFILE>,<PROFILE>,... <BUCKET_NAME>",
 		Short:        "fetch messages in a kafka topic and forward them to an S3 bucket",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
+		Args:         cobra.ExactArgs(2),
+		SilenceUsage: false,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configPathFromEnvVar := os.Getenv(envVarConfigPath)
 			if configPathFromEnvVar != "" && !cmd.Flags().Changed("config-path") {
@@ -366,6 +366,11 @@ to brokers, message encoding, authentication, etc.
 			forwarderCg := strings.TrimSpace(forwarderConsumerGroup)
 			if len(forwarderCg) < 5 {
 				return fmt.Errorf("%w (%q); needs to be atleast 5 characters", errConsumerGroupTooShort, forwarderConsumerGroup)
+			}
+
+			bucketName := strings.TrimSpace(args[1])
+			if len(bucketName) == 0 {
+				return fmt.Errorf("bucket name is empty")
 			}
 
 			if debug {
@@ -414,7 +419,7 @@ to brokers, message encoding, authentication, etc.
 				kafkaClients = append(kafkaClients, client)
 			}
 
-			forwarder := f.New(kafkaClients, s3Client, configs)
+			forwarder := f.New(kafkaClients, s3Client, configs, bucketName)
 
 			return forwarder.Execute(ctx)
 		},

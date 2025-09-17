@@ -23,22 +23,29 @@ import (
 )
 
 const (
-	fetchBatchSize                = 50
-	shutDownTimeoutSeconds        = 20
-	httpServerShutDownTimeoutSecs = 3
+	fetchBatchSize                 = 50
+	numS3Workers                   = 50
+	forwarderShutDownTimeoutMillis = 20000
+	serverShutDownTimeoutMillis    = 3000
+	numPollSleepMillis             = 5000
+	uploadWorkerSleepMillis        = 1000
+	pollFetchTimeoutMillis         = 5000
+	uploadTimeoutMillis            = 5000
 )
 
 type Forwarder struct {
-	clients  []*kgo.Client
-	configs  []t.Config
-	s3Client *s3.Client
+	kafkaClients []*kgo.Client
+	configs      []t.Config
+	s3Client     *s3.Client
+	bucketName   string
 }
 
-func New(clients []*kgo.Client, s3Client *s3.Client, configs []t.Config) Forwarder {
+func New(kafkaClients []*kgo.Client, s3Client *s3.Client, configs []t.Config, bucketName string) Forwarder {
 	forwarder := Forwarder{
-		clients:  clients,
-		configs:  configs,
-		s3Client: s3Client,
+		kafkaClients: kafkaClients,
+		configs:      configs,
+		s3Client:     s3Client,
+		bucketName:   bucketName,
 	}
 
 	return forwarder
@@ -71,14 +78,13 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 
 	select {
 	case <-sigChan:
-		slog.Info("received shutdown signal; stopping forwarder first")
+		slog.Info("received shutdown signal; stopping forwarder")
 		forwarderCancel()
 
-		timeout := time.After(shutDownTimeoutSeconds * time.Second)
+		timeout := time.After(forwarderShutDownTimeoutMillis * time.Millisecond)
 
 		select {
 		case <-forwarderShutDownChan:
-			slog.Info("forwarder shut down; now stopping http server")
 		case <-sigChan:
 			slog.Error("got a second shutdown signal; shutting down right away")
 			return nil
@@ -90,7 +96,6 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 		serverCancel()
 		select {
 		case <-serverShutDownChan:
-			slog.Info("http server stopped")
 		case <-sigChan:
 			slog.Error("got a second shutdown signal; shutting down right away")
 			return nil
@@ -137,7 +142,7 @@ func startServer(ctx context.Context) {
 
 	select {
 	case <-ctx.Done():
-		shutDownCtx, shutDownRelease := context.WithTimeout(context.TODO(), httpServerShutDownTimeoutSecs*time.Second)
+		shutDownCtx, shutDownRelease := context.WithTimeout(context.TODO(), serverShutDownTimeoutMillis*time.Millisecond)
 		defer shutDownRelease()
 		err := server.Shutdown(shutDownCtx)
 		if err != nil {
@@ -169,7 +174,8 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 	uploadCtx, uploadCancel := context.WithCancel(context.TODO())
 	var wg sync.WaitGroup
 
-	for range 50 {
+	slog.Info("starting s3 upload workers", "num", numS3Workers)
+	for range numS3Workers {
 		wg.Add(1)
 		go f.startUploadWorker(uploadCtx, uploadWorkChan, &wg)
 	}
@@ -188,6 +194,7 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 			slog.Info("waiting for upload workers to finish")
 			uploadCancel()
 			wg.Wait()
+			slog.Info("all S3 workers shut down")
 			slog.Info("forwarder shut down")
 			return
 		default:
@@ -204,8 +211,8 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 			}
 
 			if len(pendingWork) == 0 {
-				client := f.clients[clientIndex]
-				fetchCtx, fetchCancel := context.WithTimeout(ctx, 5*time.Second)
+				client := f.kafkaClients[clientIndex]
+				fetchCtx, fetchCancel := context.WithTimeout(ctx, pollFetchTimeoutMillis*time.Millisecond)
 				records, err := k.FetchRecords(fetchCtx, client, fetchBatchSize)
 				fetchCancel()
 
@@ -224,11 +231,11 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 					}
 				}
 
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(numPollSleepMillis * time.Millisecond)
 			}
 
 			clientIndex++
-			if clientIndex >= len(f.clients) {
+			if clientIndex >= len(f.kafkaClients) {
 				clientIndex = 0
 			}
 		}
@@ -238,20 +245,16 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploadWork, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	slog.Info("starting s3 upload worker")
-
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("shutting down s3 upload worker")
 			return
 		case work := <-workChan:
-
 			var err error
 			for i := range 5 {
 				bodyReader := strings.NewReader(work.msg.GetDetails())
-				uploadCtx, uploadCancel := context.WithTimeout(context.TODO(), 5*time.Second)
-				err = upload(uploadCtx, f.s3Client, bodyReader, "kafka-forwarder-aa18b37f-5d40-4265-82fb-54ec346a4683", work.objectKey)
+				uploadCtx, uploadCancel := context.WithTimeout(context.TODO(), uploadTimeoutMillis*time.Millisecond)
+				err = upload(uploadCtx, f.s3Client, bodyReader, f.bucketName, work.objectKey)
 				uploadCancel()
 
 				if err != nil {
@@ -264,7 +267,7 @@ func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploa
 				}
 			}
 		default:
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(uploadWorkerSleepMillis * time.Millisecond)
 		}
 	}
 }
