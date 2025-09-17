@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	configFileName = "kplay/kplay.yml"
+	configFileName   = "kplay/kplay.yml"
+	envVarConfigPath = "KPLAY_CONFIG_PATH"
 )
 
 var (
@@ -79,6 +80,11 @@ to brokers, message encoding, authentication, etc.
 `,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			configPathFromEnvVar := os.Getenv(envVarConfigPath)
+			if configPathFromEnvVar != "" && !cmd.Flags().Changed("config-path") {
+				configPath = configPathFromEnvVar
+			}
+
 			configPathFull = utils.ExpandTilde(configPath, homeDir)
 			configBytes, err := os.ReadFile(configPathFull)
 			if err != nil {
@@ -290,7 +296,7 @@ to brokers, message encoding, authentication, etc.
 	defaultConfigPath := filepath.Join(configDir, configFileName)
 	defaultOutputDir := filepath.Join(homeDir, ".kplay")
 
-	tuiCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
+	tuiCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, fmt.Sprintf("location of kplay's config file (can also be provided via $%s)", envVarConfigPath))
 	tuiCmd.Flags().BoolVarP(&persistMessages, "persist-messages", "p", false, "whether to start the TUI with the setting \"persist messages\" ON")
 	tuiCmd.Flags().BoolVarP(&skipMessages, "skip-messages", "s", false, "whether to start the TUI with the setting \"skip messages\" ON")
 	tuiCmd.Flags().StringVarP(&fromOffset, "from-offset", "o", "", "start consuming messages from this offset; provide a single offset for all partitions (eg. 1000) or specify offsets per partition (e.g., '0:1000,2:1500')")
@@ -298,14 +304,14 @@ to brokers, message encoding, authentication, etc.
 	tuiCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 	tuiCmd.Flags().StringVarP(&outputDir, "output-dir", "O", defaultOutputDir, "directory to persist messages in")
 
-	serveCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
+	serveCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, fmt.Sprintf("location of kplay's config file (can also be provided via $%s)", envVarConfigPath))
 	serveCmd.Flags().StringVarP(&fromOffset, "from-offset", "o", "", "start consuming messages from this offset; provide a single offset for all partitions (eg. 1000) or specify offsets per partition (e.g., '0:1000,2:1500')")
 	serveCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "start consuming messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
 	serveCmd.Flags().BoolVarP(&selectOnHover, "select-on-hover", "S", false, "whether to start the web interface with the setting \"select on hover\" ON")
 	serveCmd.Flags().BoolVarP(&webOpen, "open", "O", false, "whether to open web interface in browser automatically")
 	serveCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 
-	scanCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, "location of kplay's config file")
+	scanCmd.Flags().StringVarP(&configPath, "config-path", "c", defaultConfigPath, fmt.Sprintf("location of kplay's config file (can also be provided via $%s)", envVarConfigPath))
 	scanCmd.Flags().BoolVar(&debug, "debug", false, "whether to only display config picked up by kplay without running it")
 	scanCmd.Flags().StringVarP(&fromOffset, "from-offset", "o", "", "scan messages from this offset; provide a single offset for all partitions (eg. 1000) or specify offsets per partition (e.g., '0:1000,2:1500')")
 	scanCmd.Flags().StringVarP(&fromTimestamp, "from-timestamp", "t", "", "scan messages from this timestamp (in RFC3339 format, e.g., 2006-01-02T15:04:05Z07:00)")
