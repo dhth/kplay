@@ -92,6 +92,15 @@ func (b Builder) WithStartTimestamp(topic string, timestamp time.Time) Builder {
 	return b
 }
 
+func (b Builder) WithConsumerGroup(topic, group string) Builder {
+	b.opts = append(b.opts, kgo.ConsumeTopics(topic))
+	b.opts = append(b.opts, kgo.ConsumerGroup(group))
+	b.opts = append(b.opts, kgo.ConsumeStartOffset(kgo.NewOffset().At(-1)))
+	b.opts = append(b.opts, kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()))
+
+	return b
+}
+
 func GetKafkaClient(
 	auth t.AuthType,
 	brokers []string,
@@ -114,6 +123,29 @@ func GetKafkaClient(
 	} else {
 		builder = builder.WithTopic(topic)
 	}
+
+	client, err := builder.Build()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())
+	}
+
+	return client, nil
+}
+
+func GetKafkaClientForForwarding(
+	auth t.AuthType,
+	brokers []string,
+	topic string,
+	consumerGroup string,
+	awsCfg *aws.Config,
+) (*kgo.Client, error) {
+	builder := NewBuilder(brokers)
+
+	if auth == t.AWSMSKIAM {
+		builder = builder.WithMskIAMAuth(*awsCfg)
+	}
+
+	builder = builder.WithConsumerGroup(topic, consumerGroup)
 
 	client, err := builder.Build()
 	if err != nil {

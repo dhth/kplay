@@ -38,6 +38,7 @@ var (
 	errInvalidTimestampProvided = errors.New(`invalid value provided for "from timestamp"`)
 	errInvalidOffsetProvided    = errors.New(`invalid value provided for "from offset"`)
 	errInvalidRegexProvided     = errors.New("invalid regex provided")
+	errConsumerGroupTooShort    = errors.New("consumer group is too short")
 )
 
 func Execute() error {
@@ -70,6 +71,8 @@ func NewRootCommand() (*cobra.Command, error) {
 		scanSaveMessages      bool
 		scanDecode            bool
 		scanBatchSize         uint
+
+		forwarderConsumerGroup string
 
 		consumeBehaviours t.ConsumeBehaviours
 	)
@@ -330,6 +333,11 @@ to brokers, message encoding, authentication, etc.
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
+			forwarderCg := strings.TrimSpace(forwarderConsumerGroup)
+			if len(forwarderCg) < 5 {
+				return fmt.Errorf("%w (%q); needs to be atleast 5 characters", errConsumerGroupTooShort, forwarderConsumerGroup)
+			}
+
 			if debug {
 				fmt.Printf(`%s
 %s
@@ -350,15 +358,22 @@ to brokers, message encoding, authentication, etc.
 
 			s3Client := s3.NewFromConfig(awsConfig)
 
-			client, err := k.GetKafkaClient(
+			client, err := k.GetKafkaClientForForwarding(
 				config.Authentication,
 				config.Brokers,
 				config.Topic,
-				consumeBehaviours,
+				forwarderConsumerGroup,
 				&awsConfig,
 			)
 			if err != nil {
 				return err
+			}
+
+			pingCtx, pingCancel := context.WithTimeout(ctx, 5*time.Second)
+			defer pingCancel()
+
+			if err := client.Ping(pingCtx); err != nil {
+				return fmt.Errorf("%w: %s", errCouldntPingBrokers, err.Error())
 			}
 
 			defer client.Close()
@@ -405,6 +420,8 @@ to brokers, message encoding, authentication, etc.
 	scanCmd.Flags().BoolVarP(&scanDecode, "decode", "d", true, "whether to decode message values (false is equivalent to 'encodingFormat: raw' in kplay's config)")
 	scanCmd.Flags().UintVarP(&scanBatchSize, "batch-size", "b", 100, "number of messages to fetch per batch (must be greater than 0)")
 	scanCmd.Flags().StringVarP(&outputDir, "output-dir", "O", defaultOutputDir, "directory to save scan results in")
+
+	forwardCmd.Flags().StringVarP(&forwarderConsumerGroup, "consumer-group", "g", "kplay-forwarder", "consumer group to use")
 
 	rootCmd.AddCommand(tuiCmd)
 	rootCmd.AddCommand(serveCmd)

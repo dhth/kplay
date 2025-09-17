@@ -21,5 +21,12 @@ func GetAWSConfig(ctx context.Context) (aws.Config, error) {
 		return zero, fmt.Errorf("%w: %s", t.ErrCouldntLoadAwsConfig, err.Error())
 	}
 
+	credsCtx, credsCancel := context.WithTimeout(ctx, 3*time.Second)
+	defer credsCancel()
+	_, err = cfg.Credentials.Retrieve(credsCtx)
+	if err != nil {
+		return zero, fmt.Errorf("%w: %w", t.ErrCouldntRetrieveAWSCredentials, err)
+	}
+
 	return cfg, nil
 }
