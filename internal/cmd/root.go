@@ -80,6 +80,7 @@ func NewRootCommand() (*cobra.Command, error) {
 		scanBatchSize         uint
 
 		forwarderConsumerGroup string
+		forwarderRunServer     bool
 		forwarderHost          string
 		forwarderPort          uint
 
@@ -402,8 +403,9 @@ AWS S3 is the only supported destination for now.`,
 			}
 
 			forwardBehaviours := f.Behaviours{
-				Host: forwarderHost,
-				Port: forwarderPort,
+				RunServer: forwarderRunServer,
+				Host:      forwarderHost,
+				Port:      forwarderPort,
 			}
 
 			if debug {
@@ -518,6 +520,7 @@ Destination               %s
 	scanCmd.Flags().StringVarP(&outputDir, "output-dir", "O", defaultOutputDir, "directory to save scan results in")
 
 	forwardCmd.Flags().StringVarP(&forwarderConsumerGroup, "consumer-group", "g", "kplay-forwarder", "consumer group to use")
+	forwardCmd.Flags().BoolVarP(&forwarderRunServer, "run-server", "s", false, "whether to run an http server alongside the forwarder (can be used for health checks)")
 	forwardCmd.Flags().StringVarP(&forwarderHost, "host", "H", "127.0.0.1", "host to run the server on")
 	forwardCmd.Flags().UintVarP(&forwarderPort, "port", "p", 8080, "port to run the server on")
 

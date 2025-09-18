@@ -50,23 +50,30 @@ func New(kafkaClients []*kgo.Client, configs []t.Config, destination Destination
 
 func (f *Forwarder) Execute(ctx context.Context) error {
 	forwarderCtx, forwarderCancel := context.WithCancel(ctx)
-	serverCtx, serverCancel := context.WithCancel(ctx)
 	defer forwarderCancel()
-	defer serverCancel()
 
 	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigChan)
 
 	uploadWorkChan := make(chan uploadWork, 10)
-
 	forwarderShutDownChan := make(chan struct{})
-	serverShutDownChan := make(chan struct{})
 
-	go func(shutDownChan chan struct{}) {
-		startServer(serverCtx, f.behaviours.Host, f.behaviours.Port)
-		shutDownChan <- struct{}{}
-	}(serverShutDownChan)
+	// uninitialized so we don't select over it if the server is not to be run
+	// https://www.dolthub.com/blog/2024-10-25-go-nil-channels-pattern/
+	var serverShutDownChan chan struct{}
+
+	serverCtx, serverCancel := context.WithCancel(ctx)
+	defer serverCancel()
+
+	if f.behaviours.RunServer {
+		serverShutDownChan = make(chan struct{})
+
+		go func(shutDownChan chan struct{}) {
+			startServer(serverCtx, f.behaviours.Host, f.behaviours.Port)
+			shutDownChan <- struct{}{}
+		}(serverShutDownChan)
+	}
 
 	go func(shutDownChan chan struct{}) {
 		f.start(forwarderCtx, uploadWorkChan)
@@ -90,15 +97,17 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 			return t.ErrCouldntShutDownGracefully
 		}
 
-		serverCancel()
-		select {
-		case <-serverShutDownChan:
-		case <-sigChan:
-			slog.Error("got a second shutdown signal; shutting down right away")
-			return nil
-		case <-timeout:
-			slog.Error("couldn't shut down http server gracefully; exiting")
-			return t.ErrCouldntShutDownGracefully
+		if f.behaviours.RunServer {
+			serverCancel()
+			select {
+			case <-serverShutDownChan:
+			case <-sigChan:
+				slog.Error("got a second shutdown signal; shutting down right away")
+				return nil
+			case <-timeout:
+				slog.Error("couldn't shut down http server gracefully; exiting")
+				return t.ErrCouldntShutDownGracefully
+			}
 		}
 
 		slog.Info("all components stopped gracefully; bye 👋")
