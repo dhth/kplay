@@ -217,10 +217,8 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 				if err != nil {
 					slog.Error("couldn't fetch records from Kafka", "profile", f.configs[clientIndex].Name, "error", err)
 				} else if len(records) > 0 {
-					slog.Info("fetched kafka records", "profile", f.configs[clientIndex].Name, "num_records", len(records))
-
 					for _, record := range records {
-						slog.Info("processing kafka record", "topic", record.Topic, "partition", record.Partition, "offset", record.Offset, "value_bytes", len(record.Value))
+						slog.Info("processing kafka record", "key", string(record.Key), "topic", record.Topic, "partition", record.Partition, "offset", record.Offset, "value_bytes", len(record.Value))
 						msg := t.GetMessageFromRecord(*record, f.configs[clientIndex], true)
 						work := uploadWork{
 							msg:      msg,
@@ -263,7 +261,6 @@ func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploa
 				}
 
 				if err == nil {
-					slog.Info("uploaded to s3", "object_key", objectKey, "attempt_num", i+1)
 					break
 				}
 			}
