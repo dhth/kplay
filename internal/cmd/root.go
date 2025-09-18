@@ -25,9 +25,10 @@ import (
 )
 
 const (
-	configFileName         = "kplay/kplay.yml"
-	envVarConfigPath       = "KPLAY_CONFIG_PATH"
-	consumerGroupMinLength = 5
+	configFileName            = "kplay/kplay.yml"
+	envVarConfigPath          = "KPLAY_CONFIG_PATH"
+	consumerGroupMinLength    = 5
+	forwardMaxProfilesAllowed = 10
 )
 
 var (
@@ -41,6 +42,7 @@ var (
 	errInvalidOffsetProvided    = errors.New(`invalid value provided for "from offset"`)
 	errInvalidRegexProvided     = errors.New("invalid regex provided")
 	errConsumerGroupTooShort    = errors.New("consumer group is too short")
+	errTooManyForwardProfiles   = errors.New("too many profiles provided")
 )
 
 func Execute() error {
@@ -339,7 +341,7 @@ to brokers, message encoding, authentication, etc.
 		Use:          "forward <PROFILE>,<PROFILE>,... <BUCKET_NAME>",
 		Short:        "fetch messages in a kafka topic and forward them to an S3 bucket",
 		Args:         cobra.ExactArgs(2),
-		SilenceUsage: false,
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configPathFromEnvVar := os.Getenv(envVarConfigPath)
 			if configPathFromEnvVar != "" && !cmd.Flags().Changed("config-path") {
@@ -364,6 +366,14 @@ to brokers, message encoding, authentication, etc.
 
 			if len(configs) == 0 {
 				return nil
+			}
+
+			if len(configs) > forwardMaxProfilesAllowed {
+				return fmt.Errorf("%w; provided: %d, upper limit: %d",
+					errTooManyForwardProfiles,
+					len(configs),
+					forwardMaxProfilesAllowed,
+				)
 			}
 
 			forwarderCg := strings.TrimSpace(forwarderConsumerGroup)
