@@ -18,7 +18,7 @@ func GetAWSConfig(ctx context.Context) (aws.Config, error) {
 
 	cfg, err := config.LoadDefaultConfig(configCtx)
 	if err != nil {
-		return zero, fmt.Errorf("%w: %s", t.ErrCouldntLoadAwsConfig, err.Error())
+		return zero, fmt.Errorf("%w: %w", t.ErrCouldntLoadAwsConfig, err)
 	}
 
 	credsCtx, credsCancel := context.WithTimeout(ctx, 3*time.Second)

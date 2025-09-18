@@ -25,8 +25,9 @@ import (
 )
 
 const (
-	configFileName   = "kplay/kplay.yml"
-	envVarConfigPath = "KPLAY_CONFIG_PATH"
+	configFileName         = "kplay/kplay.yml"
+	envVarConfigPath       = "KPLAY_CONFIG_PATH"
+	consumerGroupMinLength = 5
 )
 
 var (
@@ -366,8 +367,12 @@ to brokers, message encoding, authentication, etc.
 			}
 
 			forwarderCg := strings.TrimSpace(forwarderConsumerGroup)
-			if len(forwarderCg) < 5 {
-				return fmt.Errorf("%w (%q); needs to be atleast 5 characters", errConsumerGroupTooShort, forwarderConsumerGroup)
+			if len(forwarderCg) < consumerGroupMinLength {
+				return fmt.Errorf("%w (%q); needs to be atleast %d characters",
+					errConsumerGroupTooShort,
+					forwarderConsumerGroup,
+					consumerGroupMinLength,
+				)
 			}
 
 			bucketName := strings.TrimSpace(args[1])
@@ -420,9 +425,10 @@ to brokers, message encoding, authentication, etc.
 				}
 
 				pingCtx, pingCancel := context.WithTimeout(ctx, 5*time.Second)
-				defer pingCancel()
 
-				if err := client.Ping(pingCtx); err != nil {
+				err = client.Ping(pingCtx)
+				defer pingCancel()
+				if err != nil {
 					return fmt.Errorf("%w (profile: %q): %s", errCouldntPingBrokers, config.Name, err.Error())
 				}
 
