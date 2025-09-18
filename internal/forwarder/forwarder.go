@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -14,8 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	k "github.com/dhth/kplay/internal/kafka"
 	t "github.com/dhth/kplay/internal/types"
 
@@ -36,15 +33,15 @@ const (
 type Forwarder struct {
 	kafkaClients []*kgo.Client
 	configs      []t.Config
-	s3Client     *s3.Client
+	destination  Destination
 	behaviours   Behaviours
 }
 
-func New(kafkaClients []*kgo.Client, s3Client *s3.Client, configs []t.Config, behaviours Behaviours) Forwarder {
+func New(kafkaClients []*kgo.Client, configs []t.Config, destination Destination, behaviours Behaviours) Forwarder {
 	forwarder := Forwarder{
 		kafkaClients: kafkaClients,
 		configs:      configs,
-		s3Client:     s3Client,
+		destination:  destination,
 		behaviours:   behaviours,
 	}
 
@@ -163,8 +160,8 @@ func startServer(ctx context.Context, host string, port uint) {
 }
 
 type uploadWork struct {
-	msg       t.Message
-	objectKey string
+	msg      t.Message
+	fileName string
 }
 
 func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
@@ -223,10 +220,11 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 					slog.Info("fetched kafka records", "profile", f.configs[clientIndex].Name, "num_records", len(records))
 
 					for _, record := range records {
+						slog.Info("processing kafka record", "topic", record.Topic, "partition", record.Partition, "offset", record.Offset, "value_bytes", len(record.Value))
 						msg := t.GetMessageFromRecord(*record, f.configs[clientIndex], true)
 						work := uploadWork{
-							msg:       msg,
-							objectKey: fmt.Sprintf("%s/partition-%d/offset-%d.txt", record.Topic, record.Partition, record.Offset),
+							msg:      msg,
+							fileName: fmt.Sprintf("%s/partition-%d/offset-%d.txt", record.Topic, record.Partition, record.Offset),
 						}
 						pendingWork = append(pendingWork, work)
 					}
@@ -252,18 +250,20 @@ func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploa
 			return
 		case work := <-workChan:
 			var err error
+			objectKey := f.destination.getDestinationFilePath(work.fileName)
+
 			for i := range 5 {
 				bodyReader := strings.NewReader(work.msg.GetDetails())
 				uploadCtx, uploadCancel := context.WithTimeout(context.TODO(), uploadTimeoutMillis*time.Millisecond)
-				err = upload(uploadCtx, f.s3Client, bodyReader, f.behaviours.BucketName, work.objectKey)
+				err = f.destination.upload(uploadCtx, bodyReader, work.fileName)
 				uploadCancel()
 
 				if err != nil {
-					slog.Error("uploading to s3 failed", "object_key", work.objectKey, "attempt_num", i+1, "error", err)
+					slog.Error("uploading to s3 failed", "object_key", objectKey, "attempt_num", i+1, "error", err)
 				}
 
 				if err == nil {
-					slog.Info("uploaded to s3", "object_key", work.objectKey, "attempt_num", i+1)
+					slog.Info("uploaded to s3", "object_key", objectKey, "attempt_num", i+1)
 					break
 				}
 			}
@@ -271,15 +271,4 @@ func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploa
 			time.Sleep(uploadWorkerSleepMillis * time.Millisecond)
 		}
 	}
-}
-
-func upload(ctx context.Context, client *s3.Client, body io.Reader, bucketName, objectKey string) error {
-	_, err := client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(bucketName),
-		Key:         aws.String(objectKey),
-		Body:        body,
-		ContentType: aws.String("text/plain"),
-	})
-
-	return err
 }

@@ -39,7 +39,7 @@ func (c Config) EncodingDisplay() string {
 }
 
 func (c Config) Display() string {
-	return fmt.Sprintf(`profile:
+	return fmt.Sprintf(`Profile:
   name                    %s
   topic                   %s
   authentication          %s

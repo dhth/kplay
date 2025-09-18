@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	a "github.com/dhth/kplay/internal/awsweb"
 	f "github.com/dhth/kplay/internal/forwarder"
 	k "github.com/dhth/kplay/internal/kafka"
@@ -29,20 +29,23 @@ const (
 	envVarConfigPath          = "KPLAY_CONFIG_PATH"
 	consumerGroupMinLength    = 5
 	forwardMaxProfilesAllowed = 10
+	s3DestinationPrefix       = "arn:aws:s3:::"
 )
 
 var (
-	errCouldntCreateKafkaClient = errors.New("couldn't create kafka client")
-	errCouldntPingBrokers       = errors.New("couldn't ping brokers")
-	errCouldntGetUserHomeDir    = errors.New("couldn't get your home directory")
-	errCouldntGetUserConfigDir  = errors.New("couldn't get your config directory")
-	ErrCouldntReadConfigFile    = errors.New("couldn't read config file")
-	ErrConfigInvalid            = errors.New("config is invalid")
-	errInvalidTimestampProvided = errors.New(`invalid value provided for "from timestamp"`)
-	errInvalidOffsetProvided    = errors.New(`invalid value provided for "from offset"`)
-	errInvalidRegexProvided     = errors.New("invalid regex provided")
-	errConsumerGroupTooShort    = errors.New("consumer group is too short")
-	errTooManyForwardProfiles   = errors.New("too many profiles provided")
+	errCouldntCreateKafkaClient   = errors.New("couldn't create kafka client")
+	errCouldntPingBrokers         = errors.New("couldn't ping brokers")
+	errCouldntGetUserHomeDir      = errors.New("couldn't get your home directory")
+	errCouldntGetUserConfigDir    = errors.New("couldn't get your config directory")
+	ErrCouldntReadConfigFile      = errors.New("couldn't read config file")
+	ErrConfigInvalid              = errors.New("config is invalid")
+	errInvalidTimestampProvided   = errors.New(`invalid value provided for "from timestamp"`)
+	errInvalidOffsetProvided      = errors.New(`invalid value provided for "from offset"`)
+	errInvalidRegexProvided       = errors.New("invalid regex provided")
+	errConsumerGroupTooShort      = errors.New("consumer group is too short")
+	errTooManyForwardProfiles     = errors.New("too many profiles provided")
+	errInvalidDestinationProvided = errors.New("invalid destination provided")
+	errDestinationEmpty           = errors.New("destination is empty")
 )
 
 func Execute() error {
@@ -338,8 +341,11 @@ to brokers, message encoding, authentication, etc.
 	}
 
 	forwardCmd := &cobra.Command{
-		Use:          "forward <PROFILE>,<PROFILE>,... <BUCKET_NAME>",
-		Short:        "fetch messages in a kafka topic and forward them to an S3 bucket",
+		Use:   "forward <PROFILE>,<PROFILE>,... <DESTINATION>",
+		Short: "fetch messages in a kafka topic and forward them to a remote destination",
+		Long: `fetch messages in a kafka topic and forward them to a remote destination.
+AWS S3 is the only supported destination for now.`,
+		Example:      "kplay forward profile-1,profile-2 arn:aws:s3:::bucket-to-forward-messages-to/prefix",
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -385,15 +391,19 @@ to brokers, message encoding, authentication, etc.
 				)
 			}
 
-			bucketName := strings.TrimSpace(args[1])
-			if len(bucketName) == 0 {
-				return fmt.Errorf("bucket name is empty")
+			destinationStr := strings.TrimSpace(args[1])
+			if len(destinationStr) == 0 {
+				return errDestinationEmpty
+			}
+
+			destinationWithoutPrefix, ok := strings.CutPrefix(destinationStr, s3DestinationPrefix)
+			if !ok {
+				return fmt.Errorf("%w; supported destination prefixes: [%s]", errInvalidDestinationProvided, s3DestinationPrefix)
 			}
 
 			forwardBehaviours := f.Behaviours{
-				Host:       forwarderHost,
-				Port:       forwarderPort,
-				BucketName: bucketName,
+				Host: forwarderHost,
+				Port: forwarderPort,
 			}
 
 			if debug {
@@ -402,9 +412,13 @@ to brokers, message encoding, authentication, etc.
 					configDebug[i] = c.Display()
 				}
 				fmt.Printf(`%s
+
+Destination               %s
+
 %s
 `,
 					strings.Join(configDebug, "\n"),
+					destinationStr,
 					forwardBehaviours.Display(),
 				)
 
@@ -418,7 +432,10 @@ to brokers, message encoding, authentication, etc.
 				return err
 			}
 
-			s3Client := s3.NewFromConfig(awsConfig)
+			destination, err := f.NewS3Destination(awsConfig, destinationWithoutPrefix)
+			if err != nil {
+				return err
+			}
 
 			var kafkaClients []*kgo.Client
 
@@ -447,7 +464,17 @@ to brokers, message encoding, authentication, etc.
 				kafkaClients = append(kafkaClients, client)
 			}
 
-			forwarder := f.New(kafkaClients, s3Client, configs, forwardBehaviours)
+			var profileConfigNames []string
+			for _, c := range configs {
+				profileConfigNames = append(profileConfigNames, c.Name)
+			}
+			slog.Info("starting up",
+				"profiles", strings.Join(profileConfigNames, ","),
+				"destination", destination.Display(),
+				"consumer_group", forwarderConsumerGroup,
+			)
+
+			forwarder := f.New(kafkaClients, configs, &destination, forwardBehaviours)
 
 			return forwarder.Execute(ctx)
 		},
