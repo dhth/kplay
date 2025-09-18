@@ -37,15 +37,15 @@ type Forwarder struct {
 	kafkaClients []*kgo.Client
 	configs      []t.Config
 	s3Client     *s3.Client
-	bucketName   string
+	behaviours   Behaviours
 }
 
-func New(kafkaClients []*kgo.Client, s3Client *s3.Client, configs []t.Config, bucketName string) Forwarder {
+func New(kafkaClients []*kgo.Client, s3Client *s3.Client, configs []t.Config, behaviours Behaviours) Forwarder {
 	forwarder := Forwarder{
 		kafkaClients: kafkaClients,
 		configs:      configs,
 		s3Client:     s3Client,
-		bucketName:   bucketName,
+		behaviours:   behaviours,
 	}
 
 	return forwarder
@@ -67,7 +67,7 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 	serverShutDownChan := make(chan struct{})
 
 	go func(shutDownChan chan struct{}) {
-		startServer(serverCtx)
+		startServer(serverCtx, f.behaviours.Host, f.behaviours.Port)
 		shutDownChan <- struct{}{}
 	}(serverShutDownChan)
 
@@ -115,7 +115,9 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 	}
 }
 
-func startServer(ctx context.Context) {
+func startServer(ctx context.Context, host string, port uint) {
+	serverErrChan := make(chan error)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
@@ -123,17 +125,16 @@ func startServer(ctx context.Context) {
 		_, _ = fmt.Fprintf(w, "HEALTHY")
 	}))
 
-	addr := "127.0.0.1:8343"
+	addr := fmt.Sprintf("%s:%d", host, port)
 
 	server := &http.Server{
 		Addr:    addr,
 		Handler: mux,
 	}
 
-	serverErrChan := make(chan error)
+	slog.Info("starting http server", "address", addr)
 
 	go func(errChan chan<- error) {
-		slog.Info("starting http server", "address", addr)
 		err := server.ListenAndServe()
 		if !errors.Is(err, http.ErrServerClosed) {
 			errChan <- err
@@ -254,7 +255,7 @@ func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploa
 			for i := range 5 {
 				bodyReader := strings.NewReader(work.msg.GetDetails())
 				uploadCtx, uploadCancel := context.WithTimeout(context.TODO(), uploadTimeoutMillis*time.Millisecond)
-				err = upload(uploadCtx, f.s3Client, bodyReader, f.bucketName, work.objectKey)
+				err = upload(uploadCtx, f.s3Client, bodyReader, f.behaviours.BucketName, work.objectKey)
 				uploadCancel()
 
 				if err != nil {

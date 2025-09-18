@@ -74,6 +74,8 @@ func NewRootCommand() (*cobra.Command, error) {
 		scanBatchSize         uint
 
 		forwarderConsumerGroup string
+		forwarderHost          string
+		forwarderPort          uint
 
 		consumeBehaviours t.ConsumeBehaviours
 	)
@@ -373,12 +375,22 @@ to brokers, message encoding, authentication, etc.
 				return fmt.Errorf("bucket name is empty")
 			}
 
+			forwardBehaviours := f.Behaviours{
+				Host:       forwarderHost,
+				Port:       forwarderPort,
+				BucketName: bucketName,
+			}
+
 			if debug {
+				configDebug := make([]string, len(configs))
+				for i, c := range configs {
+					configDebug[i] = c.Display()
+				}
 				fmt.Printf(`%s
 %s
 `,
-					configs[0].Display(),
-					consumeBehaviours.Display(),
+					strings.Join(configDebug, "\n"),
+					forwardBehaviours.Display(),
 				)
 
 				return nil
@@ -419,7 +431,7 @@ to brokers, message encoding, authentication, etc.
 				kafkaClients = append(kafkaClients, client)
 			}
 
-			forwarder := f.New(kafkaClients, s3Client, configs, bucketName)
+			forwarder := f.New(kafkaClients, s3Client, configs, forwardBehaviours)
 
 			return forwarder.Execute(ctx)
 		},
@@ -463,6 +475,8 @@ to brokers, message encoding, authentication, etc.
 	scanCmd.Flags().StringVarP(&outputDir, "output-dir", "O", defaultOutputDir, "directory to save scan results in")
 
 	forwardCmd.Flags().StringVarP(&forwarderConsumerGroup, "consumer-group", "g", "kplay-forwarder", "consumer group to use")
+	forwardCmd.Flags().StringVarP(&forwarderHost, "host", "H", "127.0.0.1", "host to run the server on")
+	forwardCmd.Flags().UintVarP(&forwarderPort, "port", "p", 8080, "port to run the server on")
 
 	rootCmd.AddCommand(tuiCmd)
 	rootCmd.AddCommand(serveCmd)
