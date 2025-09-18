@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,11 +26,21 @@ import (
 )
 
 const (
-	configFileName            = "kplay/kplay.yml"
-	envVarConfigPath          = "KPLAY_CONFIG_PATH"
-	consumerGroupMinLength    = 5
-	forwardMaxProfilesAllowed = 10
-	s3DestinationPrefix       = "arn:aws:s3:::"
+	configFileName = "kplay/kplay.yml"
+
+	envVarConfigPath           = "KPLAY_CONFIG_PATH"
+	envVarForwardConsumerGroup = "KPLAY_FORWARD_CONSUMER_GROUP"
+	envVarForwardRunServer     = "KPLAY_FORWARD_RUN_SERVER"
+	envVarForwardHost          = "KPLAY_FORWARD_HOST"
+	envVarForwardPort          = "KPLAY_FORWARD_PORT"
+
+	forwardS3DestinationPrefix    = "arn:aws:s3:::"
+	forwardConsumerGroupMinLength = 5
+	forwardMaxProfilesAllowed     = 10
+	forwardConsumerGroupDefault   = "kplay-forwarder"
+	forwardRunServerDefault       = false
+	forwardHostDefault            = "127.0.0.1"
+	forwardPortDefault            = 8080
 )
 
 var (
@@ -79,10 +90,10 @@ func NewRootCommand() (*cobra.Command, error) {
 		scanDecode            bool
 		scanBatchSize         uint
 
-		forwarderConsumerGroup string
-		forwarderRunServer     bool
-		forwarderHost          string
-		forwarderPort          uint
+		forwardConsumerGroup string
+		forwardRunServer     bool
+		forwardHost          string
+		forwardPort          uint16
 
 		consumeBehaviours t.ConsumeBehaviours
 	)
@@ -344,9 +355,25 @@ to brokers, message encoding, authentication, etc.
 	forwardCmd := &cobra.Command{
 		Use:   "forward <PROFILE>,<PROFILE>,... <DESTINATION>",
 		Short: "fetch messages in a kafka topic and forward them to a remote destination",
-		Long: `fetch messages in a kafka topic and forward them to a remote destination.
-AWS S3 is the only supported destination for now.`,
-		Example:      "kplay forward profile-1,profile-2 arn:aws:s3:::bucket-to-forward-messages-to/prefix",
+		Long: fmt.Sprintf(`fetch messages in a kafka topic and forward them to a remote destination.
+AWS S3 is the only supported destination for now.
+
+This command uses the following environment variables for optional configuration
+as it's designed to be run in long-lived containers where environment-based
+configuration is more suitable than command-line flags.
+
+- %s: consumer group to use (default: %s)
+- %s: whether to run an http server alongside the forwarder (can be used for
+    health checks) (default: %v)
+- %s: host to run the server on (default: %s)
+- %s: port to run the server on (default: %d)
+`,
+			envVarForwardConsumerGroup, forwardConsumerGroupDefault,
+			envVarForwardRunServer, forwardRunServerDefault,
+			envVarForwardHost, forwardHostDefault,
+			envVarForwardPort, forwardPortDefault,
+		),
+		Example:      `kplay forward profile-1,profile-2 arn:aws:s3:::bucket-to-forward-messages-to/prefix`,
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -383,12 +410,44 @@ AWS S3 is the only supported destination for now.`,
 				)
 			}
 
-			forwarderCg := strings.TrimSpace(forwarderConsumerGroup)
-			if len(forwarderCg) < consumerGroupMinLength {
+			forwardConsumerGroup = os.Getenv(envVarForwardConsumerGroup)
+			if forwardConsumerGroup == "" {
+				forwardConsumerGroup = forwardConsumerGroupDefault
+			}
+
+			runServerStr := os.Getenv(envVarForwardRunServer)
+			if runServerStr != "" {
+				var err error
+				forwardRunServer, err = strconv.ParseBool(runServerStr)
+				if err != nil {
+					return fmt.Errorf("invalid value for %s: %q; expected a boolean value", envVarForwardRunServer, runServerStr)
+				}
+			} else {
+				forwardRunServer = false
+			}
+
+			forwardHost = os.Getenv(envVarForwardHost)
+			if forwardHost == "" {
+				forwardHost = forwardHostDefault
+			}
+
+			portStr := os.Getenv(envVarForwardPort)
+			if portStr != "" {
+				port64, err := strconv.ParseUint(portStr, 10, 16)
+				if err != nil {
+					return fmt.Errorf("invalid value for %s: %q; expected a valid port number (0-65535)", envVarForwardPort, portStr)
+				}
+				forwardPort = uint16(port64)
+			} else {
+				forwardPort = forwardPortDefault
+			}
+
+			forwarderCg := strings.TrimSpace(forwardConsumerGroup)
+			if len(forwarderCg) < forwardConsumerGroupMinLength {
 				return fmt.Errorf("%w (%q); needs to be atleast %d characters",
 					errConsumerGroupTooShort,
-					forwarderConsumerGroup,
-					consumerGroupMinLength,
+					forwardConsumerGroup,
+					forwardConsumerGroupMinLength,
 				)
 			}
 
@@ -397,15 +456,15 @@ AWS S3 is the only supported destination for now.`,
 				return errDestinationEmpty
 			}
 
-			destinationWithoutPrefix, ok := strings.CutPrefix(destinationStr, s3DestinationPrefix)
+			destinationWithoutPrefix, ok := strings.CutPrefix(destinationStr, forwardS3DestinationPrefix)
 			if !ok {
-				return fmt.Errorf("%w; supported destination prefixes: [%s]", errInvalidDestinationProvided, s3DestinationPrefix)
+				return fmt.Errorf("%w; supported destination prefixes: [%s]", errInvalidDestinationProvided, forwardS3DestinationPrefix)
 			}
 
 			forwardBehaviours := f.Behaviours{
-				RunServer: forwarderRunServer,
-				Host:      forwarderHost,
-				Port:      forwarderPort,
+				RunServer: forwardRunServer,
+				Host:      forwardHost,
+				Port:      forwardPort,
 			}
 
 			if debug {
@@ -446,7 +505,7 @@ Destination               %s
 					config.Authentication,
 					config.Brokers,
 					config.Topic,
-					forwarderConsumerGroup,
+					forwardConsumerGroup,
 					&awsConfig,
 				)
 				if err != nil {
@@ -473,7 +532,7 @@ Destination               %s
 			slog.Info("starting up",
 				"profiles", strings.Join(profileConfigNames, ","),
 				"destination", destination.Display(),
-				"consumer_group", forwarderConsumerGroup,
+				"consumer_group", forwardConsumerGroup,
 			)
 
 			forwarder := f.New(kafkaClients, configs, &destination, forwardBehaviours)
@@ -518,11 +577,6 @@ Destination               %s
 	scanCmd.Flags().BoolVarP(&scanDecode, "decode", "d", true, "whether to decode message values (false is equivalent to 'encodingFormat: raw' in kplay's config)")
 	scanCmd.Flags().UintVarP(&scanBatchSize, "batch-size", "b", 100, "number of messages to fetch per batch (must be greater than 0)")
 	scanCmd.Flags().StringVarP(&outputDir, "output-dir", "O", defaultOutputDir, "directory to save scan results in")
-
-	forwardCmd.Flags().StringVarP(&forwarderConsumerGroup, "consumer-group", "g", "kplay-forwarder", "consumer group to use")
-	forwardCmd.Flags().BoolVarP(&forwarderRunServer, "run-server", "s", false, "whether to run an http server alongside the forwarder (can be used for health checks)")
-	forwardCmd.Flags().StringVarP(&forwarderHost, "host", "H", "127.0.0.1", "host to run the server on")
-	forwardCmd.Flags().UintVarP(&forwarderPort, "port", "p", 8080, "port to run the server on")
 
 	rootCmd.AddCommand(tuiCmd)
 	rootCmd.AddCommand(serveCmd)

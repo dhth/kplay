@@ -5,7 +5,7 @@ import "fmt"
 type Behaviours struct {
 	RunServer bool
 	Host      string
-	Port      uint
+	Port      uint16
 }
 
 func (b Behaviours) Display() string {

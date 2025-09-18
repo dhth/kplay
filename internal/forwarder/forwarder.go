@@ -121,7 +121,7 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 	}
 }
 
-func startServer(ctx context.Context, host string, port uint) {
+func startServer(ctx context.Context, host string, port uint16) {
 	serverErrChan := make(chan error)
 
 	mux := http.NewServeMux()
