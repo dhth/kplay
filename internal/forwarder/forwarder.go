@@ -160,7 +160,7 @@ func startServer(ctx context.Context, host string, port uint16, shutdownTimeoutM
 
 	select {
 	case <-ctx.Done():
-		shutDownCtx, shutDownRelease := context.WithTimeout(context.TODO(), time.Duration(shutdownTimeoutMillis)*time.Millisecond)
+		shutDownCtx, shutDownRelease := context.WithTimeout(context.WithoutCancel(ctx), time.Duration(shutdownTimeoutMillis)*time.Millisecond)
 		defer shutDownRelease()
 		err := server.Shutdown(shutDownCtx)
 		if err != nil {
@@ -184,7 +184,7 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 
 	pendingWork := make([]uploadWork, 0)
 
-	uploadCtx, uploadCancel := context.WithCancel(context.TODO())
+	uploadCtx, uploadCancel := context.WithCancel(context.WithoutCancel(ctx))
 	var wg sync.WaitGroup
 
 	slog.Info("starting upload workers")
@@ -267,7 +267,7 @@ func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploa
 
 			for i := range 5 {
 				bodyReader := strings.NewReader(work.msg.GetDetails())
-				uploadCtx, uploadCancel := context.WithTimeout(context.TODO(), time.Duration(f.behaviours.UploadTimeoutMillis)*time.Millisecond)
+				uploadCtx, uploadCancel := context.WithTimeout(context.WithoutCancel(ctx), time.Duration(f.behaviours.UploadTimeoutMillis)*time.Millisecond)
 				err = f.destination.upload(uploadCtx, bodyReader, work.fileName)
 				uploadCancel()
 
