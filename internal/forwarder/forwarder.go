@@ -233,7 +233,13 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 					slog.Error("couldn't fetch records from Kafka", "profile", f.configs[clientIndex].Name, "error", err)
 				} else if len(records) > 0 {
 					for _, record := range records {
-						slog.Info("processing kafka record", "key", string(record.Key), "topic", record.Topic, "partition", record.Partition, "offset", record.Offset, "value_bytes", len(record.Value))
+						slog.Info("processing record",
+							"key", string(record.Key),
+							"topic", record.Topic,
+							"offset", record.Offset,
+							"partition", record.Partition,
+							"value_bytes", len(record.Value),
+						)
 						msg := t.GetMessageFromRecord(*record, f.configs[clientIndex], true)
 						work := uploadWork{
 							msg:      msg,
