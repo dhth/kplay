@@ -19,17 +19,6 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-const (
-	fetchBatchSize                 = 50
-	numUploadWorkers               = 50
-	forwarderShutDownTimeoutMillis = 20000
-	serverShutDownTimeoutMillis    = 3000
-	numPollSleepMillis             = 5000
-	uploadWorkerSleepMillis        = 1000
-	pollFetchTimeoutMillis         = 5000
-	uploadTimeoutMillis            = 5000
-)
-
 type Forwarder struct {
 	kafkaClients []*kgo.Client
 	configs      []t.Config
@@ -70,7 +59,7 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 		serverShutDownChan = make(chan struct{})
 
 		go func(shutDownChan chan struct{}) {
-			startServer(serverCtx, f.behaviours.Host, f.behaviours.Port)
+			startServer(serverCtx, f.behaviours.ServerHost, f.behaviours.ServerPort, f.behaviours.ServerShutdownTimeoutMillis)
 			shutDownChan <- struct{}{}
 		}(serverShutDownChan)
 	}
@@ -85,7 +74,7 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 		slog.Info("received shutdown signal; stopping forwarder")
 		forwarderCancel()
 
-		timeout := time.After(forwarderShutDownTimeoutMillis * time.Millisecond)
+		timeout := time.After(time.Duration(f.behaviours.ForwarderShutdownTimeoutMillis) * time.Millisecond)
 
 		select {
 		case <-forwarderShutDownChan:
@@ -121,7 +110,7 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 	}
 }
 
-func startServer(ctx context.Context, host string, port uint16) {
+func startServer(ctx context.Context, host string, port uint16, shutdownTimeoutMillis uint16) {
 	serverErrChan := make(chan error)
 
 	mux := http.NewServeMux()
@@ -138,7 +127,7 @@ func startServer(ctx context.Context, host string, port uint16) {
 		Handler: mux,
 	}
 
-	slog.Info("starting http server", "address", addr)
+	slog.Info("starting http server")
 
 	go func(errChan chan<- error) {
 		err := server.ListenAndServe()
@@ -149,7 +138,7 @@ func startServer(ctx context.Context, host string, port uint16) {
 
 	select {
 	case <-ctx.Done():
-		shutDownCtx, shutDownRelease := context.WithTimeout(context.TODO(), serverShutDownTimeoutMillis*time.Millisecond)
+		shutDownCtx, shutDownRelease := context.WithTimeout(context.TODO(), time.Duration(shutdownTimeoutMillis)*time.Millisecond)
 		defer shutDownRelease()
 		err := server.Shutdown(shutDownCtx)
 		if err != nil {
@@ -181,8 +170,8 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 	uploadCtx, uploadCancel := context.WithCancel(context.TODO())
 	var wg sync.WaitGroup
 
-	slog.Info("starting upload workers", "num", numUploadWorkers)
-	for range numUploadWorkers {
+	slog.Info("starting upload workers")
+	for range f.behaviours.NumUploadWorkers {
 		wg.Add(1)
 		go f.startUploadWorker(uploadCtx, uploadWorkChan, &wg)
 	}
@@ -219,8 +208,8 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 
 			if len(pendingWork) == 0 {
 				client := f.kafkaClients[clientIndex]
-				fetchCtx, fetchCancel := context.WithTimeout(ctx, pollFetchTimeoutMillis*time.Millisecond)
-				records, err := k.FetchRecords(fetchCtx, client, fetchBatchSize)
+				fetchCtx, fetchCancel := context.WithTimeout(ctx, time.Duration(f.behaviours.PollFetchTimeoutMillis)*time.Millisecond)
+				records, err := k.FetchRecords(fetchCtx, client, uint(f.behaviours.FetchBatchSize))
 				fetchCancel()
 
 				if err != nil {
@@ -237,7 +226,7 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 					}
 				}
 
-				time.Sleep(numPollSleepMillis * time.Millisecond)
+				time.Sleep(time.Duration(f.behaviours.PollSleepMillis) * time.Millisecond)
 			}
 
 			clientIndex++
@@ -261,7 +250,7 @@ func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploa
 
 			for i := range 5 {
 				bodyReader := strings.NewReader(work.msg.GetDetails())
-				uploadCtx, uploadCancel := context.WithTimeout(context.TODO(), uploadTimeoutMillis*time.Millisecond)
+				uploadCtx, uploadCancel := context.WithTimeout(context.TODO(), time.Duration(f.behaviours.UploadTimeoutMillis)*time.Millisecond)
 				err = f.destination.upload(uploadCtx, bodyReader, work.fileName)
 				uploadCancel()
 
@@ -274,7 +263,7 @@ func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploa
 				}
 			}
 		default:
-			time.Sleep(uploadWorkerSleepMillis * time.Millisecond)
+			time.Sleep(time.Duration(f.behaviours.UploadWorkerSleepMillis) * time.Millisecond)
 		}
 	}
 }
