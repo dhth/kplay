@@ -23,11 +23,18 @@ const (
 	serverShutDownTimeoutMillis = 3000
 )
 
+var errServerShutDownUnexpectedly = errors.New("server shut down unexpectedly")
+
 type Forwarder struct {
 	kafkaClients []*kgo.Client
 	configs      []t.Config
 	destination  Destination
 	behaviours   Behaviours
+}
+
+type uploadWork struct {
+	msg      t.Message
+	fileName string
 }
 
 func New(kafkaClients []*kgo.Client, configs []t.Config, destination Destination, behaviours Behaviours) Forwarder {
@@ -83,7 +90,7 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 		select {
 		case <-forwarderShutDownChan:
 		case <-sigChan:
-			slog.Error("got a second shutdown signal; shutting down right away")
+			slog.Error("got a second shutdown signal; exiting right away")
 			return nil
 		case <-timeout:
 			slog.Error("couldn't shut down forwarder gracefully; exiting")
@@ -95,7 +102,7 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 			select {
 			case <-serverShutDownChan:
 			case <-sigChan:
-				slog.Error("got a second shutdown signal; shutting down right away")
+				slog.Error("got a second shutdown signal; exiting right away")
 				return nil
 			case <-timeout:
 				slog.Error("couldn't shut down http server gracefully; exiting")
@@ -108,9 +115,20 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 	case <-serverShutDownChan:
 		slog.Error("server shut down unexpectedly; stopping forwarder as well")
 		forwarderCancel()
-		<-forwarderShutDownChan
-		slog.Error("all components stopped")
-		return nil
+
+		timeout := time.After(time.Duration(f.behaviours.ForwarderShutdownTimeoutMillis) * time.Millisecond)
+
+		select {
+		case <-forwarderShutDownChan:
+			slog.Info("all components stopped")
+			return errServerShutDownUnexpectedly
+		case <-sigChan:
+			slog.Error("got a shutdown signal; exiting right away")
+			return nil
+		case <-timeout:
+			slog.Error("couldn't shut down forwarder gracefully; exiting")
+			return t.ErrCouldntShutDownGracefully
+		}
 	}
 }
 
@@ -156,14 +174,9 @@ func startServer(ctx context.Context, host string, port uint16, shutdownTimeoutM
 		}
 		slog.Info("http server shut down")
 	case err := <-serverErrChan:
-		slog.Error("couldn't start http server", "error", err)
+		slog.Error("http server errored out", "error", err)
 		return
 	}
-}
-
-type uploadWork struct {
-	msg      t.Message
-	fileName string
 }
 
 func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
