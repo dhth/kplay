@@ -30,8 +30,12 @@ func newScanCmd(
 	var scanBatchSize uint
 
 	cmd := &cobra.Command{
-		Use:               "scan <PROFILE>",
-		Short:             "scan messages in a kafka topic and optionally write them to the local filesystem",
+		Use:   "scan <PROFILE>",
+		Short: "Scan messages in a kafka topic and optionally write them to the local filesystem",
+		Long: `This command is useful when you want to view a summary of messages in a Kafka
+topic (ie, the partition, offset, timestamp, and key of each message), and
+optionally save the message values to your local filesystem.
+`,
 		Args:              cobra.ExactArgs(1),
 		SilenceUsage:      true,
 		PersistentPreRunE: preRunE,

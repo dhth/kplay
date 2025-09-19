@@ -27,8 +27,13 @@ func newTuiCmd(
 	var skipMessages bool
 
 	cmd := &cobra.Command{
-		Use:               "tui <PROFILE>",
-		Short:             "open kplay's TUI",
+		Use:   "tui <PROFILE>",
+		Short: "Browse messages in a kafka topic via a TUI",
+		Long: `This will start a TUI which will let you browse messages on demand. You can then
+browse the message metadata and value in a pager. By default, kplay will consume
+messages from the earliest possible offset, but you can modify this behaviour by
+either providing an offset or a timestamp to start consuming messages from.
+`,
 		Args:              cobra.ExactArgs(1),
 		SilenceUsage:      true,
 		PersistentPreRunE: preRunE,

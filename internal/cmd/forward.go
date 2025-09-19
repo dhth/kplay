@@ -86,13 +86,13 @@ var (
 func newForwardCmd(configPath *string, homeDir string, debug *bool) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "forward <PROFILE>,<PROFILE>,... <DESTINATION>",
-		Short: "fetch messages in a kafka topic and forward them to a remote destination",
-		Long: fmt.Sprintf(`fetch messages in a kafka topic and forward them to a remote destination.
-AWS S3 is the only supported destination for now.
+		Short: "Consume messages in a kafka topic and forward them to a remote destination",
+		Long: fmt.Sprintf(`This command is useful when you want to consume messages in a kafka topic as
+part of a consumer group, decode them, and forward the decoded contents to a
+remote destination (AWS S3 is the only supported destination for now).
 
-This command uses the following environment variables for optional configuration
-as it's designed to be run in long-lived containers where environment-based
-configuration is more suitable than command-line flags.
+This command is intended to be run in a long running containerised environment;
+as such, it accepts configuration via the following environment variables.
 
 - %s consumer group to use (default: %s)
 - %s number of records to fetch per batch (default: %d, range: %d-%d)
@@ -102,9 +102,12 @@ configuration is more suitable than command-line flags.
 - %s upload timeout in ms (default: %d, range: %d-%d)
 - %s kafka polling sleep interval in ms (default: %d, range: %d-%d)
 - %s upload worker sleep interval in ms (default: %d, range: %d-%d)
-- %s whether to run an http server alongside the forwarder (can be used for health check) (default: %v)
+- %s whether to run an http server alongside the forwarder (default: %v)
 - %s host to run the server on (default: %s)
 - %s port to run the server on (default: %d)
+
+If needed, this command can also start an HTTP server which can be used for
+health checks (at /health).
 `,
 			utils.RightPadTrim(envVarConsumerGroup, envVarHelpPadding), consumerGroupDefault,
 			utils.RightPadTrim(envVarFetchBatchSize, envVarHelpPadding), fetchBatchSizeDefault, fetchBatchSizeMin, fetchBatchSizeMax,

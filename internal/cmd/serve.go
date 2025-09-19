@@ -25,8 +25,13 @@ func newServeCmd(
 	var webOpen bool
 
 	cmd := &cobra.Command{
-		Use:               "serve <PROFILE>",
-		Short:             "open kplay's web interface",
+		Use:   "serve <PROFILE>",
+		Short: "Browse messages in a kafka topic via a web interface",
+		Long: `This will start kplay's web interface which will let you browse messages on
+demand. By default, kplay will consume messages from the earliest possible
+offset, but you can modify this behaviour by either providing an offset or a
+timestamp to start consuming messages from.
+`,
 		Args:              cobra.ExactArgs(1),
 		SilenceUsage:      true,
 		PersistentPreRunE: preRunE,
