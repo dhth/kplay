@@ -108,7 +108,7 @@ to brokers, message encoding, authentication, etc.
 		SilenceErrors: true,
 	}
 
-	tuiCmd := newTuiCommand(
+	tuiCmd := newTuiCmd(
 		preRunE,
 		&config,
 		&consumeBehaviours,
@@ -119,7 +119,7 @@ to brokers, message encoding, authentication, etc.
 		defaultOutputDir,
 	)
 
-	serveCmd := newServeCommand(
+	serveCmd := newServeCmd(
 		preRunE,
 		&config,
 		&consumeBehaviours,
@@ -128,7 +128,7 @@ to brokers, message encoding, authentication, etc.
 		&debug,
 	)
 
-	scanCmd := newScanCommand(
+	scanCmd := newScanCmd(
 		preRunE,
 		&config,
 		&consumeBehaviours,
@@ -139,7 +139,7 @@ to brokers, message encoding, authentication, etc.
 		defaultOutputDir,
 	)
 
-	forwardCmd := newForwardCommand(&configPath, homeDir, &debug)
+	forwardCmd := newForwardCmd(&configPath, homeDir, &debug)
 
 	configDir, err := os.UserConfigDir()
 	if err != nil {

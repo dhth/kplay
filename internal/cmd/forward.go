@@ -40,7 +40,7 @@ var (
 	errDestinationEmpty           = errors.New("destination is empty")
 )
 
-func newForwardCommand(configPath *string, homeDir string, debug *bool) *cobra.Command {
+func newForwardCmd(configPath *string, homeDir string, debug *bool) *cobra.Command {
 	var (
 		forwardConsumerGroup string
 		forwardRunServer     bool
@@ -182,7 +182,7 @@ Destination               %s
 				return nil
 			}
 
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			awsConfig, err := a.GetAWSConfig(ctx)
 			if err != nil {

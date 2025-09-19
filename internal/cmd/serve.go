@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newServeCommand(
+func newServeCmd(
 	preRunE func(cmd *cobra.Command, args []string) error,
 	config *t.Config,
 	consumeBehaviours *t.ConsumeBehaviours,
@@ -30,7 +30,7 @@ func newServeCommand(
 		Args:              cobra.ExactArgs(1),
 		SilenceUsage:      true,
 		PersistentPreRunE: preRunE,
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			behaviours := server.Behaviours{
 				SelectOnHover: selectOnHover,
 			}
@@ -47,7 +47,7 @@ func newServeCommand(
 
 			var awsConfig *aws.Config
 			if config.Authentication == t.AWSMSKIAM {
-				awsCfg, err := a.GetAWSConfig(context.Background())
+				awsCfg, err := a.GetAWSConfig(cmd.Context())
 				if err != nil {
 					return err
 				}
@@ -68,7 +68,7 @@ func newServeCommand(
 
 			defer cl.Close()
 
-			ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Second)
 			defer cancel()
 
 			if err := cl.Ping(ctx); err != nil {

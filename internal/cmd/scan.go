@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -14,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newScanCommand(
+func newScanCmd(
 	preRunE func(cmd *cobra.Command, args []string) error,
 	config *t.Config,
 	consumeBehaviours *t.ConsumeBehaviours,
@@ -36,7 +35,7 @@ func newScanCommand(
 		Args:              cobra.ExactArgs(1),
 		SilenceUsage:      true,
 		PersistentPreRunE: preRunE,
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if scanBatchSize == 0 {
 				return fmt.Errorf("batch size must be greater than 0")
 			}
@@ -81,7 +80,7 @@ func newScanCommand(
 
 			var awsConfig *aws.Config
 			if config.Authentication == t.AWSMSKIAM {
-				awsCfg, err := a.GetAWSConfig(context.Background())
+				awsCfg, err := a.GetAWSConfig(cmd.Context())
 				if err != nil {
 					return err
 				}
