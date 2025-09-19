@@ -67,3 +67,22 @@ func getUint16EnvVar(envVar string, defaultVal, minVal, maxVal uint16) (uint16, 
 
 	return value, nil
 }
+
+func getUint32EnvVar(envVar string, defaultVal, minVal, maxVal uint32) (uint32, error) {
+	valueStr := os.Getenv(envVar)
+	if valueStr == "" {
+		return defaultVal, nil
+	}
+
+	value64, err := strconv.ParseUint(valueStr, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("%w for %s: %q; expected a valid integer in the range [%d,%d]", ErrInvalidEnvValue, envVar, valueStr, minVal, maxVal)
+	}
+
+	value := uint32(value64)
+	if value < minVal || value > maxVal {
+		return 0, fmt.Errorf("%w for %s out of range: %d; expected range: [%d,%d]", ErrInvalidEnvValue, envVar, value, minVal, maxVal)
+	}
+
+	return value, nil
+}

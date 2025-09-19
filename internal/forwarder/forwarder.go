@@ -19,6 +19,10 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
+const (
+	serverShutDownTimeoutMillis = 3000
+)
+
 type Forwarder struct {
 	kafkaClients []*kgo.Client
 	configs      []t.Config
@@ -59,7 +63,7 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 		serverShutDownChan = make(chan struct{})
 
 		go func(shutDownChan chan struct{}) {
-			startServer(serverCtx, f.behaviours.ServerHost, f.behaviours.ServerPort, f.behaviours.ServerShutdownTimeoutMillis)
+			startServer(serverCtx, f.behaviours.ServerHost, f.behaviours.ServerPort, serverShutDownTimeoutMillis)
 			shutDownChan <- struct{}{}
 		}(serverShutDownChan)
 	}
@@ -127,7 +131,7 @@ func startServer(ctx context.Context, host string, port uint16, shutdownTimeoutM
 		Handler: mux,
 	}
 
-	slog.Info("starting http server")
+	slog.Info("starting http server", "address", addr)
 
 	go func(errChan chan<- error) {
 		err := server.ListenAndServe()

@@ -9,11 +9,10 @@ type Behaviours struct {
 	FetchBatchSize                 uint16
 	NumUploadWorkers               uint16
 	ForwarderShutdownTimeoutMillis uint16
-	ServerShutdownTimeoutMillis    uint16
-	PollSleepMillis                uint16
-	UploadWorkerSleepMillis        uint16
 	PollFetchTimeoutMillis         uint16
 	UploadTimeoutMillis            uint16
+	PollSleepMillis                uint32
+	UploadWorkerSleepMillis        uint32
 	RunServer                      bool
 	ServerHost                     string
 	ServerPort                     uint16
@@ -25,21 +24,19 @@ func (b Behaviours) Display() string {
   fetch batch size        %d
   upload workers          %d
   shutdown timeout (ms)   %d
-  server shutdown (ms)    %d
-  poll sleep (ms)         %d
-  worker sleep (ms)       %d
   fetch timeout (ms)      %d
   upload timeout (ms)     %d
+  poll sleep (ms)         %d
+  worker sleep (ms)       %d
   run server              %v`,
 		b.ConsumerGroup,
 		b.FetchBatchSize,
 		b.NumUploadWorkers,
 		b.ForwarderShutdownTimeoutMillis,
-		b.ServerShutdownTimeoutMillis,
-		b.PollSleepMillis,
-		b.UploadWorkerSleepMillis,
 		b.PollFetchTimeoutMillis,
 		b.UploadTimeoutMillis,
+		b.PollSleepMillis,
+		b.UploadWorkerSleepMillis,
 		b.RunServer,
 	)
 

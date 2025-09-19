@@ -18,22 +18,21 @@ import (
 )
 
 const (
-	envVarConsumerGroup               = "KPLAY_FORWARD_CONSUMER_GROUP"
-	envVarFetchBatchSize              = "KPLAY_FORWARD_FETCH_BATCH_SIZE"
-	envVarNumUploadWorkers            = "KPLAY_FORWARD_NUM_UPLOAD_WORKERS"
-	envVarShutdownTimeoutMillis       = "KPLAY_FORWARD_SHUTDOWN_TIMEOUT_MILLIS"
-	envVarServerShutdownTimeoutMillis = "KPLAY_FORWARD_SERVER_SHUTDOWN_TIMEOUT_MILLIS"
-	envVarPollSleepMillis             = "KPLAY_FORWARD_POLL_SLEEP_MILLIS"
-	envVarUploadWorkerSleepMillis     = "KPLAY_FORWARD_UPLOAD_WORKER_SLEEP_MILLIS"
-	envVarPollFetchTimeoutMillis      = "KPLAY_FORWARD_POLL_FETCH_TIMEOUT_MILLIS"
-	envVarUploadTimeoutMillis         = "KPLAY_FORWARD_UPLOAD_TIMEOUT_MILLIS"
-	envVarRunServer                   = "KPLAY_FORWARD_RUN_SERVER"
-	envVarHost                        = "KPLAY_FORWARD_HOST"
-	envVarPort                        = "KPLAY_FORWARD_PORT"
+	envVarConsumerGroup           = "KPLAY_FORWARD_CONSUMER_GROUP"
+	envVarFetchBatchSize          = "KPLAY_FORWARD_FETCH_BATCH_SIZE"
+	envVarNumUploadWorkers        = "KPLAY_FORWARD_NUM_UPLOAD_WORKERS"
+	envVarShutdownTimeoutMillis   = "KPLAY_FORWARD_SHUTDOWN_TIMEOUT_MILLIS"
+	envVarPollFetchTimeoutMillis  = "KPLAY_FORWARD_POLL_FETCH_TIMEOUT_MILLIS"
+	envVarUploadTimeoutMillis     = "KPLAY_FORWARD_UPLOAD_TIMEOUT_MILLIS"
+	envVarPollSleepMillis         = "KPLAY_FORWARD_POLL_SLEEP_MILLIS"
+	envVarUploadWorkerSleepMillis = "KPLAY_FORWARD_UPLOAD_WORKER_SLEEP_MILLIS"
+	envVarRunServer               = "KPLAY_FORWARD_RUN_SERVER"
+	envVarHost                    = "KPLAY_FORWARD_SERVER_HOST"
+	envVarPort                    = "KPLAY_FORWARD_SERVER_PORT"
 
 	// longest env var
-	// KPLAY_FORWARD_SERVER_SHUTDOWN_TIMEOUT_MILLIS -> 44
-	envVarHelpPadding = 46
+	// KPLAY_FORWARD_UPLOAD_WORKER_SLEEP_MILLIS -> 40
+	envVarHelpPadding = 42
 
 	s3DestinationPrefix = "arn:aws:s3:::"
 	maxProfilesAllowed  = 10
@@ -48,31 +47,27 @@ const (
 
 	numUploadWorkersDefault = 50
 	numUploadWorkersMin     = 1
-	numUploadWorkersMax     = 200
+	numUploadWorkersMax     = 500
 
-	shutdownTimeoutMillisDefault = 20000
-	shutdownTimeoutMillisMin     = 1000
-	shutdownTimeoutMillisMax     = 60000
+	shutdownTimeoutMillisDefault = 20 * 1000
+	shutdownTimeoutMillisMin     = 10 * 1000
+	shutdownTimeoutMillisMax     = 60 * 1000
 
-	serverShutdownTimeoutMillisDefault = 5000
-	serverShutdownTimeoutMillisMin     = 500
-	serverShutdownTimeoutMillisMax     = 60000
+	pollFetchTimeoutMillisDefault = 5 * 1000
+	pollFetchTimeoutMillisMin     = 1 * 1000
+	pollFetchTimeoutMillisMax     = 60 * 1000
 
-	pollSleepMillisDefault = 5000
-	pollSleepMillisMin     = 100
-	pollSleepMillisMax     = 60000
+	uploadTimeoutMillisDefault = 5 * 1000
+	uploadTimeoutMillisMin     = 1 * 1000
+	uploadTimeoutMillisMax     = 60 * 1000
 
-	uploadWorkerSleepMillisDefault = 1000
-	uploadWorkerSleepMillisMin     = 10
-	uploadWorkerSleepMillisMax     = 10000
+	pollSleepMillisDefault = 5 * 1000
+	pollSleepMillisMin     = 0
+	pollSleepMillisMax     = 30 * 60 * 1000
 
-	pollFetchTimeoutMillisDefault = 5000
-	pollFetchTimeoutMillisMin     = 1000
-	pollFetchTimeoutMillisMax     = 30000
-
-	uploadTimeoutMillisDefault = 5000
-	uploadTimeoutMillisMin     = 1000
-	uploadTimeoutMillisMax     = 60000
+	uploadWorkerSleepMillisDefault = 1 * 1000
+	uploadWorkerSleepMillisMin     = 0
+	uploadWorkerSleepMillisMax     = 30 * 60 * 1000
 
 	runServerDefault = false
 	hostDefault      = "127.0.0.1"
@@ -102,12 +97,11 @@ configuration is more suitable than command-line flags.
 - %s consumer group to use (default: %s)
 - %s number of records to fetch per batch (default: %d, range: %d-%d)
 - %s number of upload workers (default: %d, range: %d-%d)
-- %s forwarder shutdown timeout in ms (default: %d, range: %d-%d)
-- %s server shutdown timeout in ms (default: %d, range: %d-%d)
-- %s kafka polling sleep interval in ms (default: %d, range: %d-%d)
-- %s upload worker sleep interval in ms (default: %d, range: %d-%d)
+- %s graceful shutdown timeout in ms (default: %d, range: %d-%d)
 - %s kafka polling fetch timeout in ms (default: %d, range: %d-%d)
 - %s upload timeout in ms (default: %d, range: %d-%d)
+- %s kafka polling sleep interval in ms (default: %d, range: %d-%d)
+- %s upload worker sleep interval in ms (default: %d, range: %d-%d)
 - %s whether to run an http server alongside the forwarder (can be used for health check) (default: %v)
 - %s host to run the server on (default: %s)
 - %s port to run the server on (default: %d)
@@ -116,11 +110,10 @@ configuration is more suitable than command-line flags.
 			utils.RightPadTrim(envVarFetchBatchSize, envVarHelpPadding), fetchBatchSizeDefault, fetchBatchSizeMin, fetchBatchSizeMax,
 			utils.RightPadTrim(envVarNumUploadWorkers, envVarHelpPadding), numUploadWorkersDefault, numUploadWorkersMin, numUploadWorkersMax,
 			utils.RightPadTrim(envVarShutdownTimeoutMillis, envVarHelpPadding), shutdownTimeoutMillisDefault, shutdownTimeoutMillisMin, shutdownTimeoutMillisMax,
-			utils.RightPadTrim(envVarServerShutdownTimeoutMillis, envVarHelpPadding), serverShutdownTimeoutMillisDefault, serverShutdownTimeoutMillisMin, serverShutdownTimeoutMillisMax,
-			utils.RightPadTrim(envVarPollSleepMillis, envVarHelpPadding), pollSleepMillisDefault, pollSleepMillisMin, pollSleepMillisMax,
-			utils.RightPadTrim(envVarUploadWorkerSleepMillis, envVarHelpPadding), uploadWorkerSleepMillisDefault, uploadWorkerSleepMillisMin, uploadWorkerSleepMillisMax,
 			utils.RightPadTrim(envVarPollFetchTimeoutMillis, envVarHelpPadding), pollFetchTimeoutMillisDefault, pollFetchTimeoutMillisMin, pollFetchTimeoutMillisMax,
 			utils.RightPadTrim(envVarUploadTimeoutMillis, envVarHelpPadding), uploadTimeoutMillisDefault, uploadTimeoutMillisMin, uploadTimeoutMillisMax,
+			utils.RightPadTrim(envVarPollSleepMillis, envVarHelpPadding), pollSleepMillisDefault, pollSleepMillisMin, pollSleepMillisMax,
+			utils.RightPadTrim(envVarUploadWorkerSleepMillis, envVarHelpPadding), uploadWorkerSleepMillisDefault, uploadWorkerSleepMillisMin, uploadWorkerSleepMillisMax,
 			utils.RightPadTrim(envVarRunServer, envVarHelpPadding), runServerDefault,
 			utils.RightPadTrim(envVarHost, envVarHelpPadding), hostDefault,
 			utils.RightPadTrim(envVarPort, envVarHelpPadding), portDefault,
@@ -292,17 +285,7 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 		errs = append(errs, err)
 	}
 
-	serverShutdownTimeoutMillis, err := getUint16EnvVar(
-		envVarServerShutdownTimeoutMillis,
-		serverShutdownTimeoutMillisDefault,
-		serverShutdownTimeoutMillisMin,
-		serverShutdownTimeoutMillisMax,
-	)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	pollSleepMillis, err := getUint16EnvVar(
+	pollSleepMillis, err := getUint32EnvVar(
 		envVarPollSleepMillis,
 		pollSleepMillisDefault,
 		pollSleepMillisMin,
@@ -312,7 +295,7 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 		errs = append(errs, err)
 	}
 
-	uploadWorkerSleepMillis, err := getUint16EnvVar(
+	uploadWorkerSleepMillis, err := getUint32EnvVar(
 		envVarUploadWorkerSleepMillis,
 		uploadWorkerSleepMillisDefault,
 		uploadWorkerSleepMillisMin,
@@ -374,7 +357,6 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 		FetchBatchSize:                 fetchBatchSize,
 		NumUploadWorkers:               numUploadWorkers,
 		ForwarderShutdownTimeoutMillis: shutdownTimeoutMillis,
-		ServerShutdownTimeoutMillis:    serverShutdownTimeoutMillis,
 		PollSleepMillis:                pollSleepMillis,
 		UploadWorkerSleepMillis:        uploadWorkerSleepMillis,
 		PollFetchTimeoutMillis:         pollFetchTimeoutMillis,
@@ -390,7 +372,6 @@ func logStartupInfo(profileConfigNames []string, destination string, behaviours 
 	slog.Info("behaviour", "fetch_batch_size", behaviours.FetchBatchSize)
 	slog.Info("behaviour", "upload_workers", behaviours.NumUploadWorkers)
 	slog.Info("behaviour", "shutdown_timeout_millis", behaviours.ForwarderShutdownTimeoutMillis)
-	slog.Info("behaviour", "server_shutdown_timeout_millis", behaviours.ServerShutdownTimeoutMillis)
 	slog.Info("behaviour", "poll_sleep_millis", behaviours.PollSleepMillis)
 	slog.Info("behaviour", "upload_worker_sleep_millis", behaviours.UploadWorkerSleepMillis)
 	slog.Info("behaviour", "poll_fetch_timeout_millis", behaviours.PollFetchTimeoutMillis)
