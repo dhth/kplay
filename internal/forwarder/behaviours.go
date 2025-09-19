@@ -1,26 +1,52 @@
 package forwarder
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Behaviours struct {
-	RunServer bool
-	Host      string
-	Port      uint16
+	ConsumerGroup                  string
+	FetchBatchSize                 uint16
+	NumUploadWorkers               uint16
+	ForwarderShutdownTimeoutMillis uint16
+	PollFetchTimeoutMillis         uint16
+	UploadTimeoutMillis            uint16
+	PollSleepMillis                uint32
+	UploadWorkerSleepMillis        uint32
+	RunServer                      bool
+	ServerHost                     string
+	ServerPort                     uint16
 }
 
 func (b Behaviours) Display() string {
 	value := fmt.Sprintf(`Forward Behaviours:
+  consumer group          %s
+  fetch batch size        %d
+  upload workers          %d
+  shutdown timeout (ms)   %d
+  fetch timeout (ms)      %d
+  upload timeout (ms)     %d
+  poll sleep (ms)         %d
+  worker sleep (ms)       %d
   run server              %v`,
+		b.ConsumerGroup,
+		b.FetchBatchSize,
+		b.NumUploadWorkers,
+		b.ForwarderShutdownTimeoutMillis,
+		b.PollFetchTimeoutMillis,
+		b.UploadTimeoutMillis,
+		b.PollSleepMillis,
+		b.UploadWorkerSleepMillis,
 		b.RunServer,
 	)
 
 	if b.RunServer {
 		value = fmt.Sprintf(`%s
-  host                    %s
-  port                    %d`,
+  server host             %s
+  server port             %d`,
 			value,
-			b.Host,
-			b.Port,
+			b.ServerHost,
+			b.ServerPort,
 		)
 	}
 

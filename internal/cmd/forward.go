@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -19,35 +18,72 @@ import (
 )
 
 const (
-	envVarForwardConsumerGroup = "KPLAY_FORWARD_CONSUMER_GROUP"
-	envVarForwardRunServer     = "KPLAY_FORWARD_RUN_SERVER"
-	envVarForwardHost          = "KPLAY_FORWARD_HOST"
-	envVarForwardPort          = "KPLAY_FORWARD_PORT"
+	envVarConsumerGroup           = "KPLAY_FORWARD_CONSUMER_GROUP"
+	envVarFetchBatchSize          = "KPLAY_FORWARD_FETCH_BATCH_SIZE"
+	envVarNumUploadWorkers        = "KPLAY_FORWARD_NUM_UPLOAD_WORKERS"
+	envVarShutdownTimeoutMillis   = "KPLAY_FORWARD_SHUTDOWN_TIMEOUT_MILLIS"
+	envVarPollFetchTimeoutMillis  = "KPLAY_FORWARD_POLL_FETCH_TIMEOUT_MILLIS"
+	envVarUploadTimeoutMillis     = "KPLAY_FORWARD_UPLOAD_TIMEOUT_MILLIS"
+	envVarPollSleepMillis         = "KPLAY_FORWARD_POLL_SLEEP_MILLIS"
+	envVarUploadWorkerSleepMillis = "KPLAY_FORWARD_UPLOAD_WORKER_SLEEP_MILLIS"
+	envVarRunServer               = "KPLAY_FORWARD_RUN_SERVER"
+	envVarHost                    = "KPLAY_FORWARD_SERVER_HOST"
+	envVarPort                    = "KPLAY_FORWARD_SERVER_PORT"
 
-	forwardS3DestinationPrefix    = "arn:aws:s3:::"
-	forwardConsumerGroupMinLength = 5
-	forwardMaxProfilesAllowed     = 10
-	forwardConsumerGroupDefault   = "kplay-forwarder"
-	forwardRunServerDefault       = false
-	forwardHostDefault            = "127.0.0.1"
-	forwardPortDefault            = 8080
+	// longest env var
+	// KPLAY_FORWARD_UPLOAD_WORKER_SLEEP_MILLIS -> 40
+	envVarHelpPadding = 42
+
+	s3DestinationPrefix = "arn:aws:s3:::"
+	maxProfilesAllowed  = 10
+
+	consumerGroupDefault   = "kplay-forwarder"
+	consumerGroupMinLength = 5
+	consumerGroupMaxLength = 255
+
+	fetchBatchSizeDefault = 50
+	fetchBatchSizeMin     = 1
+	fetchBatchSizeMax     = 1000
+
+	numUploadWorkersDefault = 50
+	numUploadWorkersMin     = 1
+	numUploadWorkersMax     = 500
+
+	shutdownTimeoutMillisDefault = 20 * 1000
+	shutdownTimeoutMillisMin     = 10 * 1000
+	shutdownTimeoutMillisMax     = 60 * 1000
+
+	pollFetchTimeoutMillisDefault = 5 * 1000
+	pollFetchTimeoutMillisMin     = 1 * 1000
+	pollFetchTimeoutMillisMax     = 60 * 1000
+
+	uploadTimeoutMillisDefault = 5 * 1000
+	uploadTimeoutMillisMin     = 1 * 1000
+	uploadTimeoutMillisMax     = 60 * 1000
+
+	pollSleepMillisDefault = 5 * 1000
+	pollSleepMillisMin     = 0
+	pollSleepMillisMax     = 30 * 60 * 1000
+
+	uploadWorkerSleepMillisDefault = 1 * 1000
+	uploadWorkerSleepMillisMin     = 0
+	uploadWorkerSleepMillisMax     = 30 * 60 * 1000
+
+	runServerDefault = false
+	hostDefault      = "127.0.0.1"
+
+	portDefault = 8080
+	portMin     = 0
+	portMax     = 65535
 )
 
 var (
-	errConsumerGroupTooShort      = errors.New("consumer group is too short")
 	errTooManyForwardProfiles     = errors.New("too many profiles provided")
 	errInvalidDestinationProvided = errors.New("invalid destination provided")
 	errDestinationEmpty           = errors.New("destination is empty")
 )
 
 func newForwardCmd(configPath *string, homeDir string, debug *bool) *cobra.Command {
-	var (
-		forwardConsumerGroup string
-		forwardRunServer     bool
-		forwardHost          string
-		forwardPort          uint16
-	)
-
 	cmd := &cobra.Command{
 		Use:   "forward <PROFILE>,<PROFILE>,... <DESTINATION>",
 		Short: "fetch messages in a kafka topic and forward them to a remote destination",
@@ -58,16 +94,29 @@ This command uses the following environment variables for optional configuration
 as it's designed to be run in long-lived containers where environment-based
 configuration is more suitable than command-line flags.
 
-- %s: consumer group to use (default: %s)
-- %s: whether to run an http server alongside the forwarder (can be used for
-    health checks) (default: %v)
-- %s: host to run the server on (default: %s)
-- %s: port to run the server on (default: %d)
+- %s consumer group to use (default: %s)
+- %s number of records to fetch per batch (default: %d, range: %d-%d)
+- %s number of upload workers (default: %d, range: %d-%d)
+- %s graceful shutdown timeout in ms (default: %d, range: %d-%d)
+- %s kafka polling fetch timeout in ms (default: %d, range: %d-%d)
+- %s upload timeout in ms (default: %d, range: %d-%d)
+- %s kafka polling sleep interval in ms (default: %d, range: %d-%d)
+- %s upload worker sleep interval in ms (default: %d, range: %d-%d)
+- %s whether to run an http server alongside the forwarder (can be used for health check) (default: %v)
+- %s host to run the server on (default: %s)
+- %s port to run the server on (default: %d)
 `,
-			envVarForwardConsumerGroup, forwardConsumerGroupDefault,
-			envVarForwardRunServer, forwardRunServerDefault,
-			envVarForwardHost, forwardHostDefault,
-			envVarForwardPort, forwardPortDefault,
+			utils.RightPadTrim(envVarConsumerGroup, envVarHelpPadding), consumerGroupDefault,
+			utils.RightPadTrim(envVarFetchBatchSize, envVarHelpPadding), fetchBatchSizeDefault, fetchBatchSizeMin, fetchBatchSizeMax,
+			utils.RightPadTrim(envVarNumUploadWorkers, envVarHelpPadding), numUploadWorkersDefault, numUploadWorkersMin, numUploadWorkersMax,
+			utils.RightPadTrim(envVarShutdownTimeoutMillis, envVarHelpPadding), shutdownTimeoutMillisDefault, shutdownTimeoutMillisMin, shutdownTimeoutMillisMax,
+			utils.RightPadTrim(envVarPollFetchTimeoutMillis, envVarHelpPadding), pollFetchTimeoutMillisDefault, pollFetchTimeoutMillisMin, pollFetchTimeoutMillisMax,
+			utils.RightPadTrim(envVarUploadTimeoutMillis, envVarHelpPadding), uploadTimeoutMillisDefault, uploadTimeoutMillisMin, uploadTimeoutMillisMax,
+			utils.RightPadTrim(envVarPollSleepMillis, envVarHelpPadding), pollSleepMillisDefault, pollSleepMillisMin, pollSleepMillisMax,
+			utils.RightPadTrim(envVarUploadWorkerSleepMillis, envVarHelpPadding), uploadWorkerSleepMillisDefault, uploadWorkerSleepMillisMin, uploadWorkerSleepMillisMax,
+			utils.RightPadTrim(envVarRunServer, envVarHelpPadding), runServerDefault,
+			utils.RightPadTrim(envVarHost, envVarHelpPadding), hostDefault,
+			utils.RightPadTrim(envVarPort, envVarHelpPadding), portDefault,
 		),
 		Example:      `kplay forward profile-1,profile-2 arn:aws:s3:::bucket-to-forward-messages-to/prefix`,
 		Args:         cobra.ExactArgs(2),
@@ -98,53 +147,17 @@ configuration is more suitable than command-line flags.
 				return nil
 			}
 
-			if len(configs) > forwardMaxProfilesAllowed {
+			if len(configs) > maxProfilesAllowed {
 				return fmt.Errorf("%w; provided: %d, upper limit: %d",
 					errTooManyForwardProfiles,
 					len(configs),
-					forwardMaxProfilesAllowed,
+					maxProfilesAllowed,
 				)
 			}
 
-			forwardConsumerGroup = os.Getenv(envVarForwardConsumerGroup)
-			if forwardConsumerGroup == "" {
-				forwardConsumerGroup = forwardConsumerGroupDefault
-			}
-
-			runServerStr := os.Getenv(envVarForwardRunServer)
-			if runServerStr != "" {
-				var err error
-				forwardRunServer, err = strconv.ParseBool(runServerStr)
-				if err != nil {
-					return fmt.Errorf("invalid value for %s: %q; expected a boolean value", envVarForwardRunServer, runServerStr)
-				}
-			} else {
-				forwardRunServer = false
-			}
-
-			forwardHost = os.Getenv(envVarForwardHost)
-			if forwardHost == "" {
-				forwardHost = forwardHostDefault
-			}
-
-			portStr := os.Getenv(envVarForwardPort)
-			if portStr != "" {
-				port64, err := strconv.ParseUint(portStr, 10, 16)
-				if err != nil {
-					return fmt.Errorf("invalid value for %s: %q; expected a valid port number (0-65535)", envVarForwardPort, portStr)
-				}
-				forwardPort = uint16(port64)
-			} else {
-				forwardPort = forwardPortDefault
-			}
-
-			forwarderCg := strings.TrimSpace(forwardConsumerGroup)
-			if len(forwarderCg) < forwardConsumerGroupMinLength {
-				return fmt.Errorf("%w (%q); needs to be atleast %d characters",
-					errConsumerGroupTooShort,
-					forwardConsumerGroup,
-					forwardConsumerGroupMinLength,
-				)
+			forwardBehaviours, err := getBehaviorsFromEnv()
+			if err != nil {
+				return err
 			}
 
 			destinationStr := strings.TrimSpace(args[1])
@@ -152,15 +165,9 @@ configuration is more suitable than command-line flags.
 				return errDestinationEmpty
 			}
 
-			destinationWithoutPrefix, ok := strings.CutPrefix(destinationStr, forwardS3DestinationPrefix)
+			destinationWithoutPrefix, ok := strings.CutPrefix(destinationStr, s3DestinationPrefix)
 			if !ok {
-				return fmt.Errorf("%w; supported destination prefixes: [%s]", errInvalidDestinationProvided, forwardS3DestinationPrefix)
-			}
-
-			forwardBehaviours := f.Behaviours{
-				RunServer: forwardRunServer,
-				Host:      forwardHost,
-				Port:      forwardPort,
+				return fmt.Errorf("%w; supported destination prefixes: [%s]", errInvalidDestinationProvided, s3DestinationPrefix)
 			}
 
 			if *debug {
@@ -201,7 +208,7 @@ Destination               %s
 					config.Authentication,
 					config.Brokers,
 					config.Topic,
-					forwardConsumerGroup,
+					forwardBehaviours.ConsumerGroup,
 					&awsConfig,
 				)
 				if err != nil {
@@ -229,17 +236,147 @@ Destination               %s
 			for _, c := range configs {
 				profileConfigNames = append(profileConfigNames, c.Name)
 			}
-			slog.Info("starting up",
-				"profiles", strings.Join(profileConfigNames, ","),
-				"destination", destination.Display(),
-				"consumer_group", forwardConsumerGroup,
-			)
 
 			forwarder := f.New(kafkaClients, configs, &destination, forwardBehaviours)
+			logStartupInfo(profileConfigNames, destination.Display(), forwardBehaviours)
 
 			return forwarder.Execute(ctx)
 		},
 	}
 
 	return cmd
+}
+
+func getBehaviorsFromEnv() (f.Behaviours, error) {
+	var errs []error
+
+	consumerGroup, err := getConstrainedStringEnvVar(envVarConsumerGroup, consumerGroupDefault, consumerGroupMinLength, consumerGroupMaxLength)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	fetchBatchSize, err := getUint16EnvVar(
+		envVarFetchBatchSize,
+		fetchBatchSizeDefault,
+		fetchBatchSizeMin,
+		fetchBatchSizeMax,
+	)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	numUploadWorkers, err := getUint16EnvVar(
+		envVarNumUploadWorkers,
+		numUploadWorkersDefault,
+		numUploadWorkersMin,
+		numUploadWorkersMax,
+	)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	shutdownTimeoutMillis, err := getUint16EnvVar(
+		envVarShutdownTimeoutMillis,
+		shutdownTimeoutMillisDefault,
+		shutdownTimeoutMillisMin,
+		shutdownTimeoutMillisMax,
+	)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	pollSleepMillis, err := getUint32EnvVar(
+		envVarPollSleepMillis,
+		pollSleepMillisDefault,
+		pollSleepMillisMin,
+		pollSleepMillisMax,
+	)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	uploadWorkerSleepMillis, err := getUint32EnvVar(
+		envVarUploadWorkerSleepMillis,
+		uploadWorkerSleepMillisDefault,
+		uploadWorkerSleepMillisMin,
+		uploadWorkerSleepMillisMax,
+	)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	pollFetchTimeoutMillis, err := getUint16EnvVar(
+		envVarPollFetchTimeoutMillis,
+		pollFetchTimeoutMillisDefault,
+		pollFetchTimeoutMillisMin,
+		pollFetchTimeoutMillisMax,
+	)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	uploadTimeoutMillis, err := getUint16EnvVar(
+		envVarUploadTimeoutMillis,
+		uploadTimeoutMillisDefault,
+		uploadTimeoutMillisMin,
+		uploadTimeoutMillisMax,
+	)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	runServer, err := getBoolEnvVar(envVarRunServer, runServerDefault)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	host := getStringEnvVar(envVarHost, hostDefault)
+
+	port, err := getUint16EnvVar(
+		envVarPort,
+		portDefault,
+		portMin,
+		portMax,
+	)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	if len(errs) > 0 {
+		if len(errs) == 1 {
+			return f.Behaviours{}, errs[0]
+		}
+		return f.Behaviours{}, fmt.Errorf("multiple issues:\n\n%w", errors.Join(errs...))
+	}
+
+	return f.Behaviours{
+		RunServer:                      runServer,
+		ServerHost:                     host,
+		ServerPort:                     port,
+		ConsumerGroup:                  consumerGroup,
+		FetchBatchSize:                 fetchBatchSize,
+		NumUploadWorkers:               numUploadWorkers,
+		ForwarderShutdownTimeoutMillis: shutdownTimeoutMillis,
+		PollSleepMillis:                pollSleepMillis,
+		UploadWorkerSleepMillis:        uploadWorkerSleepMillis,
+		PollFetchTimeoutMillis:         pollFetchTimeoutMillis,
+		UploadTimeoutMillis:            uploadTimeoutMillis,
+	}, nil
+}
+
+func logStartupInfo(profileConfigNames []string, destination string, behaviours f.Behaviours) {
+	slog.Info("starting up")
+	slog.Info("input", "profiles", strings.Join(profileConfigNames, ","))
+	slog.Info("input", "destination", destination)
+	slog.Info("behaviour", "consumer_group", behaviours.ConsumerGroup)
+	slog.Info("behaviour", "fetch_batch_size", behaviours.FetchBatchSize)
+	slog.Info("behaviour", "upload_workers", behaviours.NumUploadWorkers)
+	slog.Info("behaviour", "shutdown_timeout_millis", behaviours.ForwarderShutdownTimeoutMillis)
+	slog.Info("behaviour", "poll_sleep_millis", behaviours.PollSleepMillis)
+	slog.Info("behaviour", "upload_worker_sleep_millis", behaviours.UploadWorkerSleepMillis)
+	slog.Info("behaviour", "poll_fetch_timeout_millis", behaviours.PollFetchTimeoutMillis)
+	slog.Info("behaviour", "upload_timeout_millis", behaviours.UploadTimeoutMillis)
+	if behaviours.RunServer {
+		slog.Info("behaviour", "host", behaviours.ServerHost, "port", behaviours.ServerPort)
+	}
 }
