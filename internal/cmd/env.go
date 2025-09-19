@@ -49,18 +49,18 @@ func getConstrainedStringEnvVar(envVar, defaultVal string, minLen, maxLen int) (
 	return trimmedValue, nil
 }
 
-func getUint16EnvVar(envVar string, defaultVal, minVal, maxVal uint16) (uint16, error) {
+func getUintEnvVar[T uint16 | uint32](envVar string, defaultVal, minVal, maxVal T, bitSize int) (T, error) {
 	valueStr := os.Getenv(envVar)
 	if valueStr == "" {
 		return defaultVal, nil
 	}
 
-	value64, err := strconv.ParseUint(valueStr, 10, 16)
+	value64, err := strconv.ParseUint(valueStr, 10, bitSize)
 	if err != nil {
 		return 0, fmt.Errorf("%w for %s: %q; expected a valid integer in the range [%d,%d]", ErrInvalidEnvValue, envVar, valueStr, minVal, maxVal)
 	}
 
-	value := uint16(value64)
+	value := T(value64)
 	if value < minVal || value > maxVal {
 		return 0, fmt.Errorf("%w for %s out of range: %d; expected range: [%d,%d]", ErrInvalidEnvValue, envVar, value, minVal, maxVal)
 	}
@@ -68,21 +68,10 @@ func getUint16EnvVar(envVar string, defaultVal, minVal, maxVal uint16) (uint16, 
 	return value, nil
 }
 
+func getUint16EnvVar(envVar string, defaultVal, minVal, maxVal uint16) (uint16, error) {
+	return getUintEnvVar(envVar, defaultVal, minVal, maxVal, 16)
+}
+
 func getUint32EnvVar(envVar string, defaultVal, minVal, maxVal uint32) (uint32, error) {
-	valueStr := os.Getenv(envVar)
-	if valueStr == "" {
-		return defaultVal, nil
-	}
-
-	value64, err := strconv.ParseUint(valueStr, 10, 32)
-	if err != nil {
-		return 0, fmt.Errorf("%w for %s: %q; expected a valid integer in the range [%d,%d]", ErrInvalidEnvValue, envVar, valueStr, minVal, maxVal)
-	}
-
-	value := uint32(value64)
-	if value < minVal || value > maxVal {
-		return 0, fmt.Errorf("%w for %s out of range: %d; expected range: [%d,%d]", ErrInvalidEnvValue, envVar, value, minVal, maxVal)
-	}
-
-	return value, nil
+	return getUintEnvVar(envVar, defaultVal, minVal, maxVal, 32)
 }
