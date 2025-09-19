@@ -515,15 +515,19 @@ Destination               %s
 				pingCtx, pingCancel := context.WithTimeout(ctx, 5*time.Second)
 
 				err = client.Ping(pingCtx)
-				defer pingCancel()
+				pingCancel()
 				if err != nil {
 					return fmt.Errorf("%w (profile: %q): %s", errCouldntPingBrokers, config.Name, err.Error())
 				}
 
-				defer client.Close()
-
 				kafkaClients = append(kafkaClients, client)
 			}
+
+			defer func() {
+				for _, client := range kafkaClients {
+					client.Close()
+				}
+			}()
 
 			var profileConfigNames []string
 			for _, c := range configs {
