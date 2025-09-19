@@ -56,6 +56,37 @@ func ParseProfileConfig(bytes []byte, profileName string, homeDir string) (t.Con
 		return config, errNoProfilesDefined
 	}
 
+	return parseConfig(kConfig, profileName, homeDir)
+}
+
+func ParseProfileConfigs(bytes []byte, profileNames []string, homeDir string) ([]t.Config, error) {
+	var kConfig kplayConfig
+	var configs []t.Config //nolint: prealloc
+
+	err := yaml.Unmarshal(bytes, &kConfig)
+	if err != nil {
+		return configs, fmt.Errorf("%w: %s", errCouldntParseConfig, err.Error())
+	}
+
+	if len(kConfig.Profiles) == 0 {
+		return configs, errNoProfilesDefined
+	}
+
+	for _, profileName := range profileNames {
+		config, err := parseConfig(kConfig, profileName, homeDir)
+		if err != nil {
+			return nil, err
+		}
+
+		configs = append(configs, config)
+	}
+
+	return configs, nil
+}
+
+func parseConfig(kConfig kplayConfig, profileName string, homeDir string) (t.Config, error) {
+	var config t.Config
+
 	availableProfiles := make([]string, len(kConfig.Profiles))
 	for i, pr := range kConfig.Profiles {
 		availableProfiles[i] = pr.Name
