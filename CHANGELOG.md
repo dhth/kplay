@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A command for scanning messages in a kafka topic, and optionally writing them
   to the local filesystem
+- A command for fetching messages using one or more profiles, and forwarding
+    them to a remote destination
 
 ### Changed
 
