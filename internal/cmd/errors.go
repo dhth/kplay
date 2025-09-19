@@ -9,6 +9,18 @@ import (
 //go:embed assets/sample-config.yml
 var sampleConfig []byte
 
+var (
+	errCouldntCreateKafkaClient = errors.New("couldn't create kafka client")
+	errCouldntPingBrokers       = errors.New("couldn't ping brokers")
+	errCouldntGetUserHomeDir    = errors.New("couldn't get your home directory")
+	errCouldntGetUserConfigDir  = errors.New("couldn't get your config directory")
+	ErrCouldntReadConfigFile    = errors.New("couldn't read config file")
+	ErrConfigInvalid            = errors.New("config is invalid")
+	errInvalidTimestampProvided = errors.New(`invalid value provided for "from timestamp"`)
+	errInvalidOffsetProvided    = errors.New(`invalid value provided for "from offset"`)
+	errInvalidRegexProvided     = errors.New("invalid regex provided")
+)
+
 func GetErrorFollowUp(err error) (string, bool) {
 	if errors.Is(err, ErrIssueWithProtobufFileDescriptorSet) {
 		return `
