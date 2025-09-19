@@ -21,7 +21,7 @@ import (
 
 const (
 	fetchBatchSize                 = 50
-	numS3Workers                   = 50
+	numUploadWorkers               = 50
 	forwarderShutDownTimeoutMillis = 20000
 	serverShutDownTimeoutMillis    = 3000
 	numPollSleepMillis             = 5000
@@ -181,8 +181,8 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 	uploadCtx, uploadCancel := context.WithCancel(context.TODO())
 	var wg sync.WaitGroup
 
-	slog.Info("starting s3 upload workers", "num", numS3Workers)
-	for range numS3Workers {
+	slog.Info("starting upload workers", "num", numUploadWorkers)
+	for range numUploadWorkers {
 		wg.Add(1)
 		go f.startUploadWorker(uploadCtx, uploadWorkChan, &wg)
 	}
@@ -201,7 +201,7 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 			slog.Info("waiting for upload workers to finish")
 			uploadCancel()
 			wg.Wait()
-			slog.Info("all S3 workers shut down")
+			slog.Info("all upload workers shut down")
 			slog.Info("forwarder shut down")
 			return
 		default:
