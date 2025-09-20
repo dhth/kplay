@@ -74,7 +74,7 @@ const (
 	uploadReportsDefault = false
 
 	reportBatchSizeDefault = 5000
-	reportBatchSizeMin     = 500
+	reportBatchSizeMin     = 1000
 	reportBatchSizeMax     = 20000
 
 	runServerDefault = false

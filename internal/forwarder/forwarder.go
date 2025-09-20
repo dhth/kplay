@@ -232,7 +232,9 @@ func (f *Forwarder) start(ctx context.Context) {
 			cancelUploadCtx()
 			uploadWg.Wait()
 			slog.Info("all upload workers shut down")
-			close(uploadResultChan)
+			if f.behaviours.UploadReports {
+				close(uploadResultChan)
+			}
 
 			cancelReportCtx()
 			if f.behaviours.UploadReports {
@@ -356,7 +358,7 @@ func (f *Forwarder) startReporterWorker(
 ) {
 	slog.Info("starting reporter worker")
 	var reportWg sync.WaitGroup
-	reportStore := make(map[string]*reportWriter)
+	writerStore := make(map[string]*reportWriter)
 
 	for {
 		select {
@@ -364,11 +366,11 @@ func (f *Forwarder) startReporterWorker(
 			slog.Info("reporter worker starting shutdown process")
 			for result := range resultChan {
 				topic := result.work.msg.Topic
-				writer, ok := reportStore[topic]
+				writer, ok := writerStore[topic]
 
 				if !ok {
 					writer = newReportWriter()
-					reportStore[topic] = writer
+					writerStore[topic] = writer
 				}
 
 				err := writer.writeRow(result)
@@ -380,7 +382,7 @@ func (f *Forwarder) startReporterWorker(
 				}
 			}
 
-			for topic, writer := range reportStore {
+			for topic, writer := range writerStore {
 				if writer.numMsgs > 0 {
 					slog.Info("reporter uploading report for unpublished records", "topic", topic, "num_rows", writer.numMsgs)
 					reportBytes, err := writer.getContent()
@@ -393,6 +395,7 @@ func (f *Forwarder) startReporterWorker(
 						reportWg.Add(1)
 						go f.uploadReport(ctx, reportBytes, reportFileObjectKey, &reportWg)
 					}
+					writer.reset()
 				}
 			}
 
@@ -401,11 +404,11 @@ func (f *Forwarder) startReporterWorker(
 			return
 		case result := <-resultChan:
 			topic := result.work.msg.Topic
-			writer, ok := reportStore[topic]
+			writer, ok := writerStore[topic]
 
 			if !ok {
 				writer = newReportWriter()
-				reportStore[topic] = writer
+				writerStore[topic] = writer
 			}
 
 			err := writer.writeRow(result)
@@ -427,6 +430,7 @@ func (f *Forwarder) startReporterWorker(
 					reportWg.Add(1)
 					go f.uploadReport(ctx, reportBytes, reportFileObjectKey, &reportWg)
 				}
+				writer.reset()
 			}
 		default:
 			time.Sleep(reportSleepMillis * time.Millisecond)
