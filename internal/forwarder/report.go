@@ -23,7 +23,7 @@ func newReportWriter() *reportWriter {
 	writer := reportWriter{
 		csvWriter: csvWriter,
 		buffer:    buffer,
-		startTime: time.Now(),
+		startTime: time.Now().UTC(),
 	}
 
 	_ = csvWriter.Write(headers)
@@ -85,7 +85,7 @@ func (w *reportWriter) reset() {
 	w.buffer.Reset()
 	w.csvWriter = csv.NewWriter(w.buffer)
 	w.numMsgs = 0
-	w.startTime = time.Now()
+	w.startTime = time.Now().UTC()
 
 	_ = w.csvWriter.Write(headers)
 }
