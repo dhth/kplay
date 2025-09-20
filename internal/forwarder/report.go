@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-var headers = []string{"topic", "partition", "offset", "timestamp", "key", "tombstone", "decode_error", "upload_error"}
+var headers = []string{"partition", "offset", "timestamp", "key", "tombstone", "decode_error", "upload_error"}
 
 type reportWriter struct {
 	csvWriter *csv.Writer
@@ -49,7 +49,6 @@ func (w *reportWriter) writeRow(result uploadResult) error {
 	}
 
 	row := []string{
-		msg.Topic,
 		fmt.Sprintf("%d", msg.Partition),
 		fmt.Sprintf("%d", msg.Offset),
 		msg.Timestamp.Format(time.RFC3339),
@@ -75,10 +74,7 @@ func (w *reportWriter) getContent() ([]byte, error) {
 		return nil, flushErr
 	}
 
-	content := w.buffer.Bytes()
-	w.reset()
-
-	return content, nil
+	return w.buffer.Bytes(), nil
 }
 
 func (w *reportWriter) reset() {

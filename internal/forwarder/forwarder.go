@@ -360,42 +360,52 @@ func (f *Forwarder) startReporterWorker(
 	var reportWg sync.WaitGroup
 	writerStore := make(map[string]*reportWriter)
 
+	handleResult := func(result uploadResult) (*reportWriter, string) {
+		topic := result.work.msg.Topic
+		writer, ok := writerStore[topic]
+
+		if !ok {
+			writer = newReportWriter()
+			writerStore[topic] = writer
+		}
+
+		err := writer.writeRow(result)
+		if err != nil {
+			slog.Error("report writer couldn't write row",
+				"error", err,
+				"file_name", result.work.fileName,
+			)
+		}
+
+		return writer, topic
+	}
+
+	uploadResult := func(writer *reportWriter, topic string) {
+		reportBytes, err := writer.getContent()
+		if err != nil {
+			slog.Error("couldn't get bytes from report writer",
+				"error", err,
+			)
+		} else if len(reportBytes) > 0 {
+			reportFileObjectKey := fmt.Sprintf("%s/reports/report-%s.csv", topic, writer.startTime.Format(reportFileTimestampFormat))
+			reportWg.Add(1)
+			go f.uploadReport(ctx, reportBytes, reportFileObjectKey, &reportWg)
+		}
+		writer.reset()
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			slog.Info("reporter worker starting shutdown process")
 			for result := range resultChan {
-				topic := result.work.msg.Topic
-				writer, ok := writerStore[topic]
-
-				if !ok {
-					writer = newReportWriter()
-					writerStore[topic] = writer
-				}
-
-				err := writer.writeRow(result)
-				if err != nil {
-					slog.Error("report writer couldn't write row",
-						"error", err,
-						"file_name", result.work.fileName,
-					)
-				}
+				handleResult(result)
 			}
 
 			for topic, writer := range writerStore {
 				if writer.numMsgs > 0 {
 					slog.Info("reporter uploading report for unpublished records", "topic", topic, "num_rows", writer.numMsgs)
-					reportBytes, err := writer.getContent()
-					if err != nil {
-						slog.Error("couldn't get bytes from report writer",
-							"error", err,
-						)
-					} else if len(reportBytes) > 0 {
-						reportFileObjectKey := fmt.Sprintf("%s/reports/report-%s.csv", topic, writer.startTime.Format(reportFileTimestampFormat))
-						reportWg.Add(1)
-						go f.uploadReport(ctx, reportBytes, reportFileObjectKey, &reportWg)
-					}
-					writer.reset()
+					uploadResult(writer, topic)
 				}
 			}
 
@@ -403,34 +413,10 @@ func (f *Forwarder) startReporterWorker(
 			doneChan <- struct{}{}
 			return
 		case result := <-resultChan:
-			topic := result.work.msg.Topic
-			writer, ok := writerStore[topic]
-
-			if !ok {
-				writer = newReportWriter()
-				writerStore[topic] = writer
-			}
-
-			err := writer.writeRow(result)
-			if err != nil {
-				slog.Error("report writer couldn't write row",
-					"error", err,
-					"file_name", result.work.fileName,
-				)
-			}
+			writer, topic := handleResult(result)
 
 			if writer.numMsgs >= f.behaviours.ReportBatchSize {
-				reportBytes, err := writer.getContent()
-				if err != nil {
-					slog.Error("couldn't get bytes from report writer",
-						"error", err,
-					)
-				} else if len(reportBytes) > 0 {
-					reportFileObjectKey := fmt.Sprintf("%s/reports/report-%s.csv", topic, writer.startTime.Format(reportFileTimestampFormat))
-					reportWg.Add(1)
-					go f.uploadReport(ctx, reportBytes, reportFileObjectKey, &reportWg)
-				}
-				writer.reset()
+				uploadResult(writer, topic)
 			}
 		default:
 			time.Sleep(reportSleepMillis * time.Millisecond)
