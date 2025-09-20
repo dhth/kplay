@@ -5,13 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v3.0.0] - Sep 20, 2025
 
 ### Added
 
 - A command for scanning messages in a kafka topic, and optionally writing them
   to the local filesystem
-- A command for fetching messages using one or more profiles, and forwarding
+- A command for consuming messages using one or more profiles, and forwarding
     them to a remote destination
 
 ### Changed
@@ -25,7 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- The ability to consume messages as part of a consumer group
+- The ability to consume messages as part of a consumer group in TUI and web
+    mode
 
 ## [v2.0.0] - Apr 23, 2025
 
@@ -69,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow persisting messages to the local filesystem
 - Allow skipping messages
 
-[unreleased]: https://github.com/dhth/kplay/compare/v2.0.0...HEAD
+[unreleased]: https://github.com/dhth/kplay/compare/v3.0.0...HEAD
+[v3.0.0]: https://github.com/dhth/kplay/compare/v2.0.0...v3.0.0
 [v2.0.0]: https://github.com/dhth/kplay/compare/v1.1.0...v2.0.0
 [v1.1.0]: https://github.com/dhth/kplay/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/dhth/kplay/compare/v0.1.0...v1.0.0
