@@ -15,13 +15,14 @@ var errProtoDescriptorNil = errors.New("protobuf descriptor is nil when it shoul
 var unexpectedErrorMessage = "this is not expected; let @dhth know via https://github.com/dhth/kplay/issues"
 
 type Message struct {
-	Metadata  string `json:"metadata"`
-	Offset    int64  `json:"offset"`
-	Partition int32  `json:"partition"`
-	Timestamp string `json:"timestamp"`
-	Value     []byte `json:"-"`
-	Key       string `json:"key"`
-	DecodeErr error  `json:"-"`
+	Metadata  string    `json:"metadata"`
+	Topic     string    `json:"-"`
+	Offset    int64     `json:"offset"`
+	Partition int32     `json:"partition"`
+	Timestamp time.Time `json:"-"`
+	Value     []byte    `json:"-"`
+	Key       string    `json:"key"`
+	DecodeErr error     `json:"-"`
 }
 
 type SerializableMessage struct {
@@ -75,14 +76,13 @@ func (m Message) GetDetails() string {
 }
 
 func GetMessageFromRecord(record kgo.Record, config Config, decode bool) Message {
-	ts := record.Timestamp.Format(time.RFC3339)
-
 	if len(record.Value) == 0 {
 		return Message{
 			Metadata:  utils.GetRecordMetadata(record),
+			Topic:     record.Topic,
 			Offset:    record.Offset,
 			Partition: record.Partition,
-			Timestamp: ts,
+			Timestamp: record.Timestamp,
 			Key:       string(record.Key),
 		}
 	}
@@ -90,9 +90,10 @@ func GetMessageFromRecord(record kgo.Record, config Config, decode bool) Message
 	if !decode {
 		return Message{
 			Metadata:  utils.GetRecordMetadata(record),
+			Topic:     record.Topic,
 			Offset:    record.Offset,
 			Partition: record.Partition,
-			Timestamp: ts,
+			Timestamp: record.Timestamp,
 			Value:     record.Value,
 			Key:       string(record.Key),
 		}
@@ -117,9 +118,10 @@ func GetMessageFromRecord(record kgo.Record, config Config, decode bool) Message
 	if decodeErr != nil {
 		return Message{
 			Metadata:  utils.GetRecordMetadata(record),
+			Topic:     record.Topic,
 			Offset:    record.Offset,
 			Partition: record.Partition,
-			Timestamp: ts,
+			Timestamp: record.Timestamp,
 			Value:     record.Value,
 			Key:       string(record.Key),
 			DecodeErr: decodeErr,
@@ -128,9 +130,10 @@ func GetMessageFromRecord(record kgo.Record, config Config, decode bool) Message
 
 	return Message{
 		Metadata:  utils.GetRecordMetadata(record),
+		Topic:     record.Topic,
 		Offset:    record.Offset,
 		Partition: record.Partition,
-		Timestamp: ts,
+		Timestamp: record.Timestamp,
 		Value:     bodyBytes,
 		Key:       string(record.Key),
 	}

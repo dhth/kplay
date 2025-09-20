@@ -26,6 +26,8 @@ const (
 	envVarUploadTimeoutMillis     = "KPLAY_FORWARD_UPLOAD_TIMEOUT_MILLIS"
 	envVarPollSleepMillis         = "KPLAY_FORWARD_POLL_SLEEP_MILLIS"
 	envVarUploadWorkerSleepMillis = "KPLAY_FORWARD_UPLOAD_WORKER_SLEEP_MILLIS"
+	envVarUploadReports           = "KPLAY_FORWARD_UPLOAD_REPORTS"
+	envVarReportBatchSize         = "KPLAY_FORWARD_REPORT_BATCH_SIZE"
 	envVarRunServer               = "KPLAY_FORWARD_RUN_SERVER"
 	envVarHost                    = "KPLAY_FORWARD_SERVER_HOST"
 	envVarPort                    = "KPLAY_FORWARD_SERVER_PORT"
@@ -49,15 +51,15 @@ const (
 	numUploadWorkersMin     = 1
 	numUploadWorkersMax     = 500
 
-	shutdownTimeoutMillisDefault = 20 * 1000
+	shutdownTimeoutMillisDefault = 30 * 1000
 	shutdownTimeoutMillisMin     = 10 * 1000
 	shutdownTimeoutMillisMax     = 60 * 1000
 
-	pollFetchTimeoutMillisDefault = 5 * 1000
+	pollFetchTimeoutMillisDefault = 10 * 1000
 	pollFetchTimeoutMillisMin     = 1 * 1000
 	pollFetchTimeoutMillisMax     = 60 * 1000
 
-	uploadTimeoutMillisDefault = 5 * 1000
+	uploadTimeoutMillisDefault = 10 * 1000
 	uploadTimeoutMillisMin     = 1 * 1000
 	uploadTimeoutMillisMax     = 60 * 1000
 
@@ -68,6 +70,12 @@ const (
 	uploadWorkerSleepMillisDefault = 1 * 1000
 	uploadWorkerSleepMillisMin     = 0
 	uploadWorkerSleepMillisMax     = 30 * 60 * 1000
+
+	uploadReportsDefault = false
+
+	reportBatchSizeDefault = 5000
+	reportBatchSizeMin     = 500
+	reportBatchSizeMax     = 20000
 
 	runServerDefault = false
 	hostDefault      = "127.0.0.1"
@@ -102,6 +110,8 @@ as such, it accepts configuration via the following environment variables.
 - %s upload timeout in ms (default: %d, range: %d-%d)
 - %s kafka polling sleep interval in ms (default: %d, range: %d-%d)
 - %s upload worker sleep interval in ms (default: %d, range: %d-%d)
+- %s whether to upload reports of the messages forwarded (default: %v)
+- %s report batch size (default: %d, range: %d-%d)
 - %s whether to run an http server alongside the forwarder (default: %v)
 - %s host to run the server on (default: %s)
 - %s port to run the server on (default: %d)
@@ -117,6 +127,8 @@ health checks (at /health).
 			utils.RightPadTrim(envVarUploadTimeoutMillis, envVarHelpPadding), uploadTimeoutMillisDefault, uploadTimeoutMillisMin, uploadTimeoutMillisMax,
 			utils.RightPadTrim(envVarPollSleepMillis, envVarHelpPadding), pollSleepMillisDefault, pollSleepMillisMin, pollSleepMillisMax,
 			utils.RightPadTrim(envVarUploadWorkerSleepMillis, envVarHelpPadding), uploadWorkerSleepMillisDefault, uploadWorkerSleepMillisMin, uploadWorkerSleepMillisMax,
+			utils.RightPadTrim(envVarUploadReports, envVarHelpPadding), uploadReportsDefault,
+			utils.RightPadTrim(envVarReportBatchSize, envVarHelpPadding), reportBatchSizeDefault, reportBatchSizeMin, reportBatchSizeMax,
 			utils.RightPadTrim(envVarRunServer, envVarHelpPadding), runServerDefault,
 			utils.RightPadTrim(envVarHost, envVarHelpPadding), hostDefault,
 			utils.RightPadTrim(envVarPort, envVarHelpPadding), portDefault,
@@ -328,6 +340,21 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 		errs = append(errs, err)
 	}
 
+	uploadReports, err := getBoolEnvVar(envVarUploadReports, uploadReportsDefault)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	reportBatchSize, err := getUint16EnvVar(
+		envVarReportBatchSize,
+		reportBatchSizeDefault,
+		reportBatchSizeMin,
+		reportBatchSizeMax,
+	)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
 	runServer, err := getBoolEnvVar(envVarRunServer, runServerDefault)
 	if err != nil {
 		errs = append(errs, err)
@@ -353,9 +380,6 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 	}
 
 	return f.Behaviours{
-		RunServer:                      runServer,
-		ServerHost:                     host,
-		ServerPort:                     port,
 		ConsumerGroup:                  consumerGroup,
 		FetchBatchSize:                 fetchBatchSize,
 		NumUploadWorkers:               numUploadWorkers,
@@ -364,6 +388,11 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 		UploadWorkerSleepMillis:        uploadWorkerSleepMillis,
 		PollFetchTimeoutMillis:         pollFetchTimeoutMillis,
 		UploadTimeoutMillis:            uploadTimeoutMillis,
+		UploadReports:                  uploadReports,
+		ReportBatchSize:                reportBatchSize,
+		RunServer:                      runServer,
+		ServerHost:                     host,
+		ServerPort:                     port,
 	}, nil
 }
 
@@ -379,6 +408,11 @@ func logStartupInfo(profileConfigNames []string, destination string, behaviours 
 	slog.Info("behaviour", "upload_worker_sleep_millis", behaviours.UploadWorkerSleepMillis)
 	slog.Info("behaviour", "poll_fetch_timeout_millis", behaviours.PollFetchTimeoutMillis)
 	slog.Info("behaviour", "upload_timeout_millis", behaviours.UploadTimeoutMillis)
+	slog.Info("behaviour", "upload_reports", behaviours.UploadReports)
+	if behaviours.UploadReports {
+		slog.Info("behaviour", "report_batch_size", behaviours.ReportBatchSize)
+	}
+	slog.Info("behaviour", "run_server", behaviours.RunServer)
 	if behaviours.RunServer {
 		slog.Info("behaviour", "host", behaviours.ServerHost, "port", behaviours.ServerPort)
 	}
