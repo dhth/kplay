@@ -59,8 +59,8 @@ func New(kafkaClients []*kgo.Client, configs []t.Config, destination Destination
 }
 
 func (f *Forwarder) Execute(ctx context.Context) error {
-	forwarderCtx, forwarderCancel := context.WithCancel(ctx)
-	defer forwarderCancel()
+	forwarderCtx, cancelForwarder := context.WithCancel(ctx)
+	defer cancelForwarder()
 
 	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -85,14 +85,14 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 	}
 
 	go func(shutDownChan chan struct{}) {
-		f.start(forwarderCtx)
+		f.startForwarder(forwarderCtx)
 		shutDownChan <- struct{}{}
 	}(forwarderShutDownChan)
 
 	select {
 	case <-sigChan:
 		slog.Info("received shutdown signal; stopping forwarder")
-		forwarderCancel()
+		cancelForwarder()
 
 		timeout := time.After(time.Duration(f.behaviours.ForwarderShutdownTimeoutMillis) * time.Millisecond)
 
@@ -123,7 +123,7 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 		return nil
 	case <-serverShutDownChan:
 		slog.Error("server shut down unexpectedly; stopping forwarder as well")
-		forwarderCancel()
+		cancelForwarder()
 
 		timeout := time.After(time.Duration(f.behaviours.ForwarderShutdownTimeoutMillis) * time.Millisecond)
 
@@ -188,7 +188,7 @@ func startServer(ctx context.Context, host string, port uint16, shutdownTimeoutM
 	}
 }
 
-func (f *Forwarder) start(ctx context.Context) {
+func (f *Forwarder) startForwarder(ctx context.Context) {
 	slog.Info("starting forwarder")
 	uploadWorkChan := make(chan uploadWork, f.behaviours.NumUploadWorkers)
 
