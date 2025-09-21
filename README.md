@@ -71,7 +71,7 @@ Global Flags:
       --debug                whether to only display config picked up by kplay without running it
 ```
 
-![tui](https://tools.dhruvs.space/images/kplay/kplay-tui.gif)
+[![tui](https://asciinema.org/a/vHSXtmOfIyh5DaRE5SlGzdmJ8.svg)](https://asciinema.org/a/vHSXtmOfIyh5DaRE5SlGzdmJ8)
 
 #### ⌨️ TUI Keymaps
 
@@ -150,7 +150,7 @@ Global Flags:
       --debug                whether to only display config picked up by kplay without running it
 ```
 
-![scan](https://tools.dhruvs.space/images/kplay/v3-0-0/scan.gif)
+[![scan](https://asciinema.org/a/NutRtcDkmtYLLTCZ3eVe4CfNx.svg)](https://asciinema.org/a/NutRtcDkmtYLLTCZ3eVe4CfNx)
 
 ### Forward
 
@@ -194,7 +194,7 @@ Global Flags:
       --debug                whether to only display config picked up by kplay without running it
 ```
 
-![forward](https://tools.dhruvs.space/images/kplay/v3-0-0/forward.gif)
+[![forward](https://asciinema.org/a/ivVUXTSfkacmRPFNIUmUSnDkX.svg)](https://asciinema.org/a/ivVUXTSfkacmRPFNIUmUSnDkX)
 
 🔧 Configuration
 ---
