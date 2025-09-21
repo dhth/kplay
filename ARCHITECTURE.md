@@ -91,11 +91,10 @@ sequenceDiagram
     OS->>Exec: SIGINT
     Exec->>Forwarder: Send shutdown signal (via context)
     Forwarder->>Workers: Send pending work (if applicable)
-    Workers->>Workers: Upload work
     Forwarder->>Workers: Once all work is sent, send shutdown signal (via context)
-    Workers->>Workers: Finish any pending work, then exit
+    Workers->>Workers: Pull in any pending work, finish it, then exit
     Forwarder->>Reporter: Send shutdown signal (via context)
-    Reporter->>Reporter: Pull any pending results and handle them
+    Reporter->>Reporter: Pull in any pending results and handle them
     Reporter->>Reporter: Upload pending report files concurrently
     Reporter->>Reporter: Wait for report uploads to finish
     Reporter->>Reporter: Signal exit to forwarder (via channel)
@@ -104,3 +103,8 @@ sequenceDiagram
     Server->>Server: Exit
     Exec->>Exec: Exit
 ```
+
+Note: The executor has a timeout for graceful shutdown. If the running
+components do not shut down till that timeout is reached, it exits forcefully.
+If a second shutdown signal is sent by the OS, the executor immediately exits as
+well.
