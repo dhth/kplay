@@ -23,7 +23,6 @@ import (
 const (
 	serverShutDownTimeoutMillis = 3000
 	reportUploadTimeOutMillis   = 10 * 1000
-	reportSleepMillis           = 100
 	numUploadRetryAttempts      = 5
 	reportFileTimestampFormat   = "2006-01-02T15-04-05Z"
 )
@@ -198,12 +197,13 @@ func (f *Forwarder) start(ctx context.Context) {
 	if f.behaviours.UploadReports {
 		uploadResultChan = make(chan uploadResult, f.behaviours.NumUploadWorkers*3)
 	}
-	var reportDoneChan chan struct{}
+	var reportDoneChan chan uint64
 
 	uploadCtx, cancelUploadCtx := context.WithCancel(context.WithoutCancel(ctx))
 	reportCtx, cancelReportCtx := context.WithCancel(context.WithoutCancel(ctx))
 
 	pendingWork := make([]uploadWork, 0)
+	var numRecordsProcessed uint64
 
 	var uploadWg sync.WaitGroup
 	slog.Info("starting upload workers", "num", f.behaviours.NumUploadWorkers)
@@ -213,7 +213,7 @@ func (f *Forwarder) start(ctx context.Context) {
 	}
 
 	if f.behaviours.UploadReports {
-		reportDoneChan = make(chan struct{})
+		reportDoneChan = make(chan uint64)
 		go f.startReporterWorker(reportCtx, uploadResultChan, reportDoneChan)
 	}
 
@@ -232,17 +232,14 @@ func (f *Forwarder) start(ctx context.Context) {
 			cancelUploadCtx()
 			uploadWg.Wait()
 			slog.Info("all upload workers shut down")
-			if f.behaviours.UploadReports {
-				close(uploadResultChan)
-			}
 
 			cancelReportCtx()
 			if f.behaviours.UploadReports {
-				<-reportDoneChan
-				slog.Info("reporter worker shut down")
+				numReportRowsWritten := <-reportDoneChan
+				slog.Info("reporter worker shut down", "num_report_rows_written", numReportRowsWritten)
 			}
 
-			slog.Info("forwarder shut down")
+			slog.Info("forwarder shut down", "num_records_processed", numRecordsProcessed)
 			return
 		default:
 			if len(pendingWork) > 0 {
@@ -255,6 +252,8 @@ func (f *Forwarder) start(ctx context.Context) {
 					}
 				}
 				pendingWork = remainingWork
+
+				time.Sleep(time.Duration(f.behaviours.PollSleepMillis) * time.Millisecond)
 			}
 
 			if len(pendingWork) == 0 {
@@ -282,10 +281,9 @@ func (f *Forwarder) start(ctx context.Context) {
 							fileName: fmt.Sprintf("%s/partition-%d/offset-%d.txt", record.Topic, record.Partition, record.Offset),
 						}
 						pendingWork = append(pendingWork, work)
+						numRecordsProcessed++
 					}
 				}
-
-				time.Sleep(time.Duration(f.behaviours.PollSleepMillis) * time.Millisecond)
 			}
 
 			clientIndex++
@@ -339,6 +337,9 @@ func (f *Forwarder) processUpload(
 		uploadCancel()
 
 		if result.err == nil {
+			if result.numAttempts > 0 {
+				slog.Info("uploading to s3 succeeded after failures", "object_key", objectKey, "attempt_num", i+1)
+			}
 			break
 		}
 		slog.Error("uploading to s3 failed", "object_key", objectKey, "attempt_num", i+1, "error", result.err)
@@ -352,11 +353,12 @@ func (f *Forwarder) processUpload(
 func (f *Forwarder) startReporterWorker(
 	ctx context.Context,
 	resultChan <-chan uploadResult,
-	doneChan chan<- struct{},
+	doneChan chan<- uint64,
 ) {
 	slog.Info("starting reporter worker")
 	var reportWg sync.WaitGroup
 	writerStore := make(map[string]*reportWriter)
+	var numReportRowsWritten uint64
 
 	handleResult := func(result uploadResult) (*reportWriter, string) {
 		topic := result.work.msg.Topic
@@ -373,6 +375,8 @@ func (f *Forwarder) startReporterWorker(
 				"error", err,
 				"file_name", result.work.fileName,
 			)
+		} else {
+			numReportRowsWritten++
 		}
 
 		return writer, topic
@@ -396,19 +400,26 @@ func (f *Forwarder) startReporterWorker(
 		select {
 		case <-ctx.Done():
 			slog.Info("reporter worker starting shutdown process")
-			for result := range resultChan {
-				handleResult(result)
+			// the result channel might have entries that haven't been processed yet, drain it first
+		drainLoop:
+			for {
+				select {
+				case result := <-resultChan:
+					// NOTE: this might lead to a report batch that is bigger than the user's preference
+					handleResult(result)
+				default:
+					break drainLoop
+				}
 			}
 
 			for topic, writer := range writerStore {
 				if writer.numMsgs > 0 {
-					slog.Info("reporter uploading report for unpublished records", "topic", topic, "num_rows", writer.numMsgs)
 					uploadResult(writer, topic)
 				}
 			}
 
 			reportWg.Wait()
-			doneChan <- struct{}{}
+			doneChan <- numReportRowsWritten
 			return
 		case result := <-resultChan:
 			writer, topic := handleResult(result)
