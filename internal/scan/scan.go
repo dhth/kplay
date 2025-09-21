@@ -259,7 +259,7 @@ func newMessageWriter(filePath string, decode bool) (*messageWriter, error) {
 	rw.csvWriter = csv.NewWriter(rw.writer)
 	headers := []string{"partition", "offset", "timestamp", "key", "tombstone"}
 	if decode {
-		headers = append(headers, "decode_success")
+		headers = append(headers, "decode_error")
 	}
 
 	err = rw.csvWriter.Write(headers)
@@ -290,11 +290,11 @@ func (rw *messageWriter) writeCSV(msg t.Message, decode bool) error {
 	}
 
 	if decode {
-		if msg.DecodeErr == nil {
-			row = append(row, "true")
-		} else {
-			row = append(row, "false")
+		var decodeErrStr string
+		if msg.DecodeErr != nil {
+			decodeErrStr = msg.DecodeErr.Error()
 		}
+		row = append(row, decodeErrStr)
 	}
 
 	return rw.csvWriter.Write(row)
