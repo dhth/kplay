@@ -317,8 +317,6 @@ func (f *Forwarder) startUploadWorker(
 			}
 		case work := <-workChan:
 			f.processUpload(context.WithoutCancel(ctx), work, resultChan)
-		default:
-			time.Sleep(time.Duration(f.behaviours.UploadWorkerSleepMillis) * time.Millisecond)
 		}
 	}
 }
@@ -418,8 +416,6 @@ func (f *Forwarder) startReporterWorker(
 			if writer.numMsgs >= f.behaviours.ReportBatchSize {
 				uploadResult(writer, topic)
 			}
-		default:
-			time.Sleep(reportSleepMillis * time.Millisecond)
 		}
 	}
 }
