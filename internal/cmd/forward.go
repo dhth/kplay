@@ -18,22 +18,21 @@ import (
 )
 
 const (
-	envVarConsumerGroup           = "KPLAY_FORWARD_CONSUMER_GROUP"
-	envVarFetchBatchSize          = "KPLAY_FORWARD_FETCH_BATCH_SIZE"
-	envVarNumUploadWorkers        = "KPLAY_FORWARD_NUM_UPLOAD_WORKERS"
-	envVarShutdownTimeoutMillis   = "KPLAY_FORWARD_SHUTDOWN_TIMEOUT_MILLIS"
-	envVarPollFetchTimeoutMillis  = "KPLAY_FORWARD_POLL_FETCH_TIMEOUT_MILLIS"
-	envVarUploadTimeoutMillis     = "KPLAY_FORWARD_UPLOAD_TIMEOUT_MILLIS"
-	envVarPollSleepMillis         = "KPLAY_FORWARD_POLL_SLEEP_MILLIS"
-	envVarUploadWorkerSleepMillis = "KPLAY_FORWARD_UPLOAD_WORKER_SLEEP_MILLIS"
-	envVarUploadReports           = "KPLAY_FORWARD_UPLOAD_REPORTS"
-	envVarReportBatchSize         = "KPLAY_FORWARD_REPORT_BATCH_SIZE"
-	envVarRunServer               = "KPLAY_FORWARD_RUN_SERVER"
-	envVarHost                    = "KPLAY_FORWARD_SERVER_HOST"
-	envVarPort                    = "KPLAY_FORWARD_SERVER_PORT"
+	envVarConsumerGroup          = "KPLAY_FORWARD_CONSUMER_GROUP"
+	envVarFetchBatchSize         = "KPLAY_FORWARD_FETCH_BATCH_SIZE"
+	envVarNumUploadWorkers       = "KPLAY_FORWARD_NUM_UPLOAD_WORKERS"
+	envVarShutdownTimeoutMillis  = "KPLAY_FORWARD_SHUTDOWN_TIMEOUT_MILLIS"
+	envVarPollFetchTimeoutMillis = "KPLAY_FORWARD_POLL_FETCH_TIMEOUT_MILLIS"
+	envVarUploadTimeoutMillis    = "KPLAY_FORWARD_UPLOAD_TIMEOUT_MILLIS"
+	envVarPollSleepMillis        = "KPLAY_FORWARD_POLL_SLEEP_MILLIS"
+	envVarUploadReports          = "KPLAY_FORWARD_UPLOAD_REPORTS"
+	envVarReportBatchSize        = "KPLAY_FORWARD_REPORT_BATCH_SIZE"
+	envVarRunServer              = "KPLAY_FORWARD_RUN_SERVER"
+	envVarHost                   = "KPLAY_FORWARD_SERVER_HOST"
+	envVarPort                   = "KPLAY_FORWARD_SERVER_PORT"
 
 	// longest env var
-	// KPLAY_FORWARD_UPLOAD_WORKER_SLEEP_MILLIS -> 40
+	// KPLAY_FORWARD_POLL_FETCH_TIMEOUT_MILLIS -> 39
 	envVarHelpPadding = 42
 
 	s3DestinationPrefix = "arn:aws:s3:::"
@@ -59,17 +58,13 @@ const (
 	pollFetchTimeoutMillisMin     = 1 * 1000
 	pollFetchTimeoutMillisMax     = 60 * 1000
 
-	uploadTimeoutMillisDefault = 10 * 1000
-	uploadTimeoutMillisMin     = 1 * 1000
-	uploadTimeoutMillisMax     = 60 * 1000
-
 	pollSleepMillisDefault = 5 * 1000
 	pollSleepMillisMin     = 0
 	pollSleepMillisMax     = 30 * 60 * 1000
 
-	uploadWorkerSleepMillisDefault = 1 * 1000
-	uploadWorkerSleepMillisMin     = 0
-	uploadWorkerSleepMillisMax     = 30 * 60 * 1000
+	uploadTimeoutMillisDefault = 10 * 1000
+	uploadTimeoutMillisMin     = 1 * 1000
+	uploadTimeoutMillisMax     = 60 * 1000
 
 	uploadReportsDefault = false
 
@@ -107,9 +102,8 @@ as such, it accepts configuration via the following environment variables.
 - %s number of upload workers (default: %d, range: %d-%d)
 - %s graceful shutdown timeout in ms (default: %d, range: %d-%d)
 - %s kafka polling fetch timeout in ms (default: %d, range: %d-%d)
-- %s upload timeout in ms (default: %d, range: %d-%d)
 - %s kafka polling sleep interval in ms (default: %d, range: %d-%d)
-- %s upload worker sleep interval in ms (default: %d, range: %d-%d)
+- %s upload timeout in ms (default: %d, range: %d-%d)
 - %s whether to upload reports of the messages forwarded (default: %v)
 - %s report batch size (default: %d, range: %d-%d)
 - %s whether to run an http server alongside the forwarder (default: %v)
@@ -124,9 +118,8 @@ health checks (at /health).
 			utils.RightPadTrim(envVarNumUploadWorkers, envVarHelpPadding), numUploadWorkersDefault, numUploadWorkersMin, numUploadWorkersMax,
 			utils.RightPadTrim(envVarShutdownTimeoutMillis, envVarHelpPadding), shutdownTimeoutMillisDefault, shutdownTimeoutMillisMin, shutdownTimeoutMillisMax,
 			utils.RightPadTrim(envVarPollFetchTimeoutMillis, envVarHelpPadding), pollFetchTimeoutMillisDefault, pollFetchTimeoutMillisMin, pollFetchTimeoutMillisMax,
-			utils.RightPadTrim(envVarUploadTimeoutMillis, envVarHelpPadding), uploadTimeoutMillisDefault, uploadTimeoutMillisMin, uploadTimeoutMillisMax,
 			utils.RightPadTrim(envVarPollSleepMillis, envVarHelpPadding), pollSleepMillisDefault, pollSleepMillisMin, pollSleepMillisMax,
-			utils.RightPadTrim(envVarUploadWorkerSleepMillis, envVarHelpPadding), uploadWorkerSleepMillisDefault, uploadWorkerSleepMillisMin, uploadWorkerSleepMillisMax,
+			utils.RightPadTrim(envVarUploadTimeoutMillis, envVarHelpPadding), uploadTimeoutMillisDefault, uploadTimeoutMillisMin, uploadTimeoutMillisMax,
 			utils.RightPadTrim(envVarUploadReports, envVarHelpPadding), uploadReportsDefault,
 			utils.RightPadTrim(envVarReportBatchSize, envVarHelpPadding), reportBatchSizeDefault, reportBatchSizeMin, reportBatchSizeMax,
 			utils.RightPadTrim(envVarRunServer, envVarHelpPadding), runServerDefault,
@@ -310,16 +303,6 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 		errs = append(errs, err)
 	}
 
-	uploadWorkerSleepMillis, err := getUint32EnvVar(
-		envVarUploadWorkerSleepMillis,
-		uploadWorkerSleepMillisDefault,
-		uploadWorkerSleepMillisMin,
-		uploadWorkerSleepMillisMax,
-	)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
 	pollFetchTimeoutMillis, err := getUint16EnvVar(
 		envVarPollFetchTimeoutMillis,
 		pollFetchTimeoutMillisDefault,
@@ -385,7 +368,6 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 		NumUploadWorkers:               numUploadWorkers,
 		ForwarderShutdownTimeoutMillis: shutdownTimeoutMillis,
 		PollSleepMillis:                pollSleepMillis,
-		UploadWorkerSleepMillis:        uploadWorkerSleepMillis,
 		PollFetchTimeoutMillis:         pollFetchTimeoutMillis,
 		UploadTimeoutMillis:            uploadTimeoutMillis,
 		UploadReports:                  uploadReports,
@@ -405,15 +387,17 @@ func logStartupInfo(profileConfigNames []string, destination string, behaviours 
 	slog.Info("behaviour", "upload_workers", behaviours.NumUploadWorkers)
 	slog.Info("behaviour", "shutdown_timeout_millis", behaviours.ForwarderShutdownTimeoutMillis)
 	slog.Info("behaviour", "poll_sleep_millis", behaviours.PollSleepMillis)
-	slog.Info("behaviour", "upload_worker_sleep_millis", behaviours.UploadWorkerSleepMillis)
 	slog.Info("behaviour", "poll_fetch_timeout_millis", behaviours.PollFetchTimeoutMillis)
 	slog.Info("behaviour", "upload_timeout_millis", behaviours.UploadTimeoutMillis)
-	slog.Info("behaviour", "upload_reports", behaviours.UploadReports)
 	if behaviours.UploadReports {
-		slog.Info("behaviour", "report_batch_size", behaviours.ReportBatchSize)
+		slog.Info("behaviour", "upload_reports", "true", "report_batch_size", behaviours.ReportBatchSize)
+	} else {
+		slog.Info("behaviour", "upload_reports", "false")
 	}
-	slog.Info("behaviour", "run_server", behaviours.RunServer)
+
 	if behaviours.RunServer {
-		slog.Info("behaviour", "host", behaviours.ServerHost, "port", behaviours.ServerPort)
+		slog.Info("behaviour", "run_server", "true", "host", behaviours.ServerHost, "port", behaviours.ServerPort)
+	} else {
+		slog.Info("behaviour", "run_server", "false")
 	}
 }
