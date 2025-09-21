@@ -290,11 +290,11 @@ func (rw *messageWriter) writeCSV(msg t.Message, decode bool) error {
 	}
 
 	if decode {
-		var decodeErr string
+		var decodeErrStr string
 		if msg.DecodeErr != nil {
-			decodeErr = msg.DecodeErr.Error()
+			decodeErrStr = msg.DecodeErr.Error()
 		}
-		row = append(row, decodeErr)
+		row = append(row, decodeErrStr)
 	}
 
 	return rw.csvWriter.Write(row)
