@@ -94,7 +94,7 @@ Global Flags:
 | `N`                   | Fetch the next 10 messages from the topic  |
 | `}`                   | Fetch the next 100 messages from the topic |
 | `s`                   | Toggle skipping mode                       |
-| `p`                   | Toggle persist mode
+| `p`                   | Toggle persist mode                        |
 | `y`                   | Copy message details to clipboard          |
 | `[`                   | Move to previous item in list              |
 | `]`                   | Move to next item in list                  |
@@ -190,7 +190,7 @@ Flags:
   -h, --help   help for forward
 
 Global Flags:
-  -c, --config-path string   location of kplay's config file (can also be provided via $KPLAY_CONFIG_PATH) (default "/Users/dhruvthakur/Library/Application Support/kplay/kplay.yml")
+  -c, --config-path string   location of kplay's config file (can also be provided via $KPLAY_CONFIG_PATH)
       --debug                whether to only display config picked up by kplay without running it
 ```
 
