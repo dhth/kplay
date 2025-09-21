@@ -105,6 +105,6 @@ sequenceDiagram
 ```
 
 Note: The executor has a timeout for graceful shutdown. If the running
-components do not shut down till that timeout is reached, it exits forcefully.
-If a second shutdown signal is sent by the OS, the executor immediately exits as
-well.
+components do not shut down till that time, the executor exits forcefully. If a
+second shutdown signal is received while the components are in the process of
+shutting down, the executor exits immediately as well.
