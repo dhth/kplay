@@ -252,8 +252,6 @@ func (f *Forwarder) start(ctx context.Context) {
 					}
 				}
 				pendingWork = remainingWork
-
-				time.Sleep(time.Duration(f.behaviours.PollSleepMillis) * time.Millisecond)
 			}
 
 			if len(pendingWork) == 0 {
@@ -284,6 +282,8 @@ func (f *Forwarder) start(ctx context.Context) {
 						numRecordsProcessed++
 					}
 				}
+
+				time.Sleep(time.Duration(f.behaviours.PollSleepMillis) * time.Millisecond)
 			}
 
 			clientIndex++
