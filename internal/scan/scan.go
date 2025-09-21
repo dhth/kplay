@@ -284,7 +284,7 @@ func (rw *messageWriter) writeCSV(msg t.Message, decode bool) error {
 	row := []string{
 		fmt.Sprintf("%d", msg.Partition),
 		fmt.Sprintf("%d", msg.Offset),
-		msg.Timestamp,
+		msg.Timestamp.Format(time.RFC3339),
 		msg.Key,
 		tombstone,
 	}

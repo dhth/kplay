@@ -12,7 +12,7 @@ import (
 
 type Destination interface {
 	Display() string
-	upload(ctx context.Context, body io.Reader, fileName string) error
+	upload(ctx context.Context, body io.Reader, fileName, contentType string) error
 	getDestinationFilePath(fileName string) string
 }
 
@@ -56,14 +56,14 @@ func (d *S3Destination) getDestinationFilePath(fileName string) string {
 	return filePath
 }
 
-func (d *S3Destination) upload(ctx context.Context, body io.Reader, fileName string) error {
+func (d *S3Destination) upload(ctx context.Context, body io.Reader, fileName, contentType string) error {
 	objectKey := d.getDestinationFilePath(fileName)
 
 	_, err := d.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(d.bucketName),
 		Key:         aws.String(objectKey),
 		Body:        body,
-		ContentType: aws.String("text/plain"),
+		ContentType: aws.String(contentType),
 	})
 
 	return err

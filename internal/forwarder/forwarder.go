@@ -1,6 +1,7 @@
 package forwarder
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -21,6 +22,10 @@ import (
 
 const (
 	serverShutDownTimeoutMillis = 3000
+	reportUploadTimeOutMillis   = 10 * 1000
+	reportSleepMillis           = 100
+	numUploadRetryAttempts      = 5
+	reportFileTimestampFormat   = "2006-01-02T15-04-05Z"
 )
 
 var errServerShutDownUnexpectedly = errors.New("server shut down unexpectedly")
@@ -35,6 +40,12 @@ type Forwarder struct {
 type uploadWork struct {
 	msg      t.Message
 	fileName string
+}
+
+type uploadResult struct {
+	work        uploadWork
+	err         error
+	numAttempts int
 }
 
 func New(kafkaClients []*kgo.Client, configs []t.Config, destination Destination, behaviours Behaviours) Forwarder {
@@ -56,7 +67,6 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigChan)
 
-	uploadWorkChan := make(chan uploadWork, 10)
 	forwarderShutDownChan := make(chan struct{})
 
 	// uninitialized so we don't select over it if the server is not to be run
@@ -76,7 +86,7 @@ func (f *Forwarder) Execute(ctx context.Context) error {
 	}
 
 	go func(shutDownChan chan struct{}) {
-		f.start(forwarderCtx, uploadWorkChan)
+		f.start(forwarderCtx)
 		shutDownChan <- struct{}{}
 	}(forwarderShutDownChan)
 
@@ -179,18 +189,32 @@ func startServer(ctx context.Context, host string, port uint16, shutdownTimeoutM
 	}
 }
 
-func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
+func (f *Forwarder) start(ctx context.Context) {
 	slog.Info("starting forwarder")
+	uploadWorkChan := make(chan uploadWork, f.behaviours.NumUploadWorkers)
+
+	var uploadResultChan chan uploadResult
+
+	if f.behaviours.UploadReports {
+		uploadResultChan = make(chan uploadResult, f.behaviours.NumUploadWorkers*3)
+	}
+	var reportDoneChan chan struct{}
+
+	uploadCtx, cancelUploadCtx := context.WithCancel(context.WithoutCancel(ctx))
+	reportCtx, cancelReportCtx := context.WithCancel(context.WithoutCancel(ctx))
 
 	pendingWork := make([]uploadWork, 0)
 
-	uploadCtx, uploadCancel := context.WithCancel(context.WithoutCancel(ctx))
-	var wg sync.WaitGroup
-
-	slog.Info("starting upload workers")
+	var uploadWg sync.WaitGroup
+	slog.Info("starting upload workers", "num", f.behaviours.NumUploadWorkers)
 	for range f.behaviours.NumUploadWorkers {
-		wg.Add(1)
-		go f.startUploadWorker(uploadCtx, uploadWorkChan, &wg)
+		uploadWg.Add(1)
+		go f.startUploadWorker(uploadCtx, uploadWorkChan, uploadResultChan, &uploadWg)
+	}
+
+	if f.behaviours.UploadReports {
+		reportDoneChan = make(chan struct{})
+		go f.startReporterWorker(reportCtx, uploadResultChan, reportDoneChan)
 	}
 
 	clientIndex := 0
@@ -198,16 +222,26 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 		select {
 		case <-ctx.Done():
 			if len(pendingWork) > 0 {
-				slog.Info("finishing uploads for pending records", "num_pending", len(pendingWork))
+				slog.Info("sending pending records to upload workers", "num_pending", len(pendingWork))
 				for _, work := range pendingWork {
 					uploadWorkChan <- work
 				}
 			}
 
 			slog.Info("waiting for upload workers to finish")
-			uploadCancel()
-			wg.Wait()
+			cancelUploadCtx()
+			uploadWg.Wait()
 			slog.Info("all upload workers shut down")
+			if f.behaviours.UploadReports {
+				close(uploadResultChan)
+			}
+
+			cancelReportCtx()
+			if f.behaviours.UploadReports {
+				<-reportDoneChan
+				slog.Info("reporter worker shut down")
+			}
+
 			slog.Info("forwarder shut down")
 			return
 		default:
@@ -230,7 +264,9 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 				fetchCancel()
 
 				if err != nil {
-					slog.Error("couldn't fetch records from Kafka", "profile", f.configs[clientIndex].Name, "error", err)
+					if !errors.Is(err, context.Canceled) {
+						slog.Error("couldn't fetch records from Kafka", "profile", f.configs[clientIndex].Name, "error", err)
+					}
 				} else if len(records) > 0 {
 					for _, record := range records {
 						slog.Info("processing record",
@@ -260,33 +296,147 @@ func (f *Forwarder) start(ctx context.Context, uploadWorkChan chan uploadWork) {
 	}
 }
 
-func (f *Forwarder) startUploadWorker(ctx context.Context, workChan <-chan uploadWork, wg *sync.WaitGroup) {
+func (f *Forwarder) startUploadWorker(
+	ctx context.Context,
+	workChan <-chan uploadWork,
+	resultChan chan<- uploadResult,
+	wg *sync.WaitGroup,
+) {
 	defer wg.Done()
 
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case work := <-workChan:
-			var err error
-			objectKey := f.destination.getDestinationFilePath(work.fileName)
-
-			for i := range 5 {
-				bodyReader := strings.NewReader(work.msg.GetDetails())
-				uploadCtx, uploadCancel := context.WithTimeout(context.WithoutCancel(ctx), time.Duration(f.behaviours.UploadTimeoutMillis)*time.Millisecond)
-				err = f.destination.upload(uploadCtx, bodyReader, work.fileName)
-				uploadCancel()
-
-				if err != nil {
-					slog.Error("uploading to s3 failed", "object_key", objectKey, "attempt_num", i+1, "error", err)
-				}
-
-				if err == nil {
-					break
+			for {
+				select {
+				case work := <-workChan:
+					f.processUpload(context.WithoutCancel(ctx), work, resultChan)
+				default:
+					return
 				}
 			}
+		case work := <-workChan:
+			f.processUpload(context.WithoutCancel(ctx), work, resultChan)
 		default:
 			time.Sleep(time.Duration(f.behaviours.UploadWorkerSleepMillis) * time.Millisecond)
 		}
+	}
+}
+
+func (f *Forwarder) processUpload(
+	ctx context.Context,
+	work uploadWork,
+	resultChan chan<- uploadResult,
+) {
+	objectKey := f.destination.getDestinationFilePath(work.fileName)
+	result := uploadResult{
+		work: work,
+	}
+
+	for i := range numUploadRetryAttempts {
+		result.numAttempts = i
+		bodyReader := strings.NewReader(work.msg.GetDetails())
+		uploadCtx, uploadCancel := context.WithTimeout(context.WithoutCancel(ctx), time.Duration(f.behaviours.UploadTimeoutMillis)*time.Millisecond)
+		result.err = f.destination.upload(uploadCtx, bodyReader, work.fileName, "text/plain")
+		uploadCancel()
+
+		if result.err == nil {
+			break
+		}
+		slog.Error("uploading to s3 failed", "object_key", objectKey, "attempt_num", i+1, "error", result.err)
+	}
+
+	if resultChan != nil {
+		resultChan <- result
+	}
+}
+
+func (f *Forwarder) startReporterWorker(
+	ctx context.Context,
+	resultChan <-chan uploadResult,
+	doneChan chan<- struct{},
+) {
+	slog.Info("starting reporter worker")
+	var reportWg sync.WaitGroup
+	writerStore := make(map[string]*reportWriter)
+
+	handleResult := func(result uploadResult) (*reportWriter, string) {
+		topic := result.work.msg.Topic
+		writer, ok := writerStore[topic]
+
+		if !ok {
+			writer = newReportWriter()
+			writerStore[topic] = writer
+		}
+
+		err := writer.writeRow(result)
+		if err != nil {
+			slog.Error("report writer couldn't write row",
+				"error", err,
+				"file_name", result.work.fileName,
+			)
+		}
+
+		return writer, topic
+	}
+
+	uploadResult := func(writer *reportWriter, topic string) {
+		reportBytes, err := writer.getContent()
+		if err != nil {
+			slog.Error("couldn't get bytes from report writer",
+				"error", err,
+			)
+		} else if len(reportBytes) > 0 {
+			reportFileObjectKey := fmt.Sprintf("%s/reports/report-%s.csv", topic, writer.startTime.Format(reportFileTimestampFormat))
+			reportWg.Add(1)
+			go f.uploadReport(ctx, reportBytes, reportFileObjectKey, &reportWg)
+		}
+		writer.reset()
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("reporter worker starting shutdown process")
+			for result := range resultChan {
+				handleResult(result)
+			}
+
+			for topic, writer := range writerStore {
+				if writer.numMsgs > 0 {
+					slog.Info("reporter uploading report for unpublished records", "topic", topic, "num_rows", writer.numMsgs)
+					uploadResult(writer, topic)
+				}
+			}
+
+			reportWg.Wait()
+			doneChan <- struct{}{}
+			return
+		case result := <-resultChan:
+			writer, topic := handleResult(result)
+
+			if writer.numMsgs >= f.behaviours.ReportBatchSize {
+				uploadResult(writer, topic)
+			}
+		default:
+			time.Sleep(reportSleepMillis * time.Millisecond)
+		}
+	}
+}
+
+func (f *Forwarder) uploadReport(ctx context.Context, content []byte, objectKey string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for i := range numUploadRetryAttempts {
+		reader := bytes.NewReader(content)
+		uploadCtx, uploadCancel := context.WithTimeout(context.WithoutCancel(ctx), reportUploadTimeOutMillis*time.Millisecond)
+		err := f.destination.upload(uploadCtx, reader, objectKey, "text/csv")
+		uploadCancel()
+
+		if err == nil {
+			return
+		}
+
+		slog.Error("uploading report to s3 failed", "object_key", objectKey, "attempt_num", i+1, "error", err)
 	}
 }

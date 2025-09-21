@@ -13,6 +13,8 @@ type Behaviours struct {
 	UploadTimeoutMillis            uint16
 	PollSleepMillis                uint32
 	UploadWorkerSleepMillis        uint32
+	UploadReports                  bool
+	ReportBatchSize                uint16
 	RunServer                      bool
 	ServerHost                     string
 	ServerPort                     uint16
@@ -28,7 +30,8 @@ func (b Behaviours) Display() string {
   upload timeout (ms)     %d
   poll sleep (ms)         %d
   worker sleep (ms)       %d
-  run server              %v`,
+  run server              %v
+  upload reports          %v`,
 		b.ConsumerGroup,
 		b.FetchBatchSize,
 		b.NumUploadWorkers,
@@ -38,7 +41,16 @@ func (b Behaviours) Display() string {
 		b.PollSleepMillis,
 		b.UploadWorkerSleepMillis,
 		b.RunServer,
+		b.UploadReports,
 	)
+
+	if b.UploadReports {
+		value = fmt.Sprintf(`%s
+  report batch size       %d`,
+			value,
+			b.ReportBatchSize,
+		)
+	}
 
 	if b.RunServer {
 		value = fmt.Sprintf(`%s
