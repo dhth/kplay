@@ -47,6 +47,7 @@ pub type MessageDetails {
     metadata: String,
     value: option.Option(String),
     decode_error: option.Option(String),
+    decode_error_fallback: option.Option(String),
   )
 }
 
@@ -60,6 +61,11 @@ pub fn message_details_decoder() -> decode.Decoder(MessageDetails) {
     "decode_error",
     decode.optional(decode.string),
   )
+  use decode_error_fallback <- decode.optional_field(
+    "decode_error_fallback",
+    option.None,
+    decode.optional(decode.string),
+  )
   decode.success(MessageDetails(
     key:,
     offset:,
@@ -67,6 +73,7 @@ pub fn message_details_decoder() -> decode.Decoder(MessageDetails) {
     metadata:,
     value:,
     decode_error:,
+    decode_error_fallback:,
   ))
 }
 
@@ -109,6 +116,7 @@ pub fn dummy_message() -> List(MessageDetails) {
       metadata: metadata,
       value: option.Some(value),
       decode_error: option.None,
+      decode_error_fallback: option.None,
     ),
   ]
 }

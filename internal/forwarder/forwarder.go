@@ -274,6 +274,15 @@ func (f *Forwarder) startForwarder(ctx context.Context) {
 							"value_bytes", len(record.Value),
 						)
 						msg := t.GetMessageFromRecord(*record, f.configs[clientIndex], true)
+						if msg.DecodeErr != nil {
+							slog.Warn("couldn't decode record",
+								"key", string(record.Key),
+								"topic", record.Topic,
+								"offset", record.Offset,
+								"partition", record.Partition,
+								"decode_error", msg.DecodeErr,
+							)
+						}
 						work := uploadWork{
 							msg:      msg,
 							fileName: fmt.Sprintf("%s/partition-%d/offset-%d.txt", record.Topic, record.Partition, record.Offset),

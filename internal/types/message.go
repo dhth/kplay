@@ -15,14 +15,15 @@ var errProtoDescriptorNil = errors.New("protobuf descriptor is nil when it shoul
 var unexpectedErrorMessage = "this is not expected; let @dhth know via https://github.com/dhth/kplay/issues"
 
 type Message struct {
-	Metadata  string    `json:"metadata"`
-	Topic     string    `json:"-"`
-	Offset    int64     `json:"offset"`
-	Partition int32     `json:"partition"`
-	Timestamp time.Time `json:"-"`
-	Value     []byte    `json:"-"`
-	Key       string    `json:"key"`
-	DecodeErr error     `json:"-"`
+	Metadata          string    `json:"metadata"`
+	Topic             string    `json:"-"`
+	Offset            int64     `json:"offset"`
+	Partition         int32     `json:"partition"`
+	Timestamp         time.Time `json:"-"`
+	Value             []byte    `json:"-"`
+	Key               string    `json:"key"`
+	DecodeErr         error     `json:"-"`
+	DecodeErrFallback string    `json:"decode_error_fallback,omitempty"`
 }
 
 type SerializableMessage struct {
@@ -56,7 +57,11 @@ func (m Message) GetDetails() string {
 	if len(m.Value) == 0 {
 		msgValue = "tombstone"
 	} else if m.DecodeErr != nil {
-		msgValue = fmt.Sprintf("Decode Error: %s", m.DecodeErr.Error())
+		var decodeErrFallback string
+		if len(m.DecodeErrFallback) > 0 {
+			decodeErrFallback = fmt.Sprintf("\n\n%s", m.DecodeErrFallback)
+		}
+		msgValue = fmt.Sprintf("Decode Error: %s%s", m.DecodeErr.Error(), decodeErrFallback)
 	} else {
 		msgValue = string(m.Value)
 	}
@@ -76,67 +81,49 @@ func (m Message) GetDetails() string {
 }
 
 func GetMessageFromRecord(record kgo.Record, config Config, decode bool) Message {
-	if len(record.Value) == 0 {
-		return Message{
-			Metadata:  utils.GetRecordMetadata(record),
-			Topic:     record.Topic,
-			Offset:    record.Offset,
-			Partition: record.Partition,
-			Timestamp: record.Timestamp,
-			Key:       string(record.Key),
-		}
-	}
-
-	if !decode {
-		return Message{
-			Metadata:  utils.GetRecordMetadata(record),
-			Topic:     record.Topic,
-			Offset:    record.Offset,
-			Partition: record.Partition,
-			Timestamp: record.Timestamp,
-			Value:     record.Value,
-			Key:       string(record.Key),
-		}
-	}
-
-	var bodyBytes []byte
-	var decodeErr error
-
-	switch config.Encoding {
-	case JSON:
-		bodyBytes, decodeErr = s.PrettifyJSON(record.Value)
-	case Protobuf:
-		if config.Proto == nil {
-			decodeErr = fmt.Errorf("%w: %s", errProtoDescriptorNil, unexpectedErrorMessage)
-		} else {
-			bodyBytes, decodeErr = s.TranscodeProto(record.Value, config.Proto.MsgDescriptor)
-		}
-	case Raw:
-		bodyBytes = record.Value
-	}
-
-	if decodeErr != nil {
-		return Message{
-			Metadata:  utils.GetRecordMetadata(record),
-			Topic:     record.Topic,
-			Offset:    record.Offset,
-			Partition: record.Partition,
-			Timestamp: record.Timestamp,
-			Value:     record.Value,
-			Key:       string(record.Key),
-			DecodeErr: decodeErr,
-		}
-	}
-
-	return Message{
+	msg := Message{
 		Metadata:  utils.GetRecordMetadata(record),
 		Topic:     record.Topic,
 		Offset:    record.Offset,
 		Partition: record.Partition,
 		Timestamp: record.Timestamp,
-		Value:     bodyBytes,
 		Key:       string(record.Key),
+		Value:     record.Value,
 	}
+
+	if len(record.Value) == 0 || !decode || config.Encoding == Raw {
+		return msg
+	}
+
+	var decodedValueBytes []byte
+	var decodeErr error
+	var decodeErrFallback string
+
+	switch config.Encoding {
+	case JSON:
+		decodedValueBytes, decodeErr = s.PrettifyJSON(record.Value)
+	case Protobuf:
+		if config.Proto == nil {
+			decodeErr = fmt.Errorf("%w: %s", errProtoDescriptorNil, unexpectedErrorMessage)
+		} else {
+			decodedValueBytes, decodeErr = s.TranscodeProto(record.Value, config.Proto.MsgDescriptor)
+			if decodeErr != nil {
+				rawDecodedBytes, rawDecodeErr := s.DecodeRaw(record.Value)
+				if rawDecodeErr == nil {
+					decodeErrFallback = fmt.Sprintf("Raw decoded value: \n\n%s", rawDecodedBytes)
+				}
+			}
+		}
+	}
+
+	if decodeErr != nil {
+		msg.DecodeErr = decodeErr
+		msg.DecodeErrFallback = decodeErrFallback
+	} else {
+		msg.Value = decodedValueBytes
+	}
+
+	return msg
 }
 
 func (m Message) Title() string {
