@@ -20,7 +20,7 @@ const (
 var (
 	errCouldntUnmarshalProtoMsg     = errors.New("couldn't unmarshal protobuf encoded message")
 	errCouldntConvertProtoMsgToJSON = errors.New("couldn't convert proto message to JSON")
-	errMalformedProtobufWireData    = errors.New("malformed protobuf wire data")
+	errWireDataIsMalformed          = errors.New("wire data is malformed")
 )
 
 type rawDecoder struct {
@@ -31,7 +31,8 @@ type rawDecoder struct {
 func TranscodeProto(bytes []byte, msgDescriptor protoreflect.MessageDescriptor) ([]byte, error) {
 	msg := dynamicpb.NewMessage(msgDescriptor)
 
-	if err := proto.Unmarshal(bytes, msg); err != nil {
+	err := proto.Unmarshal(bytes, msg)
+	if err != nil {
 		return nil, fmt.Errorf("%w: %s", errCouldntUnmarshalProtoMsg, err.Error())
 	}
 
@@ -48,10 +49,12 @@ func TranscodeProto(bytes []byte, msgDescriptor protoreflect.MessageDescriptor) 
 
 func DecodeRaw(data []byte) ([]byte, error) {
 	decoder := newRawDecoder()
-	if err := decoder.writeRawTagValuePairs(data, maxRecursionDepth); err != nil {
-		return nil, fmt.Errorf("%w: %s", errMalformedProtobufWireData, err.Error())
+	err := decoder.writeRawTagValuePairs(data, maxRecursionDepth)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", errWireDataIsMalformed, err.Error())
 	}
-	return []byte(decoder.String()), nil
+
+	return []byte(decoder.string()), nil
 }
 
 func (d *rawDecoder) writeRawTagValuePairs(data []byte, recursionBudget int) error {
@@ -243,7 +246,7 @@ func newRawDecoder() *rawDecoder {
 	}
 }
 
-func (d *rawDecoder) String() string {
+func (d *rawDecoder) string() string {
 	return d.result.String()
 }
 

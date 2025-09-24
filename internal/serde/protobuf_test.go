@@ -129,7 +129,7 @@ func TestDecodeRawProtocCompatibility(t *testing.T) {
 	}
 }
 
-func TestDecodeRaw(t *testing.T) {
+func TestDecodeRawOnSampleMsg(t *testing.T) {
 	// GIVEN
 	// WHEN
 	got, err := DecodeRaw(sampleMsg)
@@ -137,4 +137,14 @@ func TestDecodeRaw(t *testing.T) {
 	// THEN
 	require.NoError(t, err)
 	snaps.MatchStandaloneSnapshot(t, string(got))
+}
+
+func TestDecodeRawFailsOnIncorrectInput(t *testing.T) {
+	// GIVEN
+	// WHEN
+	data := []byte("this is not a protobuf encoded message")
+	_, err := DecodeRaw(data)
+
+	// THEN
+	assert.ErrorIs(t, err, errWireDataIsMalformed)
 }
