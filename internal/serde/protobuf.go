@@ -243,28 +243,28 @@ func newRawDecoder() *rawDecoder {
 	}
 }
 
-func (g *rawDecoder) String() string {
-	return g.result.String()
+func (d *rawDecoder) String() string {
+	return d.result.String()
 }
 
-func (g *rawDecoder) indent() {
-	g.indentLevel++
+func (d *rawDecoder) indent() {
+	d.indentLevel++
 }
 
-func (g *rawDecoder) outdent() {
-	if g.indentLevel > 0 {
-		g.indentLevel--
+func (d *rawDecoder) outdent() {
+	if d.indentLevel > 0 {
+		d.indentLevel--
 	}
 }
 
-func (g *rawDecoder) printLiteral(text string) {
-	g.result.WriteString(text)
+func (d *rawDecoder) printLiteral(text string) {
+	d.result.WriteString(text)
 }
 
-func (g *rawDecoder) getIndent() string {
-	return strings.Repeat("  ", g.indentLevel)
+func (d *rawDecoder) getIndent() string {
+	return strings.Repeat("  ", d.indentLevel)
 }
 
-func (g *rawDecoder) printLineEnding() {
-	g.result.WriteString("\n")
+func (d *rawDecoder) printLineEnding() {
+	d.result.WriteString("\n")
 }
