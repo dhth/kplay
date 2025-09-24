@@ -221,11 +221,23 @@ fn message_details_pane(model: Model) -> element.Element(Msg) {
               },
             ]
             option.Some(e) -> [
-              html.pre(
-                [attribute.class("text-[#fb4934] text-base mb-4 text-wrap")],
+              html.div(
                 [
-                  html.text("Decode Error: " <> e),
+                  attribute.class("flex flex-col space-y-4 text-[#fb4934]"),
                 ],
+                [
+                  html.pre([attribute.class("text-base text-wrap")], [
+                    html.text("Decode Error: " <> e),
+                  ]),
+                ]
+                  |> list.append(case msg.decode_error_fallback {
+                    option.None -> []
+                    option.Some(fallback) -> [
+                      html.pre([attribute.class("text-base text-wrap")], [
+                        html.text(fallback),
+                      ]),
+                    ]
+                  }),
               ),
             ]
           }),

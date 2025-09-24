@@ -1926,6 +1926,43 @@ function subfield(field_path, field_decoder, next) {
 function field2(field_name, field_decoder, next) {
   return subfield(toList([field_name]), field_decoder, next);
 }
+function optional_field(key2, default$, field_decoder, next) {
+  return new Decoder(
+    (data) => {
+      let _block;
+      let _block$1;
+      let $1 = index2(data, key2);
+      if ($1 instanceof Ok) {
+        let $22 = $1[0];
+        if ($22 instanceof Some) {
+          let data$1 = $22[0];
+          _block$1 = field_decoder.function(data$1);
+        } else {
+          _block$1 = [default$, toList([])];
+        }
+      } else {
+        let kind = $1[0];
+        _block$1 = [
+          default$,
+          toList([new DecodeError2(kind, classify_dynamic(data), toList([]))])
+        ];
+      }
+      let _pipe = _block$1;
+      _block = push_path2(_pipe, toList([key2]));
+      let $ = _block;
+      let out;
+      let errors1;
+      out = $[0];
+      errors1 = $[1];
+      let $2 = next(out).function(data);
+      let out$1;
+      let errors2;
+      out$1 = $2[0];
+      errors2 = $2[1];
+      return [out$1, append(errors1, errors2)];
+    }
+  );
+}
 
 // build/dev/javascript/gleam_stdlib/gleam/bool.mjs
 function to_string2(bool4) {
@@ -4255,7 +4292,7 @@ var Behaviours = class extends CustomType {
   }
 };
 var MessageDetails = class extends CustomType {
-  constructor(key2, offset, partition, metadata, value2, decode_error2) {
+  constructor(key2, offset, partition, metadata, value2, decode_error2, decode_error_fallback) {
     super();
     this.key = key2;
     this.offset = offset;
@@ -4263,6 +4300,7 @@ var MessageDetails = class extends CustomType {
     this.metadata = metadata;
     this.value = value2;
     this.decode_error = decode_error2;
+    this.decode_error_fallback = decode_error_fallback;
   }
 };
 var ConfigFetched = class extends CustomType {
@@ -4374,15 +4412,23 @@ function message_details_decoder() {
                         "decode_error",
                         optional(string3),
                         (decode_error2) => {
-                          return success(
-                            new MessageDetails(
-                              key2,
-                              offset,
-                              partition,
-                              metadata,
-                              value2,
-                              decode_error2
-                            )
+                          return optional_field(
+                            "decode_error_fallback",
+                            new None(),
+                            optional(string3),
+                            (decode_error_fallback) => {
+                              return success(
+                                new MessageDetails(
+                                  key2,
+                                  offset,
+                                  partition,
+                                  metadata,
+                                  value2,
+                                  decode_error2,
+                                  decode_error_fallback
+                                )
+                              );
+                            }
                           );
                         }
                       );
@@ -4933,11 +4979,35 @@ function message_details_pane(model) {
             if ($1 instanceof Some) {
               let e = $1[0];
               return toList([
-                pre(
+                div(
                   toList([
-                    class$("text-[#fb4934] text-base mb-4 text-wrap")
+                    class$("flex flex-col space-y-4 text-[#fb4934]")
                   ]),
-                  toList([text2("Decode Error: " + e)])
+                  (() => {
+                    let _pipe$1 = toList([
+                      pre(
+                        toList([class$("text-base text-wrap")]),
+                        toList([text2("Decode Error: " + e)])
+                      )
+                    ]);
+                    return append(
+                      _pipe$1,
+                      (() => {
+                        let $2 = msg.decode_error_fallback;
+                        if ($2 instanceof Some) {
+                          let fallback = $2[0];
+                          return toList([
+                            pre(
+                              toList([class$("text-base text-wrap")]),
+                              toList([text2(fallback)])
+                            )
+                          ]);
+                        } else {
+                          return toList([]);
+                        }
+                      })()
+                    );
+                  })()
                 )
               ]);
             } else {
