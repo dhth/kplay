@@ -29,6 +29,7 @@ type Model struct {
 	helpVP             viewport.Model
 	msgDetailsVP       viewport.Model
 	msgDetailsVPReady  bool
+	msgDetailsVPWidth  int
 	showHelpIndicator  bool
 	outputDir          string
 	behaviours         Behaviours

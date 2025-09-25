@@ -40,7 +40,7 @@ var (
 	viewPortStyle = lipgloss.
 			NewStyle().
 			PaddingTop(1).
-			PaddingLeft(4)
+			PaddingLeft(2)
 
 	viewPortFullScreenStyle = baseListStyle.
 				PaddingLeft(2)

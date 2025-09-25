@@ -136,6 +136,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.msgsList.CursorDown()
 		case "j", "down":
 			switch m.activeView {
+			case msgListView:
+				m.msgDetailsVP.GotoTop()
 			case msgDetailsView:
 				if m.msgDetailsVP.AtBottom() {
 					break
@@ -149,6 +151,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "k", "up":
 			switch m.activeView {
+			case msgListView:
+				m.msgDetailsVP.GotoTop()
 			case msgDetailsView:
 				if m.msgDetailsVP.AtTop() {
 					break
@@ -198,7 +202,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		fullScreenVPHeight := msg.Height - 6
 		msgDetailsVPHeight := msg.Height - h2 - 2 - 3
-		msgDetailsVPWidth := msg.Width - w1 - w2 - m.msgsList.Width() - 2
+		msgDetailsVPWidth := msg.Width - w1 - w2 - m.msgsList.Width() - 1
+		m.msgDetailsVPWidth = msgDetailsVPWidth
 
 		if !m.msgDetailsVPReady {
 			m.msgDetailsVP = viewport.New(msgDetailsVPWidth, msgDetailsVPHeight)
@@ -283,7 +288,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			message, ok := m.msgsList.SelectedItem().(t.Message)
 
 			if ok {
-				m.msgDetailsVP.SetContent(getMsgDetailsStylized(message, m.config.Encoding))
+				m.msgDetailsVP.SetContent(getMsgDetailsStylized(message, m.config.Encoding, m.msgDetailsVPWidth))
 			}
 
 		}
