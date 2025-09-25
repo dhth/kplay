@@ -140,6 +140,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "32.1"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run tests
         env:
           INTEGRATION: "1"
