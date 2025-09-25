@@ -21,14 +21,14 @@ func getMsgDetailsStylized(m t.Message, encoding t.EncodingFormat, width int) st
 		errorText := fmt.Sprintf("Decode Error: %s%s", m.DecodeErr.Error(), decodeErrFallback)
 		msgValue = msgDetailsErrorStyle.Render(wrappedStyle.Render(errorText))
 	} else {
+		var rawValue string
 		switch encoding {
 		case t.JSON, t.Protobuf:
-			rawValue := string(pretty.Color(m.Value, nil))
-			msgValue = wrappedStyle.Render(rawValue)
+			rawValue = string(pretty.Color(m.Value, nil))
 		case t.Raw:
-			rawValue := string(m.Value)
-			msgValue = wrappedStyle.Render(rawValue)
+			rawValue = string(m.Value)
 		}
+		msgValue = wrappedStyle.Render(rawValue)
 	}
 
 	return fmt.Sprintf(`%s
