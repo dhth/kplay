@@ -344,7 +344,7 @@ func (m *Model) updateMsgDetailsVP(terminalResized bool) {
 
 			if ok {
 				m.msgDetailsVP.SetContent(getMsgDetailsStylized(message, m.config.Encoding, m.msgDetailsVPWidth))
-				if !terminalResized && !m.msgDetailsVP.AtTop() {
+				if !terminalResized {
 					m.msgDetailsVP.GotoTop()
 				}
 			}
