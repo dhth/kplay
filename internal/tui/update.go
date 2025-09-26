@@ -17,13 +17,43 @@ const (
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
+	forceRefreshMsgDetailsVP := false
 	m.msg = ""
 	m.errorMsg = ""
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.terminalHeight = msg.Height
+		m.terminalWidth = msg.Width
+		if msg.Width < minWidthNeeded || msg.Height < minHeightNeeded {
+			if m.activeView != insufficientDimensionsView {
+				m.lastView = m.activeView
+				m.activeView = insufficientDimensionsView
+			}
+			return m, nil
+		}
+
+		if m.activeView == insufficientDimensionsView {
+			m.activeView = m.lastView
+		}
+
+	case tea.KeyMsg:
+		if m.activeView == insufficientDimensionsView {
+			switch msg.String() {
+			case "ctrl+c", "q", "esc":
+				return m, tea.Quit
+			default:
+				return m, nil
+			}
+		}
+	}
+
+	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
+			return m, tea.Quit
+		case "q", "esc":
 			switch m.activeView {
 			case msgListView:
 				return m, tea.Quit
@@ -32,8 +62,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case helpView:
 				m.activeView = m.lastView
 			}
-		case "Q":
-			return m, tea.Quit
 		case "n", " ":
 			if m.activeView == helpView {
 				break
@@ -194,27 +222,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, saveRecordDetailsToDisk(message, m.outputDir, m.config.Topic, true))
 		}
 	case tea.WindowSizeMsg:
-		w1, h1 := messageListStyle.GetFrameSize()
-		w2, h2 := viewPortStyle.GetFrameSize()
 		m.terminalHeight = msg.Height
 		m.terminalWidth = msg.Width
+		w1, h1 := messageListStyle.GetFrameSize()
+		w2, h2 := viewPortStyle.GetFrameSize()
 		m.msgsList.SetHeight(msg.Height - h1 - 3)
 
 		fullScreenVPHeight := msg.Height - 6
 		msgDetailsVPHeight := msg.Height - h2 - 2 - 3
-		msgDetailsVPWidth := msg.Width - w1 - w2 - m.msgsList.Width() - 1
-		m.msgDetailsVPWidth = msgDetailsVPWidth
+		m.msgDetailsVPWidth = max(10, msg.Width-w1-w2-m.msgsList.Width())
 
 		if !m.msgDetailsVPReady {
-			m.msgDetailsVP = viewport.New(msgDetailsVPWidth, msgDetailsVPHeight)
+			m.msgDetailsVP = viewport.New(m.msgDetailsVPWidth, msgDetailsVPHeight)
 			m.msgDetailsVP.KeyMap.HalfPageDown.SetKeys("ctrl+d")
 			m.msgDetailsVP.KeyMap.Up.SetEnabled(false)
 			m.msgDetailsVP.KeyMap.Down.SetEnabled(false)
 			m.msgDetailsVPReady = true
 		} else {
-			m.msgDetailsVP.Width = msgDetailsVPWidth
+			m.msgDetailsVP.Width = m.msgDetailsVPWidth
 			m.msgDetailsVP.Height = msgDetailsVPHeight
 		}
+		forceRefreshMsgDetailsVP = true
 
 		helpVPWidth := msg.Width - w2 - 4
 		if !m.helpVPReady {
@@ -282,8 +310,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
+	m.updateMsgDetailsVP(forceRefreshMsgDetailsVP)
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m *Model) updateMsgDetailsVP(forceRefresh bool) {
 	if m.activeView == msgListView || m.activeView == msgDetailsView {
-		if len(m.msgsList.Items()) > 0 && m.msgsList.Index() != m.currentMsgIndex {
+		if len(m.msgsList.Items()) > 0 && (forceRefresh || m.msgsList.Index() != m.currentMsgIndex) {
 			m.currentMsgIndex = m.msgsList.Index()
 			message, ok := m.msgsList.SelectedItem().(t.Message)
 
@@ -293,6 +327,4 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		}
 	}
-
-	return m, tea.Batch(cmds...)
 }

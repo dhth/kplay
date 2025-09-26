@@ -16,6 +16,7 @@ const (
 	msgListView stateView = iota
 	msgDetailsView
 	helpView
+	insufficientDimensionsView
 )
 
 type Model struct {

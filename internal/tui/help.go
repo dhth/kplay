@@ -23,8 +23,8 @@ kplay has 2 views:
 	helpHeaderStyle.Render("General"),
 	helpSectionStyle.Render(`
     ?                              Show help view
-    q                              Go back/quit
-    Q                              Quit from anywhere
+    q/<esc>                        Go back/quit
+    <ctrl+c>                       Quit immediately
 `),
 	helpHeaderStyle.Render("Message List and Details View"),
 	helpSectionStyle.Render(`
