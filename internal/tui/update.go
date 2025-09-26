@@ -196,6 +196,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.helpVP.ScrollUp(viewPortMoveLineCount)
 			}
+		case "g":
+			switch m.activeView {
+			case msgDetailsView:
+				m.msgDetailsVP.GotoTop()
+			case helpView:
+				m.helpVP.GotoTop()
+			}
+		case "G":
+			switch m.activeView {
+			case msgDetailsView:
+				m.msgDetailsVP.GotoBottom()
+			case helpView:
+				m.helpVP.GotoBottom()
+			}
+		case "ctrl+d":
+			if m.activeView == msgListView {
+				m.msgDetailsVP.HalfPageDown()
+			}
+		case "ctrl+u":
+			if m.activeView == msgListView {
+				m.msgDetailsVP.HalfPageUp()
+			}
 		case "tab", "shift+tab":
 			if len(m.msgsList.Items()) == 0 {
 				break
