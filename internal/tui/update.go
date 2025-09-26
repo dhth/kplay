@@ -27,14 +27,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.terminalWidth = msg.Width
 		if msg.Width < minWidthNeeded || msg.Height < minHeightNeeded {
 			if m.activeView != insufficientDimensionsView {
-				m.lastView = m.activeView
+				m.lastViewBeforeInsufficientDims = m.activeView
 				m.activeView = insufficientDimensionsView
 			}
 			return m, nil
 		}
 
 		if m.activeView == insufficientDimensionsView {
-			m.activeView = m.lastView
+			m.activeView = m.lastViewBeforeInsufficientDims
 		}
 
 	case tea.KeyMsg:
@@ -99,8 +99,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, FetchMessages(m.client, m.config, 100))
 			m.fetchingInProgress = true
 		case "?":
-			m.lastView = m.activeView
-			m.activeView = helpView
+			if m.activeView != helpView {
+				m.lastView = m.activeView
+				m.activeView = helpView
+			} else {
+				m.activeView = m.lastView
+			}
 		case "p":
 			if m.activeView == helpView {
 				break
