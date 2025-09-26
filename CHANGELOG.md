@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v3.1.0] - Sep 26, 2025
 
 ### Added
 
@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- kplay will not render its TUI if the terminal dimensions are below the
-  required minimum
+- Show raw decoded message when protobuf decoding fails
+- kplay's TUI won't be rendered if terminal dimensions are below the required
+    minimum
 - Pressing Ctrl+C will immediately exit the TUI, regardless of the current
     context
 
@@ -84,7 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow persisting messages to the local filesystem
 - Allow skipping messages
 
-[unreleased]: https://github.com/dhth/kplay/compare/v3.0.0...HEAD
+[unreleased]: https://github.com/dhth/kplay/compare/v3.1.0...HEAD
+[v3.1.0]: https://github.com/dhth/kplay/compare/v3.0.0...v3.1.0
 [v3.0.0]: https://github.com/dhth/kplay/compare/v2.0.0...v3.0.0
 [v2.0.0]: https://github.com/dhth/kplay/compare/v1.1.0...v2.0.0
 [v1.1.0]: https://github.com/dhth/kplay/compare/v1.0.0...v1.1.0

@@ -77,27 +77,32 @@ Global Flags:
 
 ### General
 
-| Keymap | Description        |
-|--------|--------------------|
-| `?`    | Show help view     |
-| `q`    | Go back/quit       |
-| `Q`    | Quit from anywhere |
+| Keymap        | Action           |
+|---------------|------------------|
+| `?`           | Show help view   |
+| `q` / `<esc>` | Go back/quit     |
+| `<ctrl+c>`    | Quit immediately |
 
 ### Message List and Details View
 
-| Keymap                | Description                                |
-|-----------------------|--------------------------------------------|
-| `<tab>`/`<shift-tab>` | Switch focus between panes                 |
-| `j`/`<Down>`          | Move cursor/details pane down              |
-| `k`/`<Up>`            | Move cursor/details pane up                |
-| `n`                   | Fetch the next message from the topic      |
-| `N`                   | Fetch the next 10 messages from the topic  |
-| `}`                   | Fetch the next 100 messages from the topic |
-| `s`                   | Toggle skipping mode                       |
-| `p`                   | Toggle persist mode                        |
-| `y`                   | Copy message details to clipboard          |
-| `[`                   | Move to previous item in list              |
-| `]`                   | Move to next item in list                  |
+| Keymap                  | Action                                         |
+|-------------------------|------------------------------------------------|
+| `<tab>` / `<shift-tab>` | Switch focus between panes                     |
+| `j` / `<Down>`          | Select next message / scroll details down      |
+| `k` / `<Up>`            | Select previous message / scroll details up    |
+| `G`                     | Select last message / scroll details to bottom |
+| `g`                     | Select first message / scroll details to top   |
+| `<ctrl+d>`              | Scroll details half page down                  |
+| `<ctrl+u>`              | Scroll details half page up                    |
+| `]`                     | Select next message                            |
+| `[`                     | Select previous message                        |
+| `n`                     | Fetch the next message from the topic          |
+| `N`                     | Fetch the next 10 messages from the topic      |
+| `}`                     | Fetch the next 100 messages from the topic     |
+| `s`                     | Toggle skipping mode                           |
+| `p`                     | Toggle persist mode                            |
+| `P`                     | Persist current message to local filesystem    |
+| `y`                     | Copy message details to clipboard              |
 
 ### Serve
 
