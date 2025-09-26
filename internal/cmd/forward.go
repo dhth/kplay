@@ -86,7 +86,7 @@ var (
 	errDestinationEmpty           = errors.New("destination is empty")
 )
 
-func newForwardCmd(configPath *string, homeDir string, debug *bool) *cobra.Command {
+func newForwardCmd(configPath *string, homeDir string, debug *bool, version string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "forward <PROFILE>,<PROFILE>,... <DESTINATION>",
 		Short: "Consume messages in a kafka topic and forward them to a remote destination",
@@ -246,7 +246,7 @@ Destination               %s
 			}
 
 			forwarder := f.New(kafkaClients, configs, &destination, forwardBehaviours)
-			logStartupInfo(profileConfigNames, destination.Display(), forwardBehaviours)
+			logStartupInfo(profileConfigNames, destination.Display(), forwardBehaviours, version)
 
 			return forwarder.Execute(ctx)
 		},
@@ -378,8 +378,8 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 	}, nil
 }
 
-func logStartupInfo(profileConfigNames []string, destination string, behaviours f.Behaviours) {
-	slog.Info("starting up")
+func logStartupInfo(profileConfigNames []string, destination string, behaviours f.Behaviours, version string) {
+	slog.Info("starting up", "version", version)
 	slog.Info("input", "profiles", strings.Join(profileConfigNames, ","))
 	slog.Info("input", "destination", destination)
 	slog.Info("behaviour", "consumer_group", behaviours.ConsumerGroup)
