@@ -222,8 +222,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, saveRecordDetailsToDisk(message, m.outputDir, m.config.Topic, true))
 		}
 	case tea.WindowSizeMsg:
-		m.terminalHeight = msg.Height
-		m.terminalWidth = msg.Width
 		w1, h1 := messageListStyle.GetFrameSize()
 		w2, h2 := viewPortStyle.GetFrameSize()
 		m.msgsList.SetHeight(msg.Height - h1 - 3)
