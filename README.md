@@ -77,11 +77,11 @@ Global Flags:
 
 ### General
 
-| Keymap     | Action           |
-|------------|------------------|
-| `?`        | Show help view   |
-| `q/<esc>`  | Go back/quit     |
-| `<ctrl+c>` | Quit immediately |
+| Keymap        | Action           |
+|---------------|------------------|
+| `?`           | Show help view   |
+| `q` / `<esc>` | Go back/quit     |
+| `<ctrl+c>`    | Quit immediately |
 
 ### Message List and Details View
 

@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Show raw decoded message when protobuf decoding fails
-- TUI won't be functional if terminal dimensions are below the required minimum
+- kplay's TUI won't be rendered if terminal dimensions are below the required
+    minimum
 - Pressing Ctrl+C will immediately exit the TUI, regardless of the current
     context
 
