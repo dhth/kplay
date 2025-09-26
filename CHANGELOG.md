@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Keymaps to scroll details pane from the list pane
+- Keymaps to scroll details pane to the top/bottom
+
 ### Changed
 
 - kplay will not render its TUI if the terminal dimensions are below the

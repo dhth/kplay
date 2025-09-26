@@ -26,11 +26,15 @@ kplay has 2 views:
     q/<esc>                        Go back/quit
     <ctrl+c>                       Quit immediately
 `),
-	helpHeaderStyle.Render("Message List and Details View"),
+	helpHeaderStyle.Render("Message List/Details View"),
 	helpSectionStyle.Render(`
     <tab>/<shift-tab>              Switch focus between panes
-    j/<Down>                       Move cursor/details pane down
-    k/<Up>                         Move cursor/details pane up
+    j/<Down>                       Select next item/scroll details down
+    k/<Up>                         Select previous item/scroll details up
+    g                              Select first item/scroll details to top
+    G                              Select last item/scroll details to bottom
+    <ctrl+u>                       Scroll details half page up
+    <ctrl+d>                       Scroll details half page down
     n                              Fetch the next message from the topic
     N                              Fetch the next 10 messages from the topic
     }                              Fetch the next 100 messages from the topic
