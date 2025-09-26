@@ -17,8 +17,8 @@ const (
 	envVarConfigPath = "KPLAY_CONFIG_PATH"
 )
 
-func Execute() error {
-	rootCmd, err := NewRootCommand()
+func Execute(version string) error {
+	rootCmd, err := NewRootCommand(version)
 	if err != nil {
 		return err
 	}
@@ -26,7 +26,7 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-func NewRootCommand() (*cobra.Command, error) {
+func NewRootCommand(version string) (*cobra.Command, error) {
 	var (
 		configPath        string
 		configPathFull    string
@@ -106,6 +106,7 @@ kplay relies on a configuration file that contains profiles for various Kafka to
 to brokers, message encoding, authentication, etc.
 `,
 		SilenceErrors: true,
+		Version:       version,
 	}
 
 	tuiCmd := newTuiCmd(
@@ -139,7 +140,7 @@ to brokers, message encoding, authentication, etc.
 		defaultOutputDir,
 	)
 
-	forwardCmd := newForwardCmd(&configPath, homeDir, &debug)
+	forwardCmd := newForwardCmd(&configPath, homeDir, &debug, version)
 
 	configDir, err := os.UserConfigDir()
 	if err != nil {
