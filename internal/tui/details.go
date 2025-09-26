@@ -3,12 +3,14 @@ package tui
 import (
 	"fmt"
 
+	"github.com/charmbracelet/lipgloss"
 	t "github.com/dhth/kplay/internal/types"
 	"github.com/tidwall/pretty"
 )
 
-func getMsgDetailsStylized(m t.Message, encoding t.EncodingFormat) string {
+func getMsgDetailsStylized(m t.Message, encoding t.EncodingFormat, width int) string {
 	var msgValue string
+	wrappedStyle := lipgloss.NewStyle().Width(width)
 	if len(m.Value) == 0 {
 		msgValue = msgDetailsTombstoneStyle.Render("tombstone")
 	} else if m.DecodeErr != nil {
@@ -16,14 +18,17 @@ func getMsgDetailsStylized(m t.Message, encoding t.EncodingFormat) string {
 		if len(m.DecodeErrFallback) > 0 {
 			decodeErrFallback = fmt.Sprintf("\n\n%s", m.DecodeErrFallback)
 		}
-		msgValue = msgDetailsErrorStyle.Render(fmt.Sprintf("Decode Error: %s%s", m.DecodeErr.Error(), decodeErrFallback))
+		errorText := fmt.Sprintf("Decode Error: %s%s", m.DecodeErr.Error(), decodeErrFallback)
+		msgValue = msgDetailsErrorStyle.Render(wrappedStyle.Render(errorText))
 	} else {
+		var rawValue string
 		switch encoding {
 		case t.JSON, t.Protobuf:
-			msgValue = string(pretty.Color(m.Value, nil))
+			rawValue = string(pretty.Color(m.Value, nil))
 		case t.Raw:
-			msgValue = string(m.Value)
+			rawValue = string(m.Value)
 		}
+		msgValue = wrappedStyle.Render(rawValue)
 	}
 
 	return fmt.Sprintf(`%s
@@ -35,7 +40,7 @@ func getMsgDetailsStylized(m t.Message, encoding t.EncodingFormat) string {
 %s
 `,
 		msgDetailsHeadingStyle.Render("Metadata"),
-		m.Metadata,
+		wrappedStyle.Render(m.Metadata),
 		msgDetailsHeadingStyle.Render("Value"),
 		msgValue,
 	)

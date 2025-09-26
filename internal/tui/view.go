@@ -8,13 +8,13 @@ import (
 )
 
 const (
+	listWidth          = 44
 	configKeyMaxLength = 50
+	minHeightNeeded    = 30
+	minWidthNeeded     = 90
 )
 
-var (
-	listWidth     = 44
-	vpNotReadyMsg = "\n  Initializing..."
-)
+var vpNotReadyMsg = "\n  Initializing..."
 
 func (m Model) View() string {
 	var content string
@@ -69,6 +69,17 @@ func (m Model) View() string {
 		)
 	case helpView:
 		content = viewPortFullScreenStyle.Render(helpVPContent)
+	case insufficientDimensionsView:
+		return fmt.Sprintf(`
+  Terminal size too small:
+    Width = %d Height = %d
+
+  Minimum dimensions needed:
+    Width = %d Height = %d
+
+  Press q/<ctrl+c>/<esc>
+    to exit
+`, m.terminalWidth, m.terminalHeight, minWidthNeeded, minHeightNeeded)
 	}
 
 	var helpMsg string
