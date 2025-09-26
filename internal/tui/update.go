@@ -17,7 +17,7 @@ const (
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
-	forceRefreshMsgDetailsVP := false
+	terminalResized := false
 	m.msg = ""
 	m.errorMsg = ""
 
@@ -25,6 +25,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.terminalHeight = msg.Height
 		m.terminalWidth = msg.Width
+		terminalResized = true
+
 		if msg.Width < minWidthNeeded || msg.Height < minHeightNeeded {
 			if m.activeView != insufficientDimensionsView {
 				m.lastViewBeforeInsufficientDims = m.activeView
@@ -168,8 +170,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.msgsList.CursorDown()
 		case "j", "down":
 			switch m.activeView {
-			case msgListView:
-				m.msgDetailsVP.GotoTop()
 			case msgDetailsView:
 				if m.msgDetailsVP.AtBottom() {
 					break
@@ -183,8 +183,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "k", "up":
 			switch m.activeView {
-			case msgListView:
-				m.msgDetailsVP.GotoTop()
 			case msgDetailsView:
 				if m.msgDetailsVP.AtTop() {
 					break
@@ -266,7 +264,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.msgDetailsVP.Width = m.msgDetailsVPWidth
 			m.msgDetailsVP.Height = msgDetailsVPHeight
 		}
-		forceRefreshMsgDetailsVP = true
 
 		helpVPWidth := msg.Width - w2 - 4
 		if !m.helpVPReady {
@@ -334,19 +331,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
-	m.updateMsgDetailsVP(forceRefreshMsgDetailsVP)
+	m.updateMsgDetailsVP(terminalResized)
 
 	return m, tea.Batch(cmds...)
 }
 
-func (m *Model) updateMsgDetailsVP(forceRefresh bool) {
+func (m *Model) updateMsgDetailsVP(terminalResized bool) {
 	if m.activeView == msgListView || m.activeView == msgDetailsView {
-		if len(m.msgsList.Items()) > 0 && (forceRefresh || m.msgsList.Index() != m.currentMsgIndex) {
+		if len(m.msgsList.Items()) > 0 && (terminalResized || m.msgsList.Index() != m.currentMsgIndex) {
 			m.currentMsgIndex = m.msgsList.Index()
 			message, ok := m.msgsList.SelectedItem().(t.Message)
 
 			if ok {
 				m.msgDetailsVP.SetContent(getMsgDetailsStylized(message, m.config.Encoding, m.msgDetailsVPWidth))
+				if !terminalResized {
+					m.msgDetailsVP.GotoTop()
+				}
 			}
 
 		}
