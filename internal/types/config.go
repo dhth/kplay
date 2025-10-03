@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+type TLSConfig struct {
+	Enabled            bool
+	InsecureSkipVerify bool
+}
+
 type Config struct {
 	Name           string         `json:"profile_name"`
 	Authentication AuthType       `json:"-"`
@@ -12,6 +17,7 @@ type Config struct {
 	Brokers        []string       `json:"brokers"`
 	Topic          string         `json:"topic"`
 	Proto          *ProtoConfig   `json:"-"`
+	TLS            *TLSConfig     `json:"-"`
 }
 
 func (c Config) AuthenticationDisplay() string {
@@ -38,16 +44,28 @@ func (c Config) EncodingDisplay() string {
 	}
 }
 
+func (c Config) TLSDisplay() string {
+	if c.TLS == nil || !c.TLS.Enabled {
+		return "disabled"
+	}
+	if c.TLS.InsecureSkipVerify {
+		return "enabled (insecure - skip verify)"
+	}
+	return "enabled"
+}
+
 func (c Config) Display() string {
 	return fmt.Sprintf(`Profile:
   name                    %s
   topic                   %s
   authentication          %s
   encoding                %s
+  tls                     %s
   brokers                 %s`,
 		c.Name,
 		c.Topic,
 		c.AuthenticationDisplay(),
 		c.EncodingDisplay(),
+		c.TLSDisplay(),
 		strings.Join(c.Brokers, "\n                          "))
 }
