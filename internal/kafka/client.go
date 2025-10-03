@@ -34,6 +34,27 @@ func (b Builder) WithTopic(topic string) Builder {
 	return b
 }
 
+func (b Builder) WithTLS(tlsConfig *t.TLSConfig) Builder {
+	if tlsConfig == nil || !tlsConfig.Enabled {
+		return b
+	}
+
+	cfg := &tls.Config{
+		InsecureSkipVerify: tlsConfig.InsecureSkipVerify,
+	}
+
+	dialer := tls.Dialer{
+		NetDialer: &net.Dialer{
+			Timeout: 10 * time.Second,
+		},
+		Config: cfg,
+	}
+
+	b.opts = append(b.opts, kgo.Dialer(dialer.DialContext))
+
+	return b
+}
+
 func (b Builder) WithMskIAMAuth(awsCfg aws.Config) Builder {
 	authFn := func(c context.Context) (kaws.Auth, error) {
 		creds, err := awsCfg.Credentials.Retrieve(c)
@@ -50,14 +71,6 @@ func (b Builder) WithMskIAMAuth(awsCfg aws.Config) Builder {
 	}
 
 	b.opts = append(b.opts, kgo.SASL(kaws.ManagedStreamingIAM(authFn)))
-
-	dialer := tls.Dialer{
-		NetDialer: &net.Dialer{
-			Timeout: 10 * time.Second,
-		},
-	}
-	b.opts = append(b.opts, kgo.Dialer(
-		(&dialer).DialContext))
 
 	return b
 }
@@ -106,8 +119,12 @@ func GetKafkaClient(
 	topic string,
 	consumeBehaviours t.ConsumeBehaviours,
 	awsCfg *aws.Config,
+	tlsConfig *t.TLSConfig,
 ) (*kgo.Client, error) {
 	builder := NewBuilder(brokers)
+
+	// Configure TLS first (if enabled)
+	builder = builder.WithTLS(tlsConfig)
 
 	if auth == t.AWSMSKIAM {
 		builder = builder.WithMskIAMAuth(*awsCfg)
@@ -137,8 +154,12 @@ func GetKafkaClientForForwarding(
 	topic string,
 	consumerGroup string,
 	awsCfg *aws.Config,
+	tlsConfig *t.TLSConfig,
 ) (*kgo.Client, error) {
 	builder := NewBuilder(brokers)
+
+	// Configure TLS first (if enabled)
+	builder = builder.WithTLS(tlsConfig)
 
 	if auth == t.AWSMSKIAM {
 		builder = builder.WithMskIAMAuth(*awsCfg)
