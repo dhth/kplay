@@ -14,6 +14,7 @@ type Behaviours struct {
 	PollSleepMillis                uint32
 	UploadReports                  bool
 	ReportBatchSize                uint16
+	LogJSON                        bool
 	RunServer                      bool
 	ServerHost                     string
 	ServerPort                     uint16
@@ -28,6 +29,7 @@ func (b Behaviours) Display() string {
   fetch timeout (ms)      %d
   upload timeout (ms)     %d
   poll sleep (ms)         %d
+  log JSON                %v
   run server              %v
   upload reports          %v`,
 		b.ConsumerGroup,
@@ -37,6 +39,7 @@ func (b Behaviours) Display() string {
 		b.PollFetchTimeoutMillis,
 		b.UploadTimeoutMillis,
 		b.PollSleepMillis,
+		b.LogJSON,
 		b.RunServer,
 		b.UploadReports,
 	)

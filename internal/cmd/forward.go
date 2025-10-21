@@ -27,6 +27,7 @@ const (
 	envVarPollSleepMillis        = "KPLAY_FORWARD_POLL_SLEEP_MILLIS"
 	envVarUploadReports          = "KPLAY_FORWARD_UPLOAD_REPORTS"
 	envVarReportBatchSize        = "KPLAY_FORWARD_REPORT_BATCH_SIZE"
+	envVarLogJSON                = "KPLAY_FORWARD_LOG_JSON"
 	envVarRunServer              = "KPLAY_FORWARD_RUN_SERVER"
 	envVarHost                   = "KPLAY_FORWARD_SERVER_HOST"
 	envVarPort                   = "KPLAY_FORWARD_SERVER_PORT"
@@ -37,6 +38,8 @@ const (
 
 	s3DestinationPrefix = "arn:aws:s3:::"
 	maxProfilesAllowed  = 10
+
+	logJSONDefault = true
 
 	consumerGroupDefault   = "kplay-forwarder"
 	consumerGroupMinLength = 5
@@ -106,6 +109,7 @@ as such, it accepts configuration via the following environment variables.
 - %s upload timeout in ms (default: %d, range: %d-%d)
 - %s whether to upload reports of the messages forwarded (default: %v)
 - %s report batch size (default: %d, range: %d-%d)
+- %s whether to output JSON logs (default: %v)
 - %s whether to run an http server alongside the forwarder (default: %v)
 - %s host to run the server on (default: %s)
 - %s port to run the server on (default: %d)
@@ -122,6 +126,7 @@ health checks (at /health).
 			utils.RightPadTrim(envVarUploadTimeoutMillis, envVarHelpPadding), uploadTimeoutMillisDefault, uploadTimeoutMillisMin, uploadTimeoutMillisMax,
 			utils.RightPadTrim(envVarUploadReports, envVarHelpPadding), uploadReportsDefault,
 			utils.RightPadTrim(envVarReportBatchSize, envVarHelpPadding), reportBatchSizeDefault, reportBatchSizeMin, reportBatchSizeMax,
+			utils.RightPadTrim(envVarLogJSON, envVarHelpPadding), logJSONDefault,
 			utils.RightPadTrim(envVarRunServer, envVarHelpPadding), runServerDefault,
 			utils.RightPadTrim(envVarHost, envVarHelpPadding), hostDefault,
 			utils.RightPadTrim(envVarPort, envVarHelpPadding), portDefault,
@@ -246,6 +251,11 @@ Destination               %s
 			}
 
 			forwarder := f.New(kafkaClients, configs, &destination, forwardBehaviours)
+
+			if forwardBehaviours.LogJSON {
+				slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+			}
+
 			logStartupInfo(profileConfigNames, destination.Display(), forwardBehaviours, version)
 
 			return forwarder.Execute(ctx)
@@ -338,6 +348,11 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 		errs = append(errs, err)
 	}
 
+	logJSON, err := getBoolEnvVar(envVarLogJSON, logJSONDefault)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
 	runServer, err := getBoolEnvVar(envVarRunServer, runServerDefault)
 	if err != nil {
 		errs = append(errs, err)
@@ -372,6 +387,7 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 		UploadTimeoutMillis:            uploadTimeoutMillis,
 		UploadReports:                  uploadReports,
 		ReportBatchSize:                reportBatchSize,
+		LogJSON:                        logJSON,
 		RunServer:                      runServer,
 		ServerHost:                     host,
 		ServerPort:                     port,
@@ -379,25 +395,26 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 }
 
 func logStartupInfo(profileConfigNames []string, destination string, behaviours f.Behaviours, version string) {
-	slog.Info("starting up", "version", version)
-	slog.Info("input", "profiles", strings.Join(profileConfigNames, ","))
-	slog.Info("input", "destination", destination)
-	slog.Info("behaviour", "consumer_group", behaviours.ConsumerGroup)
-	slog.Info("behaviour", "fetch_batch_size", behaviours.FetchBatchSize)
-	slog.Info("behaviour", "upload_workers", behaviours.NumUploadWorkers)
-	slog.Info("behaviour", "shutdown_timeout_millis", behaviours.ForwarderShutdownTimeoutMillis)
-	slog.Info("behaviour", "poll_sleep_millis", behaviours.PollSleepMillis)
-	slog.Info("behaviour", "poll_fetch_timeout_millis", behaviours.PollFetchTimeoutMillis)
-	slog.Info("behaviour", "upload_timeout_millis", behaviours.UploadTimeoutMillis)
+	slog.Info("starting up",
+		"version", version,
+		"profiles", strings.Join(profileConfigNames, ","),
+		"destination", destination,
+		"consumer_group", behaviours.ConsumerGroup,
+		"fetch_batch_size", behaviours.FetchBatchSize,
+		"upload_workers", behaviours.NumUploadWorkers,
+		"shutdown_timeout_millis", behaviours.ForwarderShutdownTimeoutMillis,
+		"poll_sleep_millis", behaviours.PollSleepMillis,
+		"poll_fetch_timeout_millis", behaviours.PollFetchTimeoutMillis,
+		"upload_timeout_millis", behaviours.UploadTimeoutMillis,
+		"upload_reports", behaviours.UploadReports,
+		"run_server", behaviours.RunServer,
+	)
+
 	if behaviours.UploadReports {
-		slog.Info("behaviour", "upload_reports", "true", "report_batch_size", behaviours.ReportBatchSize)
-	} else {
-		slog.Info("behaviour", "upload_reports", "false")
+		slog.Info("behaviour", "report_batch_size", behaviours.ReportBatchSize)
 	}
 
 	if behaviours.RunServer {
-		slog.Info("behaviour", "run_server", "true", "host", behaviours.ServerHost, "port", behaviours.ServerPort)
-	} else {
-		slog.Info("behaviour", "run_server", "false")
+		slog.Info("behaviour", "host", behaviours.ServerHost, "port", behaviours.ServerPort)
 	}
 }
