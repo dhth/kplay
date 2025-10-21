@@ -395,7 +395,7 @@ func getBehaviorsFromEnv() (f.Behaviours, error) {
 }
 
 func logStartupInfo(profileConfigNames []string, destination string, behaviours f.Behaviours, version string) {
-	slog.Info("starting up",
+	args := []any{
 		"version", version,
 		"profiles", strings.Join(profileConfigNames, ","),
 		"destination", destination,
@@ -407,14 +407,17 @@ func logStartupInfo(profileConfigNames []string, destination string, behaviours 
 		"poll_fetch_timeout_millis", behaviours.PollFetchTimeoutMillis,
 		"upload_timeout_millis", behaviours.UploadTimeoutMillis,
 		"upload_reports", behaviours.UploadReports,
+		"log_json", behaviours.LogJSON,
 		"run_server", behaviours.RunServer,
-	)
+	}
 
 	if behaviours.UploadReports {
-		slog.Info("behaviour", "report_batch_size", behaviours.ReportBatchSize)
+		args = append(args, "report_batch_size", behaviours.ReportBatchSize)
 	}
 
 	if behaviours.RunServer {
-		slog.Info("behaviour", "host", behaviours.ServerHost, "port", behaviours.ServerPort)
+		args = append(args, "host", behaviours.ServerHost, "port", behaviours.ServerPort)
 	}
+
+	slog.Info("starting up", args...)
 }
