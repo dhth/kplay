@@ -34,6 +34,7 @@ type profile struct {
 	Authentication string
 	EncodingFormat string       `yaml:"encodingFormat"`
 	ProtoConfig    *protoConfig `yaml:"protoConfig"`
+	TLSConfig      *tlsConfig   `yaml:"tlsConfig"`
 	Brokers        []string
 	Topic          string
 }
@@ -41,6 +42,11 @@ type profile struct {
 type protoConfig struct {
 	DescriptorSetFile string `yaml:"descriptorSetFile"`
 	DescriptorName    string `yaml:"descriptorName"`
+}
+
+type tlsConfig struct {
+	Enabled            bool `yaml:"enabled"`
+	InsecureSkipVerify bool `yaml:"insecureSkipVerify"`
 }
 
 func ParseProfileConfig(bytes []byte, profileName string, homeDir string) (t.Config, error) {
@@ -112,6 +118,14 @@ func parseConfig(kConfig kplayConfig, profileName string, homeDir string) (t.Con
 			return config, errTopicEmpty
 		}
 
+		var tlsCfg *t.TLSConfig
+		if pr.TLSConfig != nil && pr.TLSConfig.Enabled {
+			tlsCfg = &t.TLSConfig{
+				Enabled:            true,
+				InsecureSkipVerify: pr.TLSConfig.InsecureSkipVerify,
+			}
+		}
+
 		if encodingFmt == t.Protobuf {
 			if pr.ProtoConfig == nil {
 				return config, errProtoConfigMissing
@@ -154,6 +168,7 @@ func parseConfig(kConfig kplayConfig, profileName string, homeDir string) (t.Con
 				Brokers:        pr.Brokers,
 				Topic:          pr.Topic,
 				Proto:          &protoCfg,
+				TLS:            tlsCfg,
 			}, nil
 		}
 
@@ -163,6 +178,7 @@ func parseConfig(kConfig kplayConfig, profileName string, homeDir string) (t.Con
 			Encoding:       encodingFmt,
 			Brokers:        pr.Brokers,
 			Topic:          pr.Topic,
+			TLS:            tlsCfg,
 		}, nil
 	}
 
