@@ -15,7 +15,7 @@ require (
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/pretty v1.2.1
-	github.com/twmb/franz-go v1.19.5
+	github.com/twmb/franz-go v1.20.2
 	google.golang.org/protobuf v1.36.10
 )
 
@@ -65,7 +65,7 @@ require (
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
-	github.com/twmb/franz-go/pkg/kmsg v1.11.2 // indirect
+	github.com/twmb/franz-go/pkg/kmsg v1.12.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
