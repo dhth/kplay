@@ -22,3 +22,23 @@ profiles:
     brokers:
       - 127.0.0.1:9092
     topic: kplay-test-3
+
+  - name: tls-enabled
+    authentication: none
+    encodingFormat: json
+    tlsConfig:
+      enabled: true
+      insecureSkipVerify: false
+    brokers:
+      - kafka.example.com:9093
+    topic: kplay-test-tls
+
+  - name: tls-insecure
+    authentication: none
+    encodingFormat: json
+    tlsConfig:
+      enabled: true
+      insecureSkipVerify: true
+    brokers:
+      - kafka-dev.example.com:9093
+    topic: kplay-test-tls-insecure

@@ -231,7 +231,29 @@ profiles:
     brokers:
       - 127.0.0.1:9092
     topic: kplay-test-3
+
+  - name: tls-enabled
+    authentication: none
+    encodingFormat: json
+    tlsConfig:
+      enabled: true
+      insecureSkipVerify: false
+    brokers:
+      - kafka.example.com:9093
+    topic: kplay-test-tls
 ```
+
+### TLS/SSL Configuration
+
+To enable TLS/SSL for secure communication with Kafka brokers, add a `tlsConfig` section to your profile:
+
+```yaml
+tlsConfig:
+  enabled: true                # Enable TLS/SSL (default: false)
+  insecureSkipVerify: false    # Skip certificate verification (default: false, use true for self-signed certs in dev)
+```
+
+**Note:** When using AWS MSK IAM authentication, TLS is automatically enabled and configured.
 
 🔤 Message Encoding
 ---
