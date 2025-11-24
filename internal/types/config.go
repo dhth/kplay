@@ -8,6 +8,9 @@ import (
 type TLSConfig struct {
 	Enabled            bool
 	InsecureSkipVerify bool
+	RootCAFile         string // Path to custom root CA certificate file for verifying server certificates
+	ClientCertFile     string // Path to client certificate file for mTLS authentication
+	ClientKeyFile      string // Path to client private key file for mTLS authentication
 }
 
 type Config struct {

@@ -45,8 +45,11 @@ type protoConfig struct {
 }
 
 type tlsConfig struct {
-	Enabled            bool `yaml:"enabled"`
-	InsecureSkipVerify bool `yaml:"insecureSkipVerify"`
+	Enabled            bool   `yaml:"enabled"`
+	InsecureSkipVerify bool   `yaml:"insecureSkipVerify"`
+	RootCAFile         string `yaml:"rootCAFile"`
+	ClientCertFile     string `yaml:"clientCertFile"`
+	ClientKeyFile      string `yaml:"clientKeyFile"`
 }
 
 func ParseProfileConfig(bytes []byte, profileName string, homeDir string) (t.Config, error) {
@@ -119,10 +122,22 @@ func parseConfig(kConfig kplayConfig, profileName string, homeDir string) (t.Con
 		}
 
 		var tlsCfg *t.TLSConfig
-		if pr.TLSConfig != nil && pr.TLSConfig.Enabled {
+		if (pr.TLSConfig != nil && pr.TLSConfig.Enabled) || auth == t.AWSMSKIAM {
+			// TLS is required for AWS MSK IAM and is now being enabled automatically.
 			tlsCfg = &t.TLSConfig{
-				Enabled:            true,
-				InsecureSkipVerify: pr.TLSConfig.InsecureSkipVerify,
+				Enabled: true,
+			}
+			if pr.TLSConfig != nil {
+				tlsCfg.InsecureSkipVerify = pr.TLSConfig.InsecureSkipVerify
+				if strings.TrimSpace(pr.TLSConfig.RootCAFile) != "" {
+					tlsCfg.RootCAFile = utils.ExpandTilde(os.ExpandEnv(pr.TLSConfig.RootCAFile), homeDir)
+				}
+				if strings.TrimSpace(pr.TLSConfig.ClientCertFile) != "" {
+					tlsCfg.ClientCertFile = utils.ExpandTilde(os.ExpandEnv(pr.TLSConfig.ClientCertFile), homeDir)
+				}
+				if strings.TrimSpace(pr.TLSConfig.ClientKeyFile) != "" {
+					tlsCfg.ClientKeyFile = utils.ExpandTilde(os.ExpandEnv(pr.TLSConfig.ClientKeyFile), homeDir)
+				}
 			}
 		}
 

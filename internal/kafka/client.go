@@ -3,9 +3,11 @@ package kafka
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -41,6 +43,33 @@ func (b Builder) WithTLS(tlsConfig *t.TLSConfig) Builder {
 
 	cfg := &tls.Config{
 		InsecureSkipVerify: tlsConfig.InsecureSkipVerify,
+	}
+
+	// Load custom root CA if provided
+	if tlsConfig.RootCAFile != "" {
+		caCert, err := os.ReadFile(tlsConfig.RootCAFile)
+		if err != nil {
+			// Note: We can't return an error from this builder method,
+			// so we'll let the connection fail later with a more descriptive error
+			fmt.Fprintf(os.Stderr, "Warning: failed to read root CA file %s: %v\n", tlsConfig.RootCAFile, err)
+		} else {
+			caCertPool := x509.NewCertPool()
+			if !caCertPool.AppendCertsFromPEM(caCert) {
+				fmt.Fprintf(os.Stderr, "Warning: failed to parse root CA certificate from %s\n", tlsConfig.RootCAFile)
+			} else {
+				cfg.RootCAs = caCertPool
+			}
+		}
+	}
+
+	// Load client certificate and key for mTLS if provided
+	if tlsConfig.ClientCertFile != "" && tlsConfig.ClientKeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(tlsConfig.ClientCertFile, tlsConfig.ClientKeyFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to load client certificate/key: %v\n", err)
+		} else {
+			cfg.Certificates = []tls.Certificate{cert}
+		}
 	}
 
 	dialer := tls.Dialer{
@@ -123,7 +152,6 @@ func GetKafkaClient(
 ) (*kgo.Client, error) {
 	builder := NewBuilder(brokers)
 
-	// Configure TLS first (if enabled)
 	builder = builder.WithTLS(tlsConfig)
 
 	if auth == t.AWSMSKIAM {
@@ -158,7 +186,6 @@ func GetKafkaClientForForwarding(
 ) (*kgo.Client, error) {
 	builder := NewBuilder(brokers)
 
-	// Configure TLS first (if enabled)
 	builder = builder.WithTLS(tlsConfig)
 
 	if auth == t.AWSMSKIAM {

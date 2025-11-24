@@ -42,3 +42,16 @@ profiles:
     brokers:
       - kafka-dev.example.com:9093
     topic: kplay-test-tls-insecure
+
+  - name: tls-mtls
+    authentication: none
+    encodingFormat: json
+    tlsConfig:
+      enabled: true
+      insecureSkipVerify: false
+      rootCAFile: ~/certs/ca.crt
+      clientCertFile: ~/certs/client.crt
+      clientKeyFile: ~/certs/client.key
+    brokers:
+      - kafka-mtls.example.com:9093
+    topic: kplay-test-mtls

@@ -251,9 +251,17 @@ To enable TLS/SSL for secure communication with Kafka brokers, add a `tlsConfig`
 tlsConfig:
   enabled: true                # Enable TLS/SSL (default: false)
   insecureSkipVerify: false    # Skip certificate verification (default: false, use true for self-signed certs in dev)
+  rootCAFile: ~/certs/ca.crt   # Optional: Path to custom root CA certificate for verifying server certificates
+  clientCertFile: ~/certs/client.crt  # Optional: Path to client certificate for mTLS authentication
+  clientKeyFile: ~/certs/client.key   # Optional: Path to client private key for mTLS authentication
 ```
 
-**Note:** When using AWS MSK IAM authentication, TLS is automatically enabled and configured.
+**Note:** When using AWS MSK IAM authentication (`authentication: aws_msk_iam`), TLS is automatically enabled and configured. You don't need to explicitly set `tlsConfig.enabled: true` for AWS MSK IAM profiles.
+
+#### Advanced TLS Options
+
+- **rootCAFile**: Use this when your Kafka brokers use certificates signed by a private/custom Certificate Authority (CA). This is common in enterprise environments.
+- **clientCertFile** and **clientKeyFile**: Use these together for mutual TLS (mTLS) authentication, where the client must present a certificate to the server. Both files must be provided for mTLS to work.
 
 🔤 Message Encoding
 ---
