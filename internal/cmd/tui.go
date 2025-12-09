@@ -73,6 +73,7 @@ either providing an offset or a timestamp to start consuming messages from.
 				config.Topic,
 				*consumeBehaviours,
 				awsConfig,
+				config.TLS,
 			)
 			if err != nil {
 				return fmt.Errorf("%w: %s", errCouldntCreateKafkaClient, err.Error())

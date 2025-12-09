@@ -223,6 +223,7 @@ Destination               %s
 					config.Topic,
 					forwardBehaviours.ConsumerGroup,
 					&awsConfig,
+					config.TLS,
 				)
 				if err != nil {
 					return err
