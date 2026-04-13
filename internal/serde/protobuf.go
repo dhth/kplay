@@ -198,7 +198,7 @@ func cEscape(data []byte) string {
 				result.WriteByte(b)
 			} else {
 				// Non-printable character - use octal escape
-				result.WriteString(fmt.Sprintf("\\%03o", b))
+				fmt.Fprintf(&result, "\\%03o", b)
 			}
 		}
 	}
