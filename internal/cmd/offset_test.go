@@ -19,7 +19,7 @@ func TestParseFromOffset(t *testing.T) {
 		{
 			name:               "simple offset",
 			input:              "1000",
-			expectedOffset:     int64Ptr(1000),
+			expectedOffset:     new(int64(1000)),
 			expectedPartitions: nil,
 			expectedError:      nil,
 		},
@@ -108,8 +108,4 @@ func TestParseFromOffset(t *testing.T) {
 			assert.Equal(t, tt.expectedPartitions, partitions)
 		})
 	}
-}
-
-func int64Ptr(v int64) *int64 {
-	return &v
 }
