@@ -3,9 +3,11 @@ package kafka
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -34,6 +36,54 @@ func (b Builder) WithTopic(topic string) Builder {
 	return b
 }
 
+func (b Builder) WithTLS(tlsConfig *t.TLSConfig) Builder {
+	if tlsConfig == nil || !tlsConfig.Enabled {
+		return b
+	}
+
+	cfg := &tls.Config{
+		InsecureSkipVerify: tlsConfig.InsecureSkipVerify,
+	}
+
+	// Load custom root CA if provided
+	if tlsConfig.RootCAFile != "" {
+		caCert, err := os.ReadFile(tlsConfig.RootCAFile)
+		if err != nil {
+			// Note: We can't return an error from this builder method,
+			// so we'll let the connection fail later with a more descriptive error
+			fmt.Fprintf(os.Stderr, "Warning: failed to read root CA file %s: %v\n", tlsConfig.RootCAFile, err)
+		} else {
+			caCertPool := x509.NewCertPool()
+			if !caCertPool.AppendCertsFromPEM(caCert) {
+				fmt.Fprintf(os.Stderr, "Warning: failed to parse root CA certificate from %s\n", tlsConfig.RootCAFile)
+			} else {
+				cfg.RootCAs = caCertPool
+			}
+		}
+	}
+
+	// Load client certificate and key for mTLS if provided
+	if tlsConfig.ClientCertFile != "" && tlsConfig.ClientKeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(tlsConfig.ClientCertFile, tlsConfig.ClientKeyFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to load client certificate/key: %v\n", err)
+		} else {
+			cfg.Certificates = []tls.Certificate{cert}
+		}
+	}
+
+	dialer := tls.Dialer{
+		NetDialer: &net.Dialer{
+			Timeout: 10 * time.Second,
+		},
+		Config: cfg,
+	}
+
+	b.opts = append(b.opts, kgo.Dialer(dialer.DialContext))
+
+	return b
+}
+
 func (b Builder) WithMskIAMAuth(awsCfg aws.Config) Builder {
 	authFn := func(c context.Context) (kaws.Auth, error) {
 		creds, err := awsCfg.Credentials.Retrieve(c)
@@ -50,14 +100,6 @@ func (b Builder) WithMskIAMAuth(awsCfg aws.Config) Builder {
 	}
 
 	b.opts = append(b.opts, kgo.SASL(kaws.ManagedStreamingIAM(authFn)))
-
-	dialer := tls.Dialer{
-		NetDialer: &net.Dialer{
-			Timeout: 10 * time.Second,
-		},
-	}
-	b.opts = append(b.opts, kgo.Dialer(
-		(&dialer).DialContext))
 
 	return b
 }
@@ -106,8 +148,11 @@ func GetKafkaClient(
 	topic string,
 	consumeBehaviours t.ConsumeBehaviours,
 	awsCfg *aws.Config,
+	tlsConfig *t.TLSConfig,
 ) (*kgo.Client, error) {
 	builder := NewBuilder(brokers)
+
+	builder = builder.WithTLS(tlsConfig)
 
 	if auth == t.AWSMSKIAM {
 		builder = builder.WithMskIAMAuth(*awsCfg)
@@ -137,8 +182,11 @@ func GetKafkaClientForForwarding(
 	topic string,
 	consumerGroup string,
 	awsCfg *aws.Config,
+	tlsConfig *t.TLSConfig,
 ) (*kgo.Client, error) {
 	builder := NewBuilder(brokers)
+
+	builder = builder.WithTLS(tlsConfig)
 
 	if auth == t.AWSMSKIAM {
 		builder = builder.WithMskIAMAuth(*awsCfg)
