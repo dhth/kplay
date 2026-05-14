@@ -1,6 +1,6 @@
 module github.com/dhth/kplay
 
-go 1.26.2
+go 1.26.3
 
 require (
 	github.com/atotto/clipboard v0.1.4
