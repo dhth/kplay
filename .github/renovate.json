@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "local>dhth/deps//renovate/presets/default",
+    "local>dhth/deps//renovate/presets/go",
+    "local>dhth/deps//renovate/presets/gh-actions"
+  ],
+  "packageRules": [
+    {
+      "description": "Group AWS SDK updates",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "github.com/aws/aws-sdk-go-v2",
+        "github.com/aws/aws-sdk-go-v2/**"
+      ],
+      "groupName": "AWS SDK"
+    }
+  ]
+}
