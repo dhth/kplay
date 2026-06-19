@@ -34,6 +34,7 @@ type profile struct {
 	Authentication string
 	EncodingFormat string       `yaml:"encodingFormat"`
 	ProtoConfig    *protoConfig `yaml:"protoConfig"`
+	TLSConfig      *tlsConfig   `yaml:"tlsConfig"`
 	Brokers        []string
 	Topic          string
 }
@@ -41,6 +42,14 @@ type profile struct {
 type protoConfig struct {
 	DescriptorSetFile string `yaml:"descriptorSetFile"`
 	DescriptorName    string `yaml:"descriptorName"`
+}
+
+type tlsConfig struct {
+	Enabled            bool   `yaml:"enabled"`
+	InsecureSkipVerify bool   `yaml:"insecureSkipVerify"`
+	RootCAFile         string `yaml:"rootCAFile"`
+	ClientCertFile     string `yaml:"clientCertFile"`
+	ClientKeyFile      string `yaml:"clientKeyFile"`
 }
 
 func ParseProfileConfig(bytes []byte, profileName string, homeDir string) (t.Config, error) {
@@ -112,6 +121,26 @@ func parseConfig(kConfig kplayConfig, profileName string, homeDir string) (t.Con
 			return config, errTopicEmpty
 		}
 
+		var tlsCfg *t.TLSConfig
+		if (pr.TLSConfig != nil && pr.TLSConfig.Enabled) || auth == t.AWSMSKIAM {
+			// TLS is required for AWS MSK IAM and is now being enabled automatically.
+			tlsCfg = &t.TLSConfig{
+				Enabled: true,
+			}
+			if pr.TLSConfig != nil {
+				tlsCfg.InsecureSkipVerify = pr.TLSConfig.InsecureSkipVerify
+				if strings.TrimSpace(pr.TLSConfig.RootCAFile) != "" {
+					tlsCfg.RootCAFile = utils.ExpandTilde(os.ExpandEnv(pr.TLSConfig.RootCAFile), homeDir)
+				}
+				if strings.TrimSpace(pr.TLSConfig.ClientCertFile) != "" {
+					tlsCfg.ClientCertFile = utils.ExpandTilde(os.ExpandEnv(pr.TLSConfig.ClientCertFile), homeDir)
+				}
+				if strings.TrimSpace(pr.TLSConfig.ClientKeyFile) != "" {
+					tlsCfg.ClientKeyFile = utils.ExpandTilde(os.ExpandEnv(pr.TLSConfig.ClientKeyFile), homeDir)
+				}
+			}
+		}
+
 		if encodingFmt == t.Protobuf {
 			if pr.ProtoConfig == nil {
 				return config, errProtoConfigMissing
@@ -154,6 +183,7 @@ func parseConfig(kConfig kplayConfig, profileName string, homeDir string) (t.Con
 				Brokers:        pr.Brokers,
 				Topic:          pr.Topic,
 				Proto:          &protoCfg,
+				TLS:            tlsCfg,
 			}, nil
 		}
 
@@ -163,6 +193,7 @@ func parseConfig(kConfig kplayConfig, profileName string, homeDir string) (t.Con
 			Encoding:       encodingFmt,
 			Brokers:        pr.Brokers,
 			Topic:          pr.Topic,
+			TLS:            tlsCfg,
 		}, nil
 	}
 

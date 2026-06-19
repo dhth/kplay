@@ -98,6 +98,7 @@ optionally save the message values to your local filesystem.
 				config.Topic,
 				*consumeBehaviours,
 				awsConfig,
+				config.TLS,
 			)
 			if err != nil {
 				return err
