@@ -1,6 +1,6 @@
 module github.com/dhth/kplay
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/atotto/clipboard v0.1.4
@@ -15,7 +15,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/pretty v1.2.1
-	github.com/twmb/franz-go v1.21.2
+	github.com/twmb/franz-go v1.22.3
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -47,7 +47,7 @@ require (
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/gkampitakis/ciinfo v0.3.4 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.18.6 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
@@ -58,7 +58,7 @@ require (
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
-	github.com/pierrec/lz4/v4 v4.1.26 // indirect
+	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
@@ -68,7 +68,7 @@ require (
 	github.com/tidwall/gjson v1.19.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
-	github.com/twmb/franz-go/pkg/kmsg v1.13.1 // indirect
+	github.com/twmb/franz-go/pkg/kmsg v1.15.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
